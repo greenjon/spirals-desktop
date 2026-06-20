@@ -10,6 +10,8 @@ import llm.slop.spirals.rendering.MandalaRatio
 import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.ui.UIManager
+import llm.slop.spirals.audio.AudioEngine
+import llm.slop.spirals.cv.CVRegistry
 import mu.KotlinLogging
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
@@ -95,6 +97,10 @@ fun main() {
 
     logger.info { "GL state configured" }
 
+    // Start Audio engine
+    val audioEngine = AudioEngine()
+    audioEngine.start()
+
     // Main loop
     var frameCount = 0
     var lastTime = glfwGetTime()
@@ -112,6 +118,9 @@ fun main() {
         }
 
         // === RENDERING PHASE ===
+
+        // Update all global CV signals
+        CVRegistry.updateAll()
 
         // Get framebuffer size
         val w = IntArray(1)
@@ -156,6 +165,7 @@ fun main() {
 
     // Cleanup
     logger.info { "Shutting down..." }
+    audioEngine.stop()
 
     // Dispose rendering resources
     renderer.dispose()

@@ -69,22 +69,27 @@ Renderer.kt update: Orchestrate Deck rendering and Mixer compositing.
 Main.kt update: Implement ImGui slider for crossfade.
 Milestone: Can smoothly crossfade between two distinct, audio-reactive mandalas.
 
-Phase 3: Core Modulation System
+Phase 3: Core Modulation System (Complete)
 Goal: Implement audio analysis, CV sources, and the parameter modulation mechanism.
 
 3.1. Audio Engine (JACK)
+Status: COMPLETE
 
 JackClient.kt: Wrapper for JNAJack, handling audio input via JACK.
 DSP.kt: Core signal processing (FFT, Biquad filters, RMS amplitude, onset detection).
 AudioEngine.kt: Orchestrates JACK input and DSP, updates CVRegistry with audio-derived signals (amp, bass, mid, high, onset).
 Milestone: Audio input processed, console logs real-time CV values (amplitude, bands, onset).
+
 3.2. CV Registry & Basic Sources
+Status: COMPLETE
 
 CVSource.kt: Interface for all CV signals.
 CVRegistry.kt: Central repository for all active CV signals, their current values, and history.
 Implement BeatClock, LFO (time-based), and SampleAndHold as core CV sources.
 Milestone: All core CV sources generate values and are accessible in CVRegistry.
+
 3.3. Modulatable Parameters
+Status: COMPLETE
 
 Parameter.kt: Represents a single visual parameter (ModulatableParameter from Android). Holds base value, list of CvModulators, and evaluated value.
 Modulation.kt: Defines CvModulator (CV source, weight, operator, bypass).
