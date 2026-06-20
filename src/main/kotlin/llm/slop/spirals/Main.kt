@@ -7,6 +7,8 @@ import llm.slop.spirals.rendering.GLDebug
 import llm.slop.spirals.rendering.Renderer
 import llm.slop.spirals.rendering.Mandala
 import llm.slop.spirals.rendering.MandalaRatio
+import llm.slop.spirals.rendering.Deck
+import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.ui.UIManager
 import mu.KotlinLogging
 import org.lwjgl.glfw.GLFW.*
@@ -49,29 +51,43 @@ fun main() {
     logger.info { "Initialization complete" }
 
     // Initialize rendering components
-    logger.info { "Creating FBO..." }
-    val testFBO = FBO(1920, 1080)
-    GLDebug.checkErrors("FBO creation")
-
     logger.info { "Loading shaders..." }
     val blitShader = Shader.fromResources("shaders/blit.vert", "shaders/blit.frag")
     GLDebug.checkErrors("Blit shader creation")
 
-    logger.info { "Initializing Mandala Renderer and Mandala..." }
+    logger.info { "Initializing Decks and Mixer..." }
     val renderer = Renderer()
-    val defaultRecipe = MandalaRatio(
+
+    // Create Deck A with a 4-petal recipe (yellow-ish theme default)
+    val recipeA = MandalaRatio(
         id = "15001423042349762156",
         a = 26,
         b = 23,
         c = 14,
         d = 14
     )
-    val mandala = Mandala(defaultRecipe)
-    GLDebug.checkErrors("Mandala initialization")
+    val mandalaA = Mandala(recipeA)
+    val deckA = Deck(mandalaA)
+
+    // Create Deck B with a 3-petal recipe (shifted start hue)
+    val recipeB = MandalaRatio(
+        id = "3859966211554434234",
+        a = 32,
+        b = 23,
+        c = 11,
+        d = 11
+    )
+    val mandalaB = Mandala(recipeB)
+    mandalaB.parameters["Hue Offset"]?.set(0.5f) // starting color offset for distinction
+    val deckB = Deck(mandalaB)
+
+    // Create Mixer
+    val mixer = Mixer(deckA, deckB)
+    GLDebug.checkErrors("Mixer and Decks initialization")
 
     logger.info { "Rendering components initialized" }
 
-    // Set up GL state for 2D rendering
+    // Set up GL state for 2D VJ rendering
     glDisable(GL_DEPTH_TEST)
     glDisable(GL_CULL_FACE)
     glEnable(GL_BLEND)
@@ -102,32 +118,38 @@ fun main() {
         val h = IntArray(1)
         glfwGetFramebufferSize(window, w, h)
 
-        // TODO: Handle FBO resizing if w[0]/h[0] differs from testFBO dimensions
+        // 1. Update and Render Deck A (renders source + applies feedback loop)
+        deckA.update()
+        renderer.renderDeck(deckA)
 
-        // 1. Update and Render Mandala to FBO
-        mandala.update()
-        renderer.render(mandala, testFBO)
+        // 2. Update and Render Deck B (renders source + applies feedback loop)
+        deckB.update()
+        renderer.renderDeck(deckB)
 
-        // 2. Blit FBO to screen
+        // 3. Update and composite Deck A & B in the Mixer
+        mixer.update()
+        renderer.renderMixer(mixer)
+
+        // 4. Blit the Mixer's master FBO to the screen viewport
         glViewport(0, 0, w[0], h[0])
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f)
         glClear(GL_COLOR_BUFFER_BIT)
 
         blitShader.bind()
         glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, testFBO.texture)
+        glBindTexture(GL_TEXTURE_2D, mixer.masterFBO.texture)
         blitShader.setUniform("uTexture", 0)
         Geometry.drawFullscreenQuad()
         blitShader.unbind()
-        glBindVertexArray(0) // Ensure VAO is unbound for ImGui
+        glBindVertexArray(0) // Ensure VAO is unbound for ImGui overlay rendering
 
-        // Check for errors (only first 3 frames to avoid spam)
+        // Check for errors (only first few frames to avoid spam)
         if (frameCount < 3) {
-            GLDebug.checkErrors("FBO Render and Blit")
+            GLDebug.checkErrors("Deck rendering and compositing")
         }
 
         // === UI PHASE ===
-        uiManager.render(testFBO, mandala)
+        uiManager.render(mixer)
 
         glfwSwapBuffers(window)
     }
@@ -138,7 +160,9 @@ fun main() {
     // Dispose rendering resources
     renderer.dispose()
     blitShader.dispose()
-    testFBO.dispose()
+    deckA.dispose()
+    deckB.dispose()
+    mixer.dispose()
     Geometry.dispose()
 
     // Dispose UI

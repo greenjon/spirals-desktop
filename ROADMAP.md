@@ -38,6 +38,7 @@ Main.kt update: Use Shader class for blitting.
 Status: COMPLETE
 Milestone: Shaders loaded via Shader.kt, screen still renders FBO content.
 1.4. Basic Mandala Rendering
+Status: COMPLETE
 
 Mandala.kt: Class encapsulating core mandala parameters and rendering logic (port initial GLSL shaders and parameter structure from Android).
 Renderer.kt: Main OpenGL renderer class.
@@ -47,23 +48,27 @@ Phase 2: Dual Deck & Mixer
 Goal: Implement two independent visual rendering chains with blending and master output.
 
 2.1. Deck System
+Status: COMPLETE
 
 Deck.kt: Represents a single visual source (e.g., a Mandala). Contains its own FBOs (for ping-pong feedback).
 IMPORTANT: Design Deck to use a VisualSource interface/abstract class, allowing different source types (Mandala, VideoFeed, 3DScene, etc.) to be swapped in.
 Initial Deck will render a Mandala, but architecture must support future source types.
 Milestone: Two Deck instances exist, each rendering a distinct Mandala to its own FBO.
 2.2. Ping-Pong Feedback Integration
+Status: COMPLETE
 
 Extend Deck.kt to integrate ping-pong FBOs for feedback effects (zoom, rotate, blur, hue shift).
 Port existing feedback.frag shader from Android.
 Milestone: Each Deck can render a mandala with independent feedback effects.
 2.3. Mixer & Crossfade
+Status: COMPLETE
 
 Mixer.kt: Combines outputs from Deck A and Deck B into FBO_Master.
 Port mixer.frag shader (crossfade, blend modes).
 Renderer.kt update: Orchestrate Deck rendering and Mixer compositing.
 Main.kt update: Implement ImGui slider for crossfade.
 Milestone: Can smoothly crossfade between two distinct, audio-reactive mandalas.
+
 Phase 3: Core Modulation System
 Goal: Implement audio analysis, CV sources, and the parameter modulation mechanism.
 

@@ -6,19 +6,25 @@ import java.nio.FloatBuffer
 
 /**
  * Main OpenGL renderer class.
- * Handles loading of the mandala shader, VAO/VBO initialization, and rendering.
+ * Handles loading of shaders (mandala, feedback, mixer), VAO/VBO initialization,
+ * and orchestrates Deck rendering and Mixer compositing.
  */
 class Renderer {
     private val mandalaShader: Shader
+    private val feedbackShader: Shader
+    private val mixerShader: Shader
+
     private var mandalaVAO: Int = 0
     private var mandalaVBO: Int = 0
     private var isDisposed = false
 
     init {
-        // Load the mandala vertex and fragment shaders
+        // Load the shaders
         mandalaShader = Shader.fromResources("shaders/mandala.vert", "shaders/mandala.frag")
+        feedbackShader = Shader.fromResources("shaders/blit.vert", "shaders/feedback.frag")
+        mixerShader = Shader.fromResources("shaders/blit.vert", "shaders/mixer.frag")
 
-        // Initialize VAO and VBO for Mandala geometry
+        // Initialize VAO and VBO for Mandala geometry (ribbon coordinates)
         val expansionBuffer = Mandala.expansionBuffer
         val buffer: FloatBuffer = MemoryUtil.memAllocFloat(expansionBuffer.size)
         buffer.put(expansionBuffer).flip()
@@ -43,9 +49,18 @@ class Renderer {
     }
 
     /**
+     * Renders a general VisualSource to the specified FBO.
+     */
+    fun render(source: VisualSource, targetFBO: FBO) {
+        if (source is Mandala) {
+            renderMandala(source, targetFBO)
+        }
+    }
+
+    /**
      * Renders a Mandala to the specified FBO.
      */
-    fun render(mandala: Mandala, targetFBO: FBO) {
+    private fun renderMandala(mandala: Mandala, targetFBO: FBO) {
         targetFBO.bind()
 
         // Clear the framebuffer's color buffer (fully transparent black background)
@@ -99,6 +114,83 @@ class Renderer {
     }
 
     /**
+     * Renders a Deck's visual source and updates its ping-pong feedback loop.
+     */
+    fun renderDeck(deck: Deck) {
+        // 1. Render clean source image
+        render(deck.source, deck.cleanFBO)
+
+        // 2. Blend clean image and current history into next history FBO
+        val nextHistoryFBO = deck.getNextHistoryFBO()
+        nextHistoryFBO.bind()
+
+        glClearColor(0f, 0f, 0f, 0f)
+        glClear(GL_COLOR_BUFFER_BIT)
+
+        feedbackShader.bind()
+
+        // Bind clean source texture to Unit 0
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, deck.cleanFBO.texture)
+        feedbackShader.setUniform("uTextureLive", 0)
+
+        // Bind current history texture to Unit 1
+        glActiveTexture(GL_TEXTURE1)
+        glBindTexture(GL_TEXTURE_2D, deck.getCurrentHistoryFBO().texture)
+        feedbackShader.setUniform("uTextureHistory", 1)
+
+        // Set feedback parameters
+        feedbackShader.setUniform("uDecay", deck.fbDecay.value)
+        feedbackShader.setUniform("uGain", deck.fbGain.value)
+        feedbackShader.setUniform("uZoom", deck.fbZoom.value)
+        feedbackShader.setUniform("uRotate", deck.fbRotate.value)
+        feedbackShader.setUniform("uHueShift", deck.fbHueShift.value)
+        feedbackShader.setUniform("uBlur", deck.fbBlur.value)
+
+        // Composite feedback onto fullscreen quad
+        Geometry.drawFullscreenQuad()
+
+        feedbackShader.unbind()
+        nextHistoryFBO.unbind()
+
+        // Swap ping-pong indices so currentHistory points to the frame we just rendered
+        deck.swapFeedbackBuffers()
+    }
+
+    /**
+     * Composites Deck A and Deck B outputs into the Mixer's master output FBO.
+     */
+    fun renderMixer(mixer: Mixer) {
+        mixer.masterFBO.bind()
+
+        glClearColor(0f, 0f, 0f, 1f)
+        glClear(GL_COLOR_BUFFER_BIT)
+
+        mixerShader.bind()
+
+        // Bind Deck A output texture to Unit 0
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, mixer.deckA.getCurrentHistoryFBO().texture)
+        mixerShader.setUniform("uTex1", 0)
+
+        // Bind Deck B output texture to Unit 1
+        glActiveTexture(GL_TEXTURE1)
+        glBindTexture(GL_TEXTURE_2D, mixer.deckB.getCurrentHistoryFBO().texture)
+        mixerShader.setUniform("uTex2", 1)
+
+        // Set mix uniforms
+        mixerShader.setUniform("uMode", mixer.mode.value.toInt())
+        mixerShader.setUniform("uBalance", mixer.crossfade.value)
+        mixerShader.setUniform("uAlpha", mixer.masterAlpha.value)
+
+        // Blit mixed output
+        Geometry.drawFullscreenQuad()
+
+        mixerShader.unbind()
+        mixer.masterFBO.unbind()
+    }
+
+    /**
      * Clean up OpenGL resources.
      */
     fun dispose() {
@@ -106,6 +198,8 @@ class Renderer {
             glDeleteBuffers(mandalaVBO)
             glDeleteVertexArrays(mandalaVAO)
             mandalaShader.dispose()
+            feedbackShader.dispose()
+            mixerShader.dispose()
             isDisposed = true
         }
     }
