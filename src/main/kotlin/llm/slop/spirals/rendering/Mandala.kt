@@ -7,6 +7,32 @@ import kotlin.math.max
 /**
  * Data class representing the frequency ratios (recipe) for a 4-arm mandala.
  */
+/**
+ * Defines the frequency ratios and pre-computed structural metadata for a 4-arm Lissajous mandala.
+ *
+ * The four integers [a, b, c, d] are the angular frequency multipliers fed to the four arms of the
+ * parametric curve.  The renderer maps them to shader uniforms omega1..omega4.
+ *
+ * Pre-computed metadata (computed offline, stored for filtering/display — not used by the shader):
+ *
+ * @param id              Unique stable identifier (hash string from generation tool).
+ * @param a               Frequency of arm 1 — typically the largest, sets overall rotation speed.
+ * @param b               Frequency of arm 2 — second harmonic.
+ * @param c               Frequency of arm 3 — third harmonic.
+ * @param d               Frequency of arm 4 — fourth harmonic (may be negative for counter-rotation).
+ * @param petals          Number of distinct lobes/petals visible in the completed figure.
+ *                        Used for auto-hue-sweep: hueSweep = petals / 9.
+ * @param shapeRatio      Ratio of the dominant frequency to the next; proxy for visual "complexity".
+ *                        Higher = more regular/symmetric shape.
+ * @param multiplicityClass  1 = single-trace (one continuous stroke), 2 = two-stroke figure.
+ * @param independentFreqCount  Number of independently contributing frequency components (2–6).
+ *                        Higher values produce more intricate interference patterns.
+ * @param twoFoldLikely   True when the figure has approximate 2-fold rotational symmetry.
+ * @param hierarchyDepth  Depth of nested sub-structure (0 = simple, higher = fractal-like).
+ * @param dominanceRatio  Similar to shapeRatio but normalised differently; used for sorting/filtering.
+ * @param radialVariance  Variance of radial extent across the figure; higher = more "spiky" or
+ *                        asymmetric silhouette.
+ */
 data class Mandala4Arm(
     val id: String,
     val a: Int,
