@@ -4,6 +4,9 @@ import llm.slop.spirals.rendering.FBO
 import llm.slop.spirals.rendering.Geometry
 import llm.slop.spirals.rendering.Shader
 import llm.slop.spirals.rendering.GLDebug
+import llm.slop.spirals.rendering.Renderer
+import llm.slop.spirals.rendering.Mandala
+import llm.slop.spirals.rendering.MandalaRatio
 import llm.slop.spirals.ui.UIManager
 import mu.KotlinLogging
 import org.lwjgl.glfw.GLFW.*
@@ -54,8 +57,17 @@ fun main() {
     val blitShader = Shader.fromResources("shaders/blit.vert", "shaders/blit.frag")
     GLDebug.checkErrors("Blit shader creation")
 
-    val testShader = Shader.fromResources("shaders/blit.vert", "shaders/test_gradient.frag")
-    GLDebug.checkErrors("Test shader creation")
+    logger.info { "Initializing Mandala Renderer and Mandala..." }
+    val renderer = Renderer()
+    val defaultRecipe = MandalaRatio(
+        id = "15001423042349762156",
+        a = 26,
+        b = 23,
+        c = 14,
+        d = 14
+    )
+    val mandala = Mandala(defaultRecipe)
+    GLDebug.checkErrors("Mandala initialization")
 
     logger.info { "Rendering components initialized" }
 
@@ -92,16 +104,9 @@ fun main() {
 
         // TODO: Handle FBO resizing if w[0]/h[0] differs from testFBO dimensions
 
-        // 1. Render content to FBO
-        testFBO.bind()
-        glClearColor(0f, 0f, 0f, 1f)
-        glClear(GL_COLOR_BUFFER_BIT)
-
-        testShader.bind()
-        testShader.setUniform("uTime", glfwGetTime().toFloat())
-        Geometry.drawFullscreenQuad()
-        testShader.unbind()
-        testFBO.unbind()
+        // 1. Update and Render Mandala to FBO
+        mandala.update()
+        renderer.render(mandala, testFBO)
 
         // 2. Blit FBO to screen
         glViewport(0, 0, w[0], h[0])
@@ -122,7 +127,7 @@ fun main() {
         }
 
         // === UI PHASE ===
-        uiManager.render(testFBO)
+        uiManager.render(testFBO, mandala)
 
         glfwSwapBuffers(window)
     }
@@ -131,7 +136,7 @@ fun main() {
     logger.info { "Shutting down..." }
 
     // Dispose rendering resources
-    testShader.dispose()
+    renderer.dispose()
     blitShader.dispose()
     testFBO.dispose()
     Geometry.dispose()

@@ -57,6 +57,11 @@ application {
 
 kotlin {
     jvmToolchain(17)
+    sourceSets {
+        main {
+            kotlin.exclude("**/ANDROID-REFERENCE/**")
+        }
+    }
 }
 
 tasks.withType<JavaExec> {
