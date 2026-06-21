@@ -21,13 +21,20 @@ class Deck(
     val fb2 = FBO(width, height)
     private var fbIndex = 0
 
-    // Feedback parameters
-    val fbDecay = ModulatableParameter(0.02f)
-    val fbGain = ModulatableParameter(1.0f)
-    val fbZoom = ModulatableParameter(0.0f) // negative is zoom out, positive is zoom in
-    val fbRotate = ModulatableParameter(0.0f) // in radians
-    val fbHueShift = ModulatableParameter(0.0f) // range 0..1
-    val fbBlur = ModulatableParameter(0.0f) // range 0..1
+    // Feedback parameters with custom clamp ranges
+    val fbDecay = ModulatableParameter(0.02f, minClamp = 0f, maxClamp = 1f)
+    val fbGain = ModulatableParameter(1.0f, minClamp = 0f, maxClamp = 2f)
+    val fbZoom = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f) // negative is zoom out, positive is zoom in
+    val fbRotate = ModulatableParameter(0.0f, minClamp = -3.14f, maxClamp = 3.14f) // in radians
+    val fbHueShift = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f) // range 0..1
+    val fbBlur = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f) // range 0..1
+
+    init {
+        // Clear all FBOs at startup to prevent reading uninitialized GPU memory
+        fb1.clear(0f, 0f, 0f, 0f)
+        fb2.clear(0f, 0f, 0f, 0f)
+        cleanFBO.clear(0f, 0f, 0f, 0f)
+    }
 
     /**
      * Retrieves the current history FBO (from the last frame).

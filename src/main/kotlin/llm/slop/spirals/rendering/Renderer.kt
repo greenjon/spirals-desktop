@@ -127,6 +127,10 @@ class Renderer {
         glClearColor(0f, 0f, 0f, 0f)
         glClear(GL_COLOR_BUFFER_BIT)
 
+        // Disable GL blending so the feedback shader can perform its custom max blending
+        // without the GPU applying compounding alpha multiplication on top.
+        glDisable(GL_BLEND)
+
         feedbackShader.bind()
 
         // Bind clean source texture to Unit 0
@@ -152,6 +156,12 @@ class Renderer {
 
         feedbackShader.unbind()
         nextHistoryFBO.unbind()
+
+        // Re-enable blending for subsequent rendering passes
+        glEnable(GL_BLEND)
+
+        // Reset active texture unit to Unit 0 to avoid side effects
+        glActiveTexture(GL_TEXTURE0)
 
         // Swap ping-pong indices so currentHistory points to the frame we just rendered
         deck.swapFeedbackBuffers()

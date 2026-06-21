@@ -62,8 +62,8 @@ void main() {
         historyColor = texture(uTextureHistory, historyUV);
     }
 
-    // Apply decay and gain
-    historyColor.rgb *= uGain;
+    // Apply decay and gain (scale RGB and alpha proportionally)
+    historyColor.rgb *= uGain * (1.0 - uDecay);
     historyColor.a = clamp(historyColor.a - uDecay, 0.0, 1.0);
 
     // Apply hue shift to history
@@ -73,7 +73,7 @@ void main() {
         historyColor.rgb = hsv2rgb(hsv);
     }
 
-    // Blend live frame with history (screen/maximum blending works best for trails)
-    vec4 blended = max(liveColor, historyColor * historyColor.a);
+    // Blend live frame with history using standard maximum blend
+    vec4 blended = max(liveColor, historyColor);
     fragColor = blended;
 }

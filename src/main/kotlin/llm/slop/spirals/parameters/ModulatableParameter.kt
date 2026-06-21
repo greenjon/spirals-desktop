@@ -10,7 +10,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 class ModulatableParameter(
     var baseValue: Float = 0.0f,
-    val historySize: Int = 200
+    val historySize: Int = 200,
+    val minClamp: Float = 0.0f,
+    val maxClamp: Float = 1.0f
 ) {
     val modulators = CopyOnWriteArrayList<CvModulator>()
     val history = CvHistoryBuffer(historySize)
@@ -35,7 +37,7 @@ class ModulatableParameter(
     fun evaluate(): Float {
         val activeMods = modulators.filter { !it.bypassed }
         if (activeMods.isEmpty()) {
-            value = baseValue.coerceIn(0f, 1f)
+            value = baseValue.coerceIn(minClamp, maxClamp)
             history.add(value)
             return value
         }
@@ -52,8 +54,8 @@ class ModulatableParameter(
             }
         }
 
-        // Clamp the final parameter output to standard unit range [0.0, 1.0]
-        value = result.coerceIn(0f, 1f)
+        // Clamp the final parameter output to configured clamp range
+        value = result.coerceIn(minClamp, maxClamp)
         history.add(value)
         return value
     }
