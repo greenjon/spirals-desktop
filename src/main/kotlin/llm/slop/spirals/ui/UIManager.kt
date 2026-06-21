@@ -202,6 +202,7 @@ class UIManager(private val windowHandle: Long) {
         ImGui.nextColumn()
         UITheme.h3("Deck B")
         ImGui.image(mixer.deckB.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
+        ImGui.nextColumn()
         ImGui.columns(1)
         ImGui.spacing()
 
@@ -226,16 +227,22 @@ class UIManager(private val windowHandle: Long) {
         ImGui.spacing()
 
         ImGui.columns(2, "deckCtrls", true)
+        UITheme.h3("Deck A")
+        ImGui.nextColumn()
+        UITheme.h3("Deck B")
+        ImGui.nextColumn()
+        
+        ImGui.separator()
+        
         drawDeckControls("Deck A", mixer.deckA)
         ImGui.nextColumn()
         drawDeckControls("Deck B", mixer.deckB)
+        ImGui.nextColumn()
         ImGui.columns(1)
     }
 
     private fun drawDeckControls(label: String, deck: Deck) {
         ImGui.pushID(label)
-        UITheme.h3(label)
-        ImGui.separator()
 
         // Recipe inline combo
         val mandala = deck.source as? Mandala
