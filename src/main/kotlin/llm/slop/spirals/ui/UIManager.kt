@@ -12,6 +12,7 @@ import mu.KotlinLogging
 import org.lwjgl.opengl.GL33.*
 import imgui.gl3.ImGuiImplGl3
 import imgui.glfw.ImGuiImplGlfw
+import llm.slop.spirals.parameters.ModulatableParameter
 
 /**
  * Manages the ImGui overlay for desktop control.
@@ -164,20 +165,31 @@ class UIManager(private val windowHandle: Long) {
         val rightW = displayWidth - leftW - middleW
         ImGui.setNextWindowPos(leftW + middleW, menuBarH)
         ImGui.setNextWindowSize(rightW, contentH)
-        if (ImGui.begin("Mixer / Monitor", noDecorate)) {
+        val noTitleDecorate = noDecorate or ImGuiWindowFlags.NoTitleBar
+        if (ImGui.begin("Mixer / Monitor", noTitleDecorate)) {
             drawMixerMonitor(mixer)
         }
         ImGui.end()
     }
 
-    // ── Mixer / Monitor ───────────────────────────────────────────────────────
-
     private fun drawMixerMonitor(mixer: Mixer) {
         val availW = ImGui.getContentRegionAvailX()
         val masterH = availW * (9f / 16f)
 
-        UITheme.h2("Master Output")
+        val imgScreenX = ImGui.getCursorScreenPosX()
+        val imgScreenY = ImGui.getCursorScreenPosY()
+
         ImGui.image(mixer.masterFBO.texture, availW, masterH, 0f, 1f, 1f, 0f)
+
+        // Save the cursor position below the image
+        val nextY = ImGui.getCursorPosY()
+
+        // Draw overlay text on top of the master output image
+        ImGui.setCursorScreenPos(imgScreenX + 10f, imgScreenY + 10f)
+        UITheme.h2Colored(1.0f, 1.0f, 1.0f, 0.8f, "Master Output")
+
+        // Restore Y cursor position
+        ImGui.setCursorPosY(nextY)
         ImGui.spacing()
 
         val subW = (availW - 8f) * 0.5f
@@ -194,28 +206,33 @@ class UIManager(private val windowHandle: Long) {
         ImGui.spacing()
 
         // Crossfader
-        UITheme.body("Crossfader")
-        val xfade = floatArrayOf(mixer.crossfade.baseValue)
-        ImGui.pushItemWidth(-1f)
-        if (ImGui.sliderFloat("##xfade", xfade, 0f, 1f, "A <-- %.2f --> B")) {
-            mixer.crossfade.set(xfade[0])
+        drawFlatSlider("Crossfader", mixer.crossfade, 0f, 1f, 100f) {
+            "A <-- %.2f --> B".format(it)
         }
-        ImGui.popItemWidth()
-        ImGui.spacing()
 
-        // Blend mode
+        // Blend mode inline combo
+        val startX = ImGui.getCursorScreenPosX()
+        val startY = ImGui.getCursorScreenPosY()
+        val textH = ImGui.getTextLineHeight()
+        val comboH = 26f
+        val rowH = maxOf(textH, comboH)
+
+        ImGui.setCursorScreenPos(startX, startY + (rowH - textH) * 0.5f)
+        UITheme.body("Blend Mode")
+
+        ImGui.setCursorScreenPos(startX + 100f, startY + (rowH - comboH) * 0.5f)
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
         val modes = arrayOf("ADD", "SCREEN", "MULT", "MAX", "XFADE")
         val modeIdx = ImInt(mixer.mode.baseValue.toInt())
-        UITheme.body("Blend Mode")
-        ImGui.pushItemWidth(-1f)
-        if (ImGui.combo("##blendmode", modeIdx, modes)) { mixer.mode.set(modeIdx.get().toFloat()) }
+        if (ImGui.combo("##blendmode", modeIdx, modes)) {
+            mixer.mode.set(modeIdx.get().toFloat())
+        }
         ImGui.popItemWidth()
 
-        val masterAlpha = floatArrayOf(mixer.masterAlpha.baseValue)
-        UITheme.body("Master Alpha")
-        ImGui.pushItemWidth(-1f)
-        if (ImGui.sliderFloat("##alpha", masterAlpha, 0f, 1f)) { mixer.masterAlpha.set(masterAlpha[0]) }
-        ImGui.popItemWidth()
+        ImGui.setCursorScreenPos(startX, startY + rowH + 6f)
+
+        // Master Alpha
+        drawFlatSlider("Master Alpha", mixer.masterAlpha, 0f, 1f, 100f)
         ImGui.spacing()
 
         ImGui.columns(2, "deckCtrls", true)
@@ -230,7 +247,7 @@ class UIManager(private val windowHandle: Long) {
         UITheme.h3(label)
         ImGui.separator()
 
-        // Recipe
+        // Recipe inline combo
         val mandala = deck.source as? Mandala
         if (mandala != null) {
             val idx = recipes.indexOfFirst {
@@ -238,20 +255,29 @@ class UIManager(private val windowHandle: Long) {
                 it.c == mandala.recipe.c && it.d == mandala.recipe.d
             }.coerceAtLeast(0)
             val combo = ImInt(idx)
-            ImGui.pushItemWidth(-1f)
+
+            val startX = ImGui.getCursorScreenPosX()
+            val startY = ImGui.getCursorScreenPosY()
+            val textH = ImGui.getTextLineHeight()
+            val comboH = 26f
+            val rowH = maxOf(textH, comboH)
+
+            ImGui.setCursorScreenPos(startX, startY + (rowH - textH) * 0.5f)
+            UITheme.body("Recipe")
+
+            ImGui.setCursorScreenPos(startX + 80f, startY + (rowH - comboH) * 0.5f)
+            ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
             if (ImGui.combo("##recipe", combo, recipeNames)) {
                 mandala.recipe = recipes[combo.get()]
             }
             ImGui.popItemWidth()
+
+            ImGui.setCursorScreenPos(startX, startY + rowH + 6f)
         }
 
-        fun slider(lbl: String, param: llm.slop.spirals.parameters.ModulatableParameter,
+        fun slider(lbl: String, param: ModulatableParameter,
                    min: Float, max: Float, fmt: String = "%.3f") {
-            UITheme.body(lbl)
-            val v = floatArrayOf(param.baseValue)
-            ImGui.pushItemWidth(-1f)
-            if (ImGui.sliderFloat("##$lbl", v, min, max, fmt)) param.set(v[0])
-            ImGui.popItemWidth()
+            drawFlatSlider(lbl, param, min, max, 80f) { fmt.format(it) }
         }
 
         slider("Gain",      deck.source.globalAlpha, 0f, 1f)
@@ -272,6 +298,80 @@ class UIManager(private val windowHandle: Long) {
             }
         }
 
+        ImGui.popID()
+    }
+
+    private fun drawFlatSlider(
+        label: String,
+        param: ModulatableParameter,
+        min: Float,
+        max: Float,
+        labelW: Float = 100f,
+        formatValue: (Float) -> String = { "%.3f".format(it) }
+    ) {
+        ImGui.pushID(label)
+        
+        val startX = ImGui.getCursorScreenPosX()
+        val startY = ImGui.getCursorScreenPosY()
+        
+        val barH = 14f
+        val textH = ImGui.getTextLineHeight()
+        val rowH = maxOf(barH, textH)
+        
+        // Draw label (centered vertically in rowH)
+        ImGui.setCursorScreenPos(startX, startY + (rowH - textH) * 0.5f)
+        UITheme.body(label)
+        
+        // Calculate bar position and width
+        val barStartX = startX + labelW
+        val barScreenY = startY + (rowH - barH) * 0.5f
+        
+        // Draw interactive invisible button
+        ImGui.setCursorScreenPos(barStartX, barScreenY)
+        val barW = ImGui.getContentRegionAvailX() - 5f
+        ImGui.invisibleButton("##slider", barW, barH)
+        
+        // Process mouse dragging
+        val mousePressed = ImGui.isItemActive() || (ImGui.isItemHovered() && ImGui.isMouseDown(0))
+        val valueRange = max - min
+        if (mousePressed) {
+            val io = ImGui.getIO()
+            val pct = ((io.mousePos.x - barStartX) / barW).coerceIn(0f, 1f)
+            val nextVal = min + pct * valueRange
+            param.set(nextVal)
+        }
+        
+        // Draw the flat bar visual using DrawList
+        val dl = ImGui.getWindowDrawList()
+        dl.addRectFilled(
+            barStartX, barScreenY,
+            barStartX + barW, barScreenY + barH,
+            ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f),
+            3f
+        )
+        
+        val fillPct = ((param.baseValue - min) / valueRange).coerceIn(0f, 1f)
+        if (fillPct > 0f) {
+            dl.addRectFilled(
+                barStartX, barScreenY,
+                barStartX + barW * fillPct, barScreenY + barH,
+                ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f), // gold/amber
+                3f
+            )
+        }
+        
+        // Value text overlay
+        val valStr = formatValue(param.baseValue)
+        val textW = ImGui.calcTextSize(valStr).x
+        val valTextH = ImGui.calcTextSize(valStr).y
+        val valTextX = barStartX + barW - textW - 5f
+        val valTextY = barScreenY + (barH - valTextH) * 0.5f
+        
+        ImGui.setCursorScreenPos(valTextX, valTextY)
+        UITheme.captionColored(0.9f, 0.9f, 0.9f, 0.8f, valStr)
+        
+        // Set cursor position to the next line
+        ImGui.setCursorScreenPos(startX, startY + rowH + 6f)
         ImGui.popID()
     }
 
