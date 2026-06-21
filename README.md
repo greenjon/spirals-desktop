@@ -11,6 +11,10 @@ Open source audio-reactive visual performance software for VJs.
 - ImGui (UI)
 - JACK Audio
 
+## Roadmap & Active Tasks
+- See `ROADMAP.md` for long-term project planning and completed milestones.
+- See `TODO.md` for the list of active tasks and features currently under development.
+
 ## Building
 
 ```bash
