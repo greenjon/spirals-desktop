@@ -21,6 +21,18 @@ class UIManager(private val windowHandle: Long) {
     private val imguiGlfw = ImGuiImplGlfw()
     private val imguiGl3 = ImGuiImplGl3()
 
+    // Tracks the base size we last passed to scaleAllSizes so we can compute
+    // the correct delta ratio on subsequent changes.
+    private var appliedBaseSize: Float = UITheme.baseSize
+
+    // Font rebuild must happen between frames (atlas is locked during a frame).
+    // Store the requested size here; it is consumed at the top of the next render().
+    private var pendingFontSize: Float? = null
+
+    // Set to true for one frame when the Settings menu item is clicked; consumed
+    // immediately after endMainMenuBar so openPopup runs at root ID-stack level.
+    private var pendingOpenSettings = false
+
     // Patch grid state shared between PatchGridPanel and CellConfigPanel
     private val patchState = PatchGridState()
 
@@ -42,20 +54,62 @@ class UIManager(private val windowHandle: Long) {
         ImGui.createContext()
         val io = ImGui.getIO()
         io.addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard)
+
+        // Load semantic fonts before the GL3 backend initialises so the atlas
+        // is ready for the backend to upload on its first render call.
+        UITheme.loadFonts(io)
+
+        // Darken the modal backdrop for a more dramatic VJ-app feel.
+        ImGui.getStyle().setColor(
+            imgui.flag.ImGuiCol.ModalWindowDimBg,
+            0f, 0f, 0f, 0.72f
+        )
+
         imguiGlfw.init(windowHandle, true)
         imguiGl3.init("#version 150")
         logger.info { "UIManager initialized" }
     }
 
     fun render(mixer: Mixer, displayWidth: Float, displayHeight: Float) {
+        // ── Between-frame work (atlas is unlocked here) ───────────────────────
+        pendingFontSize?.let { newSize ->
+            pendingFontSize = null
+            val ratio = newSize / appliedBaseSize
+            UITheme.baseSize = newSize
+            UITheme.rebuildFonts(ImGui.getIO())
+            imguiGl3.updateFontsTexture()
+            ImGui.getStyle().scaleAllSizes(ratio)
+            appliedBaseSize = newSize
+            logger.info { "Font size applied: ${newSize}px (ratio $ratio)" }
+        }
+
         imguiGlfw.newFrame()
         ImGui.newFrame()
 
         drawMenuBar()
+        // openPopup must be called at root ID-stack level — not inside the menu bar.
+        if (pendingOpenSettings) {
+            SettingsPanel.open()
+            pendingOpenSettings = false
+        }
         drawLayout(mixer, displayWidth, displayHeight)
+
+        // Settings modal — drawn outside any docked window so it floats freely.
+        SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight) { newSize ->
+            applyFontSize(newSize)
+        }
 
         ImGui.render()
         imguiGl3.renderDrawData(ImGui.getDrawData())
+    }
+
+    /**
+     * Rebuilds the font atlas at [newSize] and scales widget style proportionally.
+     * [ImGui.getStyle().scaleAllSizes] is multiplicative, so we compute the delta
+     * ratio from the last applied size each time.
+     */
+    private fun applyFontSize(newSize: Float) {
+        if (newSize != appliedBaseSize) pendingFontSize = newSize
     }
 
     private fun drawMenuBar() {
@@ -64,12 +118,17 @@ class UIManager(private val windowHandle: Long) {
                 if (ImGui.menuItem("Exit")) { logger.info { "Exit clicked" } }
                 ImGui.endMenu()
             }
+            // Use menuItem (not beginMenu) so there's no dropdown — clicking
+            // sets a flag that triggers openPopup after endMainMenuBar.
+            if (ImGui.menuItem("Settings")) {
+                pendingOpenSettings = true
+            }
             ImGui.endMainMenuBar()
         }
     }
 
     private fun drawLayout(mixer: Mixer, displayWidth: Float, displayHeight: Float) {
-        val menuBarH = 25f
+        val menuBarH = 32f
         val contentH = displayHeight - menuBarH
         val noDecorate = ImGuiWindowFlags.NoResize or
                          ImGuiWindowFlags.NoMove or
@@ -111,7 +170,7 @@ class UIManager(private val windowHandle: Long) {
         val availW = ImGui.getContentRegionAvailX()
         val masterH = availW * (9f / 16f)
 
-        ImGui.text("Master Output")
+        UITheme.h2("Master Output")
         ImGui.image(mixer.masterFBO.texture, availW, masterH, 0f, 1f, 1f, 0f)
         ImGui.spacing()
 
@@ -120,16 +179,16 @@ class UIManager(private val windowHandle: Long) {
 
         ImGui.columns(2, "subMonitors", false)
         ImGui.setColumnWidth(0, availW * 0.5f)
-        ImGui.text("Deck A")
+        UITheme.h3("Deck A")
         ImGui.image(mixer.deckA.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
         ImGui.nextColumn()
-        ImGui.text("Deck B")
+        UITheme.h3("Deck B")
         ImGui.image(mixer.deckB.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
         ImGui.columns(1)
         ImGui.spacing()
 
         // Crossfader
-        ImGui.text("Crossfader")
+        UITheme.body("Crossfader")
         val xfade = floatArrayOf(mixer.crossfade.baseValue)
         ImGui.pushItemWidth(-1f)
         if (ImGui.sliderFloat("##xfade", xfade, 0f, 1f, "A <-- %.2f --> B")) {
@@ -141,13 +200,13 @@ class UIManager(private val windowHandle: Long) {
         // Blend mode
         val modes = arrayOf("ADD", "SCREEN", "MULT", "MAX", "XFADE")
         val modeIdx = ImInt(mixer.mode.baseValue.toInt())
-        ImGui.text("Blend Mode")
+        UITheme.body("Blend Mode")
         ImGui.pushItemWidth(-1f)
         if (ImGui.combo("##blendmode", modeIdx, modes)) { mixer.mode.set(modeIdx.get().toFloat()) }
         ImGui.popItemWidth()
 
         val masterAlpha = floatArrayOf(mixer.masterAlpha.baseValue)
-        ImGui.text("Master Alpha")
+        UITheme.body("Master Alpha")
         ImGui.pushItemWidth(-1f)
         if (ImGui.sliderFloat("##alpha", masterAlpha, 0f, 1f)) { mixer.masterAlpha.set(masterAlpha[0]) }
         ImGui.popItemWidth()
@@ -162,7 +221,7 @@ class UIManager(private val windowHandle: Long) {
 
     private fun drawDeckControls(label: String, deck: Deck) {
         ImGui.pushID(label)
-        ImGui.text(label)
+        UITheme.h3(label)
         ImGui.separator()
 
         // Recipe
@@ -182,7 +241,7 @@ class UIManager(private val windowHandle: Long) {
 
         fun slider(lbl: String, param: llm.slop.spirals.parameters.ModulatableParameter,
                    min: Float, max: Float, fmt: String = "%.3f") {
-            ImGui.text(lbl)
+            UITheme.body(lbl)
             val v = floatArrayOf(param.baseValue)
             ImGui.pushItemWidth(-1f)
             if (ImGui.sliderFloat("##$lbl", v, min, max, fmt)) param.set(v[0])

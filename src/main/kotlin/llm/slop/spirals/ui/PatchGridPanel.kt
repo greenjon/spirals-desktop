@@ -29,8 +29,8 @@ object PatchGridPanel {
     )
 
     // Size of each cell square (px)
-    private const val CELL = 28f
-    private const val CELL_PAD = 4f
+    private const val CELL = 35f
+    private const val CELL_PAD = 5f
 
     fun draw(mixer: Mixer, state: PatchGridState) {
         val avail = ImGui.getContentRegionAvailX()
@@ -55,10 +55,10 @@ object PatchGridPanel {
         ImGui.dummy(labelColW, 1f)
         for (label in CV_LABELS) {
             ImGui.sameLine(0f, CELL_PAD)
-            val tw = ImGui.calcTextSize(label).x
+            val tw = UITheme.withFont(UITheme.FontLevel.CAPTION) { ImGui.calcTextSize(label).x }
             val offset = ((CELL - tw) * 0.5f).coerceAtLeast(0f)
             ImGui.setCursorPosX(ImGui.getCursorPosX() + offset)
-            ImGui.textDisabled(label)
+            UITheme.caption(label)
             // Manually advance for uniform cell width (ImGui.sameLine handles spacing)
             if (label != CV_LABELS.last()) ImGui.sameLine(0f, CELL - tw - offset + CELL_PAD)
         }
@@ -137,7 +137,7 @@ object PatchGridPanel {
         // Row label
         val rowY = ImGui.getCursorPosY()
         ImGui.setCursorPosY(rowY + (CELL - ImGui.getTextLineHeight()) * 0.5f)
-        ImGui.text(label)
+        UITheme.body(label)
         ImGui.setCursorPosY(rowY)
 
         // CV cells
