@@ -147,7 +147,7 @@ object CellConfigPanel {
             activeHistory = CvHistoryBuffer(200)
             activeCellId = cell
         }
-        activeHistory?.add(existing.evaluateValue())
+        activeHistory?.add(llm.slop.spirals.cv.evaluateModulator(existing))
 
         // ── Bypass / Delete buttons ──────────────────────────────
         val bypassed = existing.bypassed
@@ -432,7 +432,7 @@ object CellConfigPanel {
     }
 
     private fun replaceModulator(state: PatchGridState, param: llm.slop.spirals.parameters.ModulatableParameter, newMod: CvModulator) {
-        val idx = param.modulators.indexOfFirst { it.sourceId == newMod.sourceId }
+        val idx = param.modulators.indexOfFirst { it.id == newMod.id }
         if (idx >= 0) param.modulators[idx] = newMod
         state.editingModulator = newMod
     }

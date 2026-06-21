@@ -347,7 +347,7 @@ object PatchGridPanel {
                 dl.addCircle(cx, cy, circleR, circleCol, 32, 1.5f)
 
                 if (!isBypassed) {
-                    val liveVal = modulator!!.evaluateValue()
+                    val liveVal = llm.slop.spirals.cv.evaluateModulator(modulator!!)
                     // Full circle: val goes 0..1 counterclockwise: angle = 3PI/2 - val*2*PI
                     val angle = (3.0 * PI / 2.0) - liveVal * 2.0 * PI
                     val dotX = cx + circleR * cos(angle).toFloat()
