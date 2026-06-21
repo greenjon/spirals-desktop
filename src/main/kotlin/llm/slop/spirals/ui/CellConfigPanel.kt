@@ -4,6 +4,7 @@ import imgui.ImGui
 import imgui.flag.ImGuiColorEditFlags
 import imgui.type.ImInt
 import llm.slop.spirals.cv.CVRegistry
+import llm.slop.spirals.cv.CvHistoryBuffer
 import llm.slop.spirals.parameters.CvModulator
 import llm.slop.spirals.parameters.LfoSpeedMode
 import llm.slop.spirals.parameters.ModulationOperator
@@ -16,20 +17,28 @@ import llm.slop.spirals.parameters.Waveform
 object CellConfigPanel {
 
     private val subdivisionOptions = floatArrayOf(
-        0.0625f, 0.125f, 0.25f, 0.5f, 1f, 2f, 4f, 8f, 16f, 32f, 64f, 128f, 256f
+        0.125f, 0.25f, 0.5f, 1f, 2f, 4f, 8f, 16f, 32f, 64f, 128f, 256f
     )
     private val subdivisionLabels = arrayOf(
-        "1/16", "1/8", "1/4", "1/2", "1", "2", "4", "8", "16", "32", "64", "128", "256"
+        "1/8", "1/4", "1/2", "1", "2", "4", "8", "16", "32", "64", "128", "256"
     )
     private val waveformLabels = arrayOf("Sine", "Triangle", "Square")
     private val speedLabels = arrayOf("Slow", "Medium", "Fast")
     private val operatorLabels = arrayOf("ADD", "MUL")
+
+    private var activeHistory: CvHistoryBuffer? = null
+    private var activeCellId: PatchCellId? = null
+    private var draggingMin = false
+    private var draggingMax = false
+    private var activeSliderLabel: String? = null
 
     fun draw(state: PatchGridState) {
         val cell = state.selectedCell
         val param = state.selectedParam
 
         if (cell == null || param == null) {
+            activeHistory = null
+            activeCellId = null
             UITheme.caption("Click a cell in the Patch Grid to configure it.")
             return
         }
@@ -50,6 +59,8 @@ object CellConfigPanel {
         val existing = state.editingModulator
 
         if (existing == null) {
+            activeHistory = null
+            activeCellId = null
             // Empty cell: offer to create
             UITheme.caption("No patch at this intersection.")
             ImGui.spacing()
@@ -60,6 +71,13 @@ object CellConfigPanel {
             }
             return
         }
+
+        // Initialize or update oscilloscope history
+        if (activeCellId != cell || activeHistory == null) {
+            activeHistory = CvHistoryBuffer(200)
+            activeCellId = cell
+        }
+        activeHistory?.add(existing.evaluateValue())
 
         // ── Bypass / Delete buttons ──────────────────────────────
         val bypassed = existing.bypassed
@@ -83,6 +101,13 @@ object CellConfigPanel {
         ImGui.separator()
         ImGui.spacing()
 
+        // ── Oscilloscope ─────────────────────────────────────────
+        drawOscilloscope(existing)
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+
         // ── Operator (ADD / MUL) ─────────────────────────────────
         UITheme.body("Operator")
         val opIdx = ImInt(if (existing.operator == ModulationOperator.ADD) 0 else 1)
@@ -95,16 +120,33 @@ object CellConfigPanel {
         ImGui.spacing()
 
         // ── Weight ───────────────────────────────────────────────
-        UITheme.body("Weight")
-        val weight = floatArrayOf(existing.weight)
-        ImGui.pushItemWidth(-1f)
-        if (ImGui.sliderFloat("##weight", weight, -1f, 1f, "%.3f")) {
-            replaceModulator(state, param, existing.copy(weight = weight[0]))
-        }
-        ImGui.popItemWidth()
+        drawCustomRangeSlider(
+            label = "Weight",
+            currentMin = existing.weightMin,
+            currentMax = existing.weightMax,
+            minLimit = -1f,
+            maxLimit = 1f,
+            formatValue = { "%.3f".format(it) },
+            onRangeChanged = { nextMin, nextMax ->
+                val nextActive = existing.weight.coerceIn(nextMin, nextMax)
+                replaceModulator(state, param, existing.copy(
+                    weightMin = nextMin,
+                    weightMax = nextMax,
+                    weight = nextActive
+                ))
+            }
+        )
         ImGui.spacing()
 
-        if (!hasAdvanced) return
+        if (!hasAdvanced) {
+            // ── Test Randomize Button ────────────────────────────────
+            ImGui.spacing()
+            if (ImGui.button("🎲 Test Randomize", ImGui.getContentRegionAvailX(), 30f)) {
+                val randomized = existing.randomizeActiveValues()
+                replaceModulator(state, param, randomized)
+            }
+            return
+        }
 
         // ── Waveform (Beat / LFO only) ───────────────────────────
         if (!isSnh) {
@@ -120,14 +162,27 @@ object CellConfigPanel {
 
         // ── Subdivision (Beat / S&H) ─────────────────────────────
         if (isBeat || isSnh) {
-            UITheme.body("Subdivision")
-            val currentSubIdx = subdivisionOptions.indexOfFirst { it == existing.subdivision }.coerceAtLeast(4)
-            val subIdx = ImInt(currentSubIdx)
-            ImGui.pushItemWidth(125f)
-            if (ImGui.combo("##subdiv", subIdx, subdivisionLabels)) {
-                replaceModulator(state, param, existing.copy(subdivision = subdivisionOptions[subIdx.get()]))
-            }
-            ImGui.popItemWidth()
+            val currentMinIdx = subdivisionOptions.indexOfFirst { it == existing.subdivisionMin }.coerceAtLeast(0)
+            val currentMaxIdx = subdivisionOptions.indexOfFirst { it == existing.subdivisionMax }.coerceAtLeast(0)
+            
+            drawCustomRangeSlider(
+                label = "Beat Division",
+                currentMin = currentMinIdx.toFloat(),
+                currentMax = currentMaxIdx.toFloat(),
+                minLimit = 0f,
+                maxLimit = (subdivisionOptions.size - 1).toFloat(),
+                formatValue = { idx -> subdivisionLabels[idx.toInt().coerceIn(0, subdivisionOptions.size - 1)] },
+                onRangeChanged = { nextMinIdx, nextMaxIdx ->
+                    val nextMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                    val nextMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                    val nextActive = existing.subdivision.coerceIn(nextMinVal, nextMaxVal)
+                    replaceModulator(state, param, existing.copy(
+                        subdivisionMin = nextMinVal,
+                        subdivisionMax = nextMaxVal,
+                        subdivision = nextActive
+                    ))
+                }
+            )
             ImGui.spacing()
         }
 
@@ -140,36 +195,59 @@ object CellConfigPanel {
                 replaceModulator(state, param, existing.copy(lfoSpeedMode = LfoSpeedMode.entries[speedIdx.get()]))
             }
             ImGui.popItemWidth()
+            ImGui.spacing()
 
-            val period = floatArrayOf(existing.subdivision)
-            val periodLabel = when (existing.lfoSpeedMode) {
-                LfoSpeedMode.FAST -> "Period: %.2fs".format(existing.subdivision * 10.0)
-                LfoSpeedMode.MEDIUM -> {
-                    val s = (existing.subdivision * 900).toInt()
-                    "Period: %02dm:%02ds".format(s / 60, s % 60)
-                }
-                LfoSpeedMode.SLOW -> {
-                    val m = (existing.subdivision * 1440).toInt()
-                    "Period: %02dh:%02dm".format(m / 60, m % 60)
+            // Format labels based on speed mode
+            val formatFunc: (Float) -> String = { v ->
+                when (existing.lfoSpeedMode) {
+                    LfoSpeedMode.FAST -> "%.2fs".format(v * 10.0)
+                    LfoSpeedMode.MEDIUM -> {
+                        val s = (v * 900).toInt()
+                        "%02dm:%02ds".format(s / 60, s % 60)
+                    }
+                    LfoSpeedMode.SLOW -> {
+                        val m = (v * 1440).toInt()
+                        "%02dh:%02dm".format(m / 60, m % 60)
+                    }
                 }
             }
-            UITheme.caption(periodLabel)
-            ImGui.pushItemWidth(-1f)
-            if (ImGui.sliderFloat("##lfosub", period, 0.001f, 1f, "%.3f")) {
-                replaceModulator(state, param, existing.copy(subdivision = period[0]))
-            }
-            ImGui.popItemWidth()
+
+            drawCustomRangeSlider(
+                label = "LFO Period",
+                currentMin = existing.subdivisionMin,
+                currentMax = existing.subdivisionMax,
+                minLimit = 0.001f,
+                maxLimit = 1f,
+                formatValue = formatFunc,
+                onRangeChanged = { nextMin, nextMax ->
+                    val nextActive = existing.subdivision.coerceIn(nextMin, nextMax)
+                    replaceModulator(state, param, existing.copy(
+                        subdivisionMin = nextMin,
+                        subdivisionMax = nextMax,
+                        subdivision = nextActive
+                    ))
+                }
+            )
             ImGui.spacing()
         }
 
         // ── Phase Offset ─────────────────────────────────────────
-        UITheme.body("Phase Offset")
-        val phase = floatArrayOf(existing.phaseOffset)
-        ImGui.pushItemWidth(-1f)
-        if (ImGui.sliderFloat("##phase", phase, 0f, 1f, "%.3f")) {
-            replaceModulator(state, param, existing.copy(phaseOffset = phase[0]))
-        }
-        ImGui.popItemWidth()
+        drawCustomRangeSlider(
+            label = "Phase Offset",
+            currentMin = existing.phaseOffsetMin,
+            currentMax = existing.phaseOffsetMax,
+            minLimit = 0f,
+            maxLimit = 1f,
+            formatValue = { "%.3f".format(it) },
+            onRangeChanged = { nextMin, nextMax ->
+                val nextActive = existing.phaseOffset.coerceIn(nextMin, nextMax)
+                replaceModulator(state, param, existing.copy(
+                    phaseOffsetMin = nextMin,
+                    phaseOffsetMax = nextMax,
+                    phaseOffset = nextActive
+                ))
+            }
+        )
         ImGui.spacing()
 
         // ── Slope / Duty (Triangle, Square, S&H) ────────────────
@@ -182,14 +260,30 @@ object CellConfigPanel {
                 existing.waveform == Waveform.TRIANGLE -> "Slope"
                 else -> "Duty Cycle"
             }
-            UITheme.body(slopeLabel)
-            val slope = floatArrayOf(existing.slope)
-            ImGui.pushItemWidth(-1f)
-            if (ImGui.sliderFloat("##slope", slope, 0f, 1f, "%.3f")) {
-                replaceModulator(state, param, existing.copy(slope = slope[0]))
-            }
-            ImGui.popItemWidth()
+            drawCustomRangeSlider(
+                label = slopeLabel,
+                currentMin = existing.slopeMin,
+                currentMax = existing.slopeMax,
+                minLimit = 0f,
+                maxLimit = 1f,
+                formatValue = { "%.3f".format(it) },
+                onRangeChanged = { nextMin, nextMax ->
+                    val nextActive = existing.slope.coerceIn(nextMin, nextMax)
+                    replaceModulator(state, param, existing.copy(
+                        slopeMin = nextMin,
+                        slopeMax = nextMax,
+                        slope = nextActive
+                    ))
+                }
+            )
             ImGui.spacing()
+        }
+
+        // ── Test Randomize Button ────────────────────────────────
+        ImGui.spacing()
+        if (ImGui.button("🎲 Test Randomize", ImGui.getContentRegionAvailX(), 30f)) {
+            val randomized = existing.randomizeActiveValues()
+            replaceModulator(state, param, randomized)
         }
 
         // ── Live value bar ───────────────────────────────────────
@@ -211,5 +305,237 @@ object CellConfigPanel {
         val idx = param.modulators.indexOfFirst { it.sourceId == newMod.sourceId }
         if (idx >= 0) param.modulators[idx] = newMod
         state.editingModulator = newMod
+    }
+
+    private fun drawOscilloscope(existing: CvModulator) {
+        val history = activeHistory ?: return
+        val historySize = history.size
+        val w = ImGui.getContentRegionAvailX()
+        val h = 80f // Height of the oscilloscope box
+        
+        val startX = ImGui.getCursorScreenPosX()
+        val startY = ImGui.getCursorScreenPosY()
+        
+        // Reserve space
+        ImGui.dummy(w, h)
+        
+        val dl = ImGui.getWindowDrawList()
+        
+        // 1. Background
+        val bgCol = ImGui.colorConvertFloat4ToU32(0.04f, 0.04f, 0.04f, 1.0f)
+        dl.addRectFilled(startX, startY, startX + w, startY + h, bgCol, 4f)
+        
+        // 2. Grid lines
+        val centerY = startY + h / 2f
+        val gridColCenter = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 0.8f)
+        val gridColFaint = ImGui.colorConvertFloat4ToU32(0.12f, 0.12f, 0.12f, 0.5f)
+        
+        // Horizontal lines (Center, +1.0, -1.0)
+        dl.addLine(startX, centerY, startX + w, centerY, gridColCenter, 1.5f)
+        dl.addLine(startX, startY + 5f, startX + w, startY + 5f, gridColFaint, 1f)
+        dl.addLine(startX, startY + h - 5f, startX + w, startY + h - 5f, gridColFaint, 1f)
+        
+        // Vertical lines
+        val numDivisions = 4
+        for (i in 1 until numDivisions) {
+            val gridX = startX + (w * i / numDivisions)
+            dl.addLine(gridX, startY, gridX, startY + h, gridColFaint, 1f)
+        }
+        
+        // 3. Draw lines of history
+        val stepX = w / (historySize - 1)
+        val usableHeight = h - 10f
+        val weight = existing.weight
+        val isBypassed = existing.bypassed
+        
+        // Raw CV line (faint/dashed gray/blue)
+        val rawLineCol = if (isBypassed) 
+            ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 0.15f)
+        else 
+            ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.5f, 0.3f)
+            
+        for (i in 0 until historySize - 1) {
+            val raw1 = history.getAt(i)
+            val raw2 = history.getAt(i + 1)
+            
+            val x1 = startX + i * stepX
+            val y1 = centerY - raw1 * (usableHeight / 2f)
+            val x2 = startX + (i + 1) * stepX
+            val y2 = centerY - raw2 * (usableHeight / 2f)
+            
+            dl.addLine(x1, y1, x2, y2, rawLineCol, 1.0f)
+        }
+        
+        // Weighted CV line (bright cyan)
+        val weightedLineCol = if (isBypassed)
+            ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.4f)
+        else
+            ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.9f, 1.0f) // neon cyan
+            
+        for (i in 0 until historySize - 1) {
+            val raw1 = history.getAt(i)
+            val raw2 = history.getAt(i + 1)
+            
+            val w1 = raw1 * weight
+            val w2 = raw2 * weight
+            
+            val x1 = startX + i * stepX
+            val y1 = centerY - w1 * (usableHeight / 2f)
+            val x2 = startX + (i + 1) * stepX
+            val y2 = centerY - w2 * (usableHeight / 2f)
+            
+            dl.addLine(x1, y1, x2, y2, weightedLineCol, 2.0f)
+        }
+        
+        // 4. Border
+        val borderCol = ImGui.colorConvertFloat4ToU32(0.18f, 0.18f, 0.18f, 1.0f)
+        dl.addRect(startX, startY, startX + w, startY + h, borderCol, 4f)
+        
+        // 5. Y-Axis label markings
+        ImGui.setCursorScreenPos(startX + 6f, startY + 4f)
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "+1.0")
+        
+        ImGui.setCursorScreenPos(startX + 6f, centerY - 6f)
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "0.0")
+        
+        ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "-1.0")
+        
+        // Right-aligned helper label
+        val textWidth = ImGui.calcTextSize("Modulation Output").x
+        ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 4f)
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "Modulation Output")
+        
+        // Restore cursor position for downstream ImGui rendering
+        ImGui.setCursorScreenPos(startX, startY + h)
+    }
+
+    private fun drawCustomRangeSlider(
+        label: String,
+        currentMin: Float,
+        currentMax: Float,
+        minLimit: Float,
+        maxLimit: Float,
+        formatValue: (Float) -> String,
+        onRangeChanged: (Float, Float) -> Unit
+    ) {
+        val w = ImGui.getContentRegionAvailX()
+        val h = 36f // height of the widget row
+        
+        val startX = ImGui.getCursorScreenPosX()
+        val startY = ImGui.getCursorScreenPosY()
+        
+        // Reserve space
+        ImGui.dummy(w, h)
+        
+        val dl = ImGui.getWindowDrawList()
+        val io = ImGui.getIO()
+        val mouseX = io.mousePos.x
+        val mouseY = io.mousePos.y
+        
+        val leftW = 120f
+        val lineStartX = startX + leftW
+        val lineEndX = startX + w - 10f
+        val lineWidth = lineEndX - lineStartX
+        val centerY = startY + h / 2f
+        
+        // Calculate percentages
+        val rangeSpan = maxLimit - minLimit
+        val minPct = if (rangeSpan > 0f) (currentMin - minLimit) / rangeSpan else 0f
+        val maxPct = if (rangeSpan > 0f) (currentMax - minLimit) / rangeSpan else 0f
+        
+        val minHandleX = lineStartX + minPct * lineWidth
+        val maxHandleX = lineStartX + maxPct * lineWidth
+        
+        // Handle dragging logic
+        val mousePressed = ImGui.isMouseClicked(0)
+        val mouseDown = ImGui.isMouseDown(0)
+        
+        if (mousePressed) {
+            val inRowY = mouseY >= startY && mouseY <= startY + h
+            val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
+            if (inRowY && inRowX) {
+                activeSliderLabel = label
+                val distToMin = kotlin.math.abs(mouseX - minHandleX)
+                val distToMax = kotlin.math.abs(mouseX - maxHandleX)
+                if (distToMin < distToMax) {
+                    draggingMin = true
+                    draggingMax = false
+                } else {
+                    draggingMax = true
+                    draggingMin = false
+                }
+            }
+        }
+        
+        if (mouseDown && activeSliderLabel == label) {
+            val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
+            val rawVal = minLimit + pct * rangeSpan
+            if (draggingMin) {
+                val nextMin = rawVal.coerceIn(minLimit, currentMax)
+                onRangeChanged(nextMin, currentMax)
+            } else if (draggingMax) {
+                val nextMax = rawVal.coerceIn(currentMin, maxLimit)
+                onRangeChanged(currentMin, nextMax)
+            }
+        } else if (!mouseDown && activeSliderLabel == label) {
+            draggingMin = false
+            draggingMax = false
+            activeSliderLabel = null
+        }
+        
+        // ── Render ───────────────────────────────────────────────────────────
+        
+        // 1. Text Labels (Left side)
+        // Line 1: Variable Name
+        ImGui.setCursorScreenPos(startX, startY + 2f)
+        UITheme.body(label)
+        
+        // Line 2: Current Min/Max Value String
+        ImGui.setCursorScreenPos(startX + 8f, startY + 18f)
+        val valueStr = "${formatValue(currentMin)} - ${formatValue(currentMax)}"
+        UITheme.caption(valueStr)
+        
+        // 2. Thin horizontal line
+        val lineCol = ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1.0f)
+        dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
+        
+        // 3. Highlighted range line between handles
+        val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
+        dl.addLine(minHandleX, centerY, maxHandleX, centerY, activeRangeCol, 3f)
+        
+        // 4. Draw Handles (taller than wide rectangles)
+        val handleW = 6f
+        val handleH = 16f
+        
+        val handleBgCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
+        val handleBorderCol = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f)
+        
+        // Min Handle
+        dl.addRectFilled(
+            minHandleX - handleW / 2f, centerY - handleH / 2f,
+            minHandleX + handleW / 2f, centerY + handleH / 2f,
+            handleBgCol, 1f
+        )
+        dl.addRect(
+            minHandleX - handleW / 2f, centerY - handleH / 2f,
+            minHandleX + handleW / 2f, centerY + handleH / 2f,
+            handleBorderCol, 1f
+        )
+        
+        // Max Handle
+        dl.addRectFilled(
+            maxHandleX - handleW / 2f, centerY - handleH / 2f,
+            maxHandleX + handleW / 2f, centerY + handleH / 2f,
+            handleBgCol, 1f
+        )
+        dl.addRect(
+            maxHandleX - handleW / 2f, centerY - handleH / 2f,
+            maxHandleX + handleW / 2f, centerY + handleH / 2f,
+            handleBorderCol, 1f
+        )
+        
+        // Reset Cursor Pos for subsequent UI
+        ImGui.setCursorScreenPos(startX, startY + h)
     }
 }

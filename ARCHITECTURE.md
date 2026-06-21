@@ -62,7 +62,7 @@ src/main/kotlin/llm/slop/spirals/
 ├── ui/
 │   ├── UIManager.kt            — Layout: PatchGrid (L 2/3) | CellConfig+Mixer (R 1/3)
 │   ├── PatchGridPanel.kt       — Modulation matrix: param rows × CV columns
-│   ├── CellConfigPanel.kt      — Edits one CvModulator (BEAT/LFO/S&H/audio)
+│   ├── CellConfigPanel.kt      — Edits one CvModulator with lazy real-time oscilloscope
 │   └── PatchGridState.kt       — Selection state (cell, param, modulator)
 └── ANDROID-REFERENCE/          — REMOVED (extracted into rendering/)
 ```
@@ -89,7 +89,7 @@ src/main/kotlin/llm/slop/spirals/
 ```
 result = baseValue
 for each active CvModulator:
-    cv = evaluate source (beatPhase/lfo/snh locally; audio from CVRegistry.get())
+    cv = CvModulator.evaluateValue()  (runs beatPhase/lfo/snh calculation locally; audio from CVRegistry.get())
     amount = cv * weight
     result = result + amount          (ADD)
            | result * (1 + amount)    (MUL)

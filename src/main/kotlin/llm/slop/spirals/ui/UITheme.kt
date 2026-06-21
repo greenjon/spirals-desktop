@@ -5,6 +5,8 @@ import imgui.ImFontConfig
 import imgui.ImGui
 import imgui.ImGuiIO
 import mu.KotlinLogging
+import java.io.File
+import java.util.Properties
 
 /**
  * Central typography / styling system for Spirals Desktop.
@@ -27,6 +29,8 @@ object UITheme {
 
     private val logger = KotlinLogging.logger {}
 
+    private val settingsFile = File("spirals-settings.properties")
+
     // ── Semantic Levels ───────────────────────────────────────────────────────
 
     enum class FontLevel { H1, H2, H3, BODY, CAPTION, CODE }
@@ -34,7 +38,40 @@ object UITheme {
     // ── Mutable sizing knobs (user-tweakable from Settings later) ─────────────
 
     /** Base pixel size at which BODY text is rendered. All others are derived. */
-    var baseSize: Float = 15f
+    var baseSize: Float = 20f
+
+    init {
+        loadSettings()
+    }
+
+    private fun loadSettings() {
+        try {
+            if (settingsFile.exists()) {
+                val props = Properties()
+                settingsFile.inputStream().use { props.load(it) }
+                val savedSize = props.getProperty("baseSize")?.toFloatOrNull()
+                if (savedSize != null) {
+                    baseSize = savedSize
+                    logger.info { "Loaded baseSize from settings file: $baseSize" }
+                }
+            } else {
+                logger.info { "No settings file found, using default baseSize: $baseSize" }
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to load settings, using default baseSize: $baseSize" }
+        }
+    }
+
+    fun saveSettings() {
+        try {
+            val props = Properties()
+            props.setProperty("baseSize", baseSize.toString())
+            settingsFile.outputStream().use { props.store(it, "Spirals Settings") }
+            logger.info { "Saved baseSize to settings file: $baseSize" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to save settings" }
+        }
+    }
 
     /** Per-level multipliers. Changing these + calling rebuildFonts() is all
      *  the Settings panel needs to do. */

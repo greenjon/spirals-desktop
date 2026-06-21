@@ -59,6 +59,13 @@ class UIManager(private val windowHandle: Long) {
         // is ready for the backend to upload on its first render call.
         UITheme.loadFonts(io)
 
+        // Scale style sizes proportionally to the loaded baseSize relative to the baseline of 15f
+        val startupScale = UITheme.baseSize / 15f
+        if (startupScale != 1f) {
+            ImGui.getStyle().scaleAllSizes(startupScale)
+            logger.info { "Applied startup UI style scale: $startupScale (baseSize: ${UITheme.baseSize})" }
+        }
+
         // Darken the modal backdrop for a more dramatic VJ-app feel.
         ImGui.getStyle().setColor(
             imgui.flag.ImGuiCol.ModalWindowDimBg,
@@ -80,6 +87,7 @@ class UIManager(private val windowHandle: Long) {
             imguiGl3.updateFontsTexture()
             ImGui.getStyle().scaleAllSizes(ratio)
             appliedBaseSize = newSize
+            UITheme.saveSettings()
             logger.info { "Font size applied: ${newSize}px (ratio $ratio)" }
         }
 
@@ -255,6 +263,16 @@ class UIManager(private val windowHandle: Long) {
         slider("FB Rotate", deck.fbRotate, -0.1f, 0.1f)
         slider("FB Hue",    deck.fbHueShift,-0.1f, 0.1f)
         slider("FB Blur",   deck.fbBlur,    0f, 0.2f)
+
+        ImGui.spacing()
+        if (ImGui.button("🎲 Randomize Modulators", ImGui.getContentRegionAvailX(), 30f)) {
+            deck.randomizeModulators()
+            val cell = patchState.selectedCell
+            val param = patchState.selectedParam
+            if (cell != null && param != null && cell.paramKey.startsWith(label)) {
+                patchState.editingModulator = param.modulators.find { it.sourceId == cell.cvSourceId }
+            }
+        }
 
         ImGui.popID()
     }

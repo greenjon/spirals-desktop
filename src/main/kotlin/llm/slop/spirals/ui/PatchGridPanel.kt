@@ -40,7 +40,7 @@ object PatchGridPanel {
         val avail = ImGui.getContentRegionAvailX()
         val labelColW = (avail - CV_COLUMNS.size * (CELL + CELL_PAD)).coerceAtLeast(120f)
 
-        drawColumnHeaders(labelColW)
+        drawColumnHeaders(labelColW, state, mixer)
         ImGui.separator()
         ImGui.spacing()
 
@@ -55,7 +55,7 @@ object PatchGridPanel {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private fun drawColumnHeaders(labelColW: Float) {
+    private fun drawColumnHeaders(labelColW: Float, state: PatchGridState, mixer: Mixer) {
         val dl = ImGui.getWindowDrawList()
         val startX = ImGui.getCursorScreenPosX()
         val startY = ImGui.getCursorScreenPosY()
@@ -72,6 +72,24 @@ object PatchGridPanel {
         // Reserve vertical space for headers
         ImGui.dummy(10f, maxH + 5f)
         val afterHeadersY = ImGui.getCursorScreenPosY()
+
+        // Draw Randomize All button in the top-left empty space of the column headers
+        ImGui.setCursorScreenPos(startX, startY + (maxH + 5f - 24f) * 0.5f)
+        if (ImGui.button("🎲 Randomize All", labelColW - CELL_PAD, 24f)) {
+            mixer.deckA.randomizeModulators()
+            mixer.deckB.randomizeModulators()
+            listOf(mixer.crossfade, mixer.masterAlpha, mixer.mode).forEach { param ->
+                val randomized = param.modulators.map { it.randomizeActiveValues() }
+                param.modulators.clear()
+                param.modulators.addAll(randomized)
+            }
+            // Refresh selection
+            val cell = state.selectedCell
+            val param = state.selectedParam
+            if (cell != null && param != null) {
+                state.editingModulator = param.modulators.find { it.sourceId == cell.cvSourceId }
+            }
+        }
         
         // Draw each column header vertically
         for ((idx, label) in CV_LABELS_VERTICAL.withIndex()) {
@@ -243,5 +261,24 @@ object PatchGridPanel {
 
         ImGui.popID()
         ImGui.spacing()
+    }
+}
+
+fun Deck.randomizeModulators() {
+    val allParams = mutableListOf<llm.slop.spirals.parameters.ModulatableParameter>()
+    allParams.addAll(this.source.parameters.values)
+    allParams.add(this.source.globalAlpha)
+    allParams.add(this.source.globalScale)
+    allParams.add(this.fbDecay)
+    allParams.add(this.fbGain)
+    allParams.add(this.fbZoom)
+    allParams.add(this.fbRotate)
+    allParams.add(this.fbHueShift)
+    allParams.add(this.fbBlur)
+
+    for (param in allParams) {
+        val randomized = param.modulators.map { it.randomizeActiveValues() }
+        param.modulators.clear()
+        param.modulators.addAll(randomized)
     }
 }
