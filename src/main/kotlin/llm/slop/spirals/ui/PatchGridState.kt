@@ -20,11 +20,6 @@ class PatchGridState {
     /** The parameter object that backs the selected cell. */
     var selectedParam: ModulatableParameter? = null
 
-    /**
-     * The modulator currently being edited in the Cell Config panel.
-     * Null if the selected cell is empty (no patch at this intersection).
-     */
-    var editingModulator: CvModulator? = null
 
     /** Tracks which tree node groups are open (keyed by label). Default open. */
     val groupOpen = mutableMapOf<String, Boolean>().withDefault { true }
@@ -32,13 +27,10 @@ class PatchGridState {
     fun select(cellId: PatchCellId, param: ModulatableParameter) {
         selectedCell = cellId
         selectedParam = param
-        // Find the existing modulator for this CV source (if any)
-        editingModulator = param.modulators.find { it.sourceId == cellId.cvSourceId }
     }
 
     fun clearSelection() {
         selectedCell = null
         selectedParam = null
-        editingModulator = null
     }
 }

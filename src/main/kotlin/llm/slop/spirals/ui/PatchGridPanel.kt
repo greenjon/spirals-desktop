@@ -93,11 +93,7 @@ object PatchGridPanel {
                 param.randomizeBaseValue()
             }
             // Refresh selection
-            val cell = state.selectedCell
-            val param = state.selectedParam
-            if (cell != null && param != null) {
-                state.editingModulator = param.modulators.find { it.sourceId == cell.cvSourceId }
-            }
+
         }
         
         val lineCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.5f)
@@ -190,7 +186,7 @@ object PatchGridPanel {
             }
 
             drawSubGroup("Feedback", state) {
-                drawParamRow("FB Decay",    "$deckLabel/FB/Decay",    deck.fbDecay,    state, labelColW)
+                drawParamRow("Feedback",    "$deckLabel/FB/Decay",    deck.fbDecay,    state, labelColW)
                 drawParamRow("FB Gain",     "$deckLabel/FB/Gain",     deck.fbGain,     state, labelColW)
                 drawParamRow("FB Zoom",     "$deckLabel/FB/Zoom",     deck.fbZoom,     state, labelColW)
                 drawParamRow("FB Rotate",   "$deckLabel/FB/Rotate",   deck.fbRotate,   state, labelColW)
@@ -308,9 +304,9 @@ object PatchGridPanel {
         for ((colIdx, cvId) in CV_COLUMNS.withIndex()) {
             val cellId = PatchCellId(paramKey, cvId)
             val isSelected = state.selectedCell == cellId
-            val modulator = param.modulators.find { it.sourceId == cvId }
-            val hasModulator = modulator != null && !modulator.bypassed
-            val isBypassed = modulator != null && modulator.bypassed
+            val activeMods = param.modulators.filter { it.sourceId == cvId }
+            val hasModulator = activeMods.any { !it.bypassed }
+            val isBypassed = activeMods.isNotEmpty() && activeMods.all { it.bypassed }
 
             val x = gridStartX + labelColW + 2 * (CELL + CELL_PAD) + colIdx * (CELL + CELL_PAD)
             val y = rowScreenY
@@ -347,7 +343,7 @@ object PatchGridPanel {
                 dl.addCircle(cx, cy, circleR, circleCol, 32, 1.5f)
 
                 if (!isBypassed) {
-                    val liveVal = llm.slop.spirals.cv.evaluateModulator(modulator!!)
+                    val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods).coerceIn(-1f, 1f)
                     // Full circle: val goes 0..1 counterclockwise: angle = 3PI/2 - val*2*PI
                     val angle = (3.0 * PI / 2.0) - liveVal * 2.0 * PI
                     val dotX = cx + circleR * cos(angle).toFloat()

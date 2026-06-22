@@ -159,18 +159,21 @@ object CellConfigPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        val existing = state.editingModulator
+        val activeMods = param.modulators.filter { it.sourceId == cvId }
 
-        if (existing == null) {
+        if (activeMods.isEmpty()) {
             activeHistory = null
             activeCellId = null
             // Empty cell: offer to create
             UITheme.caption("No patch at this intersection.")
             ImGui.spacing()
             if (ImGui.button("+ Add Patch", ImGui.getContentRegionAvailX(), 35f)) {
-                val newMod = CvModulator(sourceId = cvId)
-                param.modulators.add(newMod)
-                state.editingModulator = newMod
+                if (cvId in listOf("beatPhase", "lfo", "sampleAndHold")) {
+                    param.modulators.add(CvModulator(sourceId = cvId))
+                    param.modulators.add(CvModulator(sourceId = cvId, bypassed = true))
+                } else {
+                    param.modulators.add(CvModulator(sourceId = cvId))
+                }
             }
             return
         }
@@ -180,23 +183,17 @@ object CellConfigPanel {
             activeHistory = CvHistoryBuffer(200)
             activeCellId = cell
         }
-        activeHistory?.add(llm.slop.spirals.cv.evaluateModulator(existing))
+        val combinedVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods)
+        activeHistory?.add(combinedVal)
 
-        // ── Bypass / Delete buttons ──────────────────────────────
-        val bypassed = existing.bypassed
-        val bypassLabel = if (bypassed) "BYPASSED" else "ACTIVE"
-        if (bypassed) ImGui.pushStyleColor(0, 0.5f, 0.5f, 0.5f, 1f)
-        else ImGui.pushStyleColor(0, 0.2f, 0.8f, 0.4f, 1f)
-        if (ImGui.button(bypassLabel, 125f, 30f)) {
-            replaceModulator(state, param, existing.copy(bypassed = !bypassed))
-        }
-        ImGui.popStyleColor()
-
-        ImGui.sameLine()
+        // ── Delete ALL ───────────────────────────────────────────
         ImGui.pushStyleColor(0, 0.8f, 0.2f, 0.2f, 1f)
-        if (ImGui.button("Delete Patch", 150f, 30f)) {
-            param.modulators.remove(existing)
-            state.editingModulator = null
+        if (ImGui.button("Delete Patch", ImGui.getContentRegionAvailX(), 30f)) {
+            val toRemove = activeMods.toList()
+            for (mod in toRemove) {
+                param.modulators.remove(mod)
+            }
+            return
         }
         ImGui.popStyleColor()
 
@@ -204,14 +201,33 @@ object CellConfigPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        // ── Oscilloscope ─────────────────────────────────────────
-        drawOscilloscope(existing)
+        // ── Unified Oscilloscope ─────────────────────────────────
+        drawOscilloscope()
 
         ImGui.spacing()
         ImGui.separator()
         ImGui.spacing()
 
-        // ── Operator (ADD / MUL) ─────────────────────────────────
+        // ── Modulators ───────────────────────────────────────────
+        for ((idx, existing) in activeMods.withIndex()) {
+            ImGui.pushID(existing.id)
+            if (activeMods.size > 1) {
+                UITheme.h3("Modulator ${idx + 1}")
+                ImGui.spacing()
+            }
+
+            val bypassed = existing.bypassed
+            val bypassLabel = if (bypassed) "BYPASSED" else "ACTIVE"
+            if (bypassed) ImGui.pushStyleColor(0, 0.5f, 0.5f, 0.5f, 1f)
+            else ImGui.pushStyleColor(0, 0.2f, 0.8f, 0.4f, 1f)
+            if (ImGui.button(bypassLabel, 125f, 30f)) {
+                replaceModulator(state, param, existing.copy(bypassed = !bypassed))
+            }
+            ImGui.popStyleColor()
+
+            ImGui.spacing()
+
+            // ── Operator (ADD / MUL) ─────────────────────────────────
         UITheme.body("Operator")
         val opIdx = ImInt(if (existing.operator == ModulationOperator.ADD) 0 else 1)
         ImGui.pushItemWidth(150f)
@@ -224,6 +240,7 @@ object CellConfigPanel {
 
         // ── Weight ───────────────────────────────────────────────
         drawCustomRangeSlider(
+            idPrefix = existing.id,
             label = "Weight",
             currentValue = existing.weight,
             currentMin = existing.weightMin,
@@ -304,6 +321,7 @@ object CellConfigPanel {
             val currentActiveIdx = subdivisionOptions.indexOfFirst { it == existing.subdivision }.coerceAtLeast(0)
             
             drawCustomRangeSlider(
+            idPrefix = existing.id,
                 label = "Beat Division",
                 currentValue = currentActiveIdx.toFloat(),
                 currentMin = currentMinIdx.toFloat(),
@@ -389,6 +407,7 @@ object CellConfigPanel {
             }
 
             drawCustomRangeSlider(
+            idPrefix = existing.id,
                 label = "LFO Period",
                 currentValue = existing.subdivision,
                 currentMin = existing.subdivisionMin,
@@ -443,6 +462,7 @@ object CellConfigPanel {
 
         // ── Phase Offset ─────────────────────────────────────────
         drawCustomRangeSlider(
+            idPrefix = existing.id,
             label = "Phase Offset",
             currentValue = existing.phaseOffset,
             currentMin = existing.phaseOffsetMin,
@@ -505,6 +525,7 @@ object CellConfigPanel {
                 else -> "Duty Cycle"
             }
             drawCustomRangeSlider(
+            idPrefix = existing.id,
                 label = slopeLabel,
                 currentValue = existing.slope,
                 currentMin = existing.slopeMin,
@@ -562,6 +583,14 @@ object CellConfigPanel {
         if (ImGui.button("🎲 Test Randomize", ImGui.getContentRegionAvailX(), 30f)) {
             val randomized = existing.randomizeActiveValues()
             replaceModulator(state, param, randomized)
+        }
+
+            ImGui.popID()
+            if (idx < activeMods.size - 1) {
+                ImGui.spacing()
+                ImGui.separator()
+                ImGui.spacing()
+            }
         }
 
         // ── Live value bar ───────────────────────────────────────
@@ -642,10 +671,9 @@ object CellConfigPanel {
     private fun replaceModulator(state: PatchGridState, param: llm.slop.spirals.parameters.ModulatableParameter, newMod: CvModulator) {
         val idx = param.modulators.indexOfFirst { it.id == newMod.id }
         if (idx >= 0) param.modulators[idx] = newMod
-        state.editingModulator = newMod
     }
 
-    private fun drawOscilloscope(existing: CvModulator) {
+    private fun drawOscilloscope() {
         val history = activeHistory ?: return
         val historySize = history.size
         val w = ImGui.getContentRegionAvailX()
@@ -683,46 +711,19 @@ object CellConfigPanel {
         // 3. Draw lines of history
         val stepX = w / (historySize - 1)
         val usableHeight = h - 10f
-        val weight = existing.weight
-        val isBypassed = existing.bypassed
         
-        // Raw CV line (faint/dashed gray/blue)
-        val rawLineCol = if (isBypassed) 
-            ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 0.15f)
-        else 
-            ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.5f, 0.3f)
-            
+        val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.9f, 1.0f) // neon cyan
+        
         for (i in 0 until historySize - 1) {
-            val raw1 = history.getAt(i)
-            val raw2 = history.getAt(i + 1)
+            val val1 = history.getAt(i).coerceIn(-1f, 1f)
+            val val2 = history.getAt(i + 1).coerceIn(-1f, 1f)
             
             val x1 = startX + i * stepX
-            val y1 = centerY - raw1 * (usableHeight / 2f)
+            val y1 = centerY - val1 * (usableHeight / 2f)
             val x2 = startX + (i + 1) * stepX
-            val y2 = centerY - raw2 * (usableHeight / 2f)
+            val y2 = centerY - val2 * (usableHeight / 2f)
             
-            dl.addLine(x1, y1, x2, y2, rawLineCol, 1.0f)
-        }
-        
-        // Weighted CV line (bright cyan)
-        val weightedLineCol = if (isBypassed)
-            ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.4f)
-        else
-            ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.9f, 1.0f) // neon cyan
-            
-        for (i in 0 until historySize - 1) {
-            val raw1 = history.getAt(i)
-            val raw2 = history.getAt(i + 1)
-            
-            val w1 = raw1 * weight
-            val w2 = raw2 * weight
-            
-            val x1 = startX + i * stepX
-            val y1 = centerY - w1 * (usableHeight / 2f)
-            val x2 = startX + (i + 1) * stepX
-            val y2 = centerY - w2 * (usableHeight / 2f)
-            
-            dl.addLine(x1, y1, x2, y2, weightedLineCol, 2.0f)
+            dl.addLine(x1, y1, x2, y2, lineCol, 2.0f)
         }
         
         // 4. Border
@@ -755,7 +756,8 @@ object CellConfigPanel {
         minLimit: Float,
         maxLimit: Float,
         formatValue: (Float) -> String,
-        onRangeChanged: (Float, Float) -> Unit
+        onRangeChanged: (Float, Float) -> Unit,
+        idPrefix: String = ""
     ) {
         drawCustomRangeSlider(
             label = label,
@@ -767,7 +769,8 @@ object CellConfigPanel {
             isRandomizable = true,
             showControls = false,
             formatValue = formatValue,
-            onRangeChanged = onRangeChanged
+            onRangeChanged = onRangeChanged,
+            idPrefix = idPrefix
         )
     }
 
@@ -784,7 +787,8 @@ object CellConfigPanel {
         onRandomizableChanged: (Boolean) -> Unit = {},
         onRandomizeNow: () -> Unit = {},
         onRangeChanged: (Float, Float) -> Unit = { _, _ -> },
-        onValueChanged: (Float) -> Unit = {}
+        onValueChanged: (Float) -> Unit = {},
+        idPrefix: String = ""
     ) {
         val rowStartX = ImGui.getCursorScreenPosX()
         val rowStartY = ImGui.getCursorScreenPosY()
@@ -850,7 +854,7 @@ object CellConfigPanel {
                 val inRowY = mouseY >= startY && mouseY <= startY + h
                 val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
                 if (inRowY && inRowX) {
-                    activeSliderLabel = label
+                    activeSliderLabel = idPrefix + label
                     val distToMin = kotlin.math.abs(mouseX - minHandleX)
                     val distToMax = kotlin.math.abs(mouseX - maxHandleX)
                     if (distToMin < distToMax) {
@@ -863,7 +867,7 @@ object CellConfigPanel {
                 }
             }
             
-            if (mouseDown && activeSliderLabel == label) {
+            if (mouseDown && activeSliderLabel == (idPrefix + label)) {
                 val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
                 val rawVal = minLimit + pct * rangeSpan
                 if (draggingMin) {
@@ -873,7 +877,7 @@ object CellConfigPanel {
                     val nextMax = rawVal.coerceIn(currentMin, maxLimit)
                     onRangeChanged(currentMin, nextMax)
                 }
-            } else if (!mouseDown && activeSliderLabel == label) {
+            } else if (!mouseDown && activeSliderLabel == (idPrefix + label)) {
                 draggingMin = false
                 draggingMax = false
                 activeSliderLabel = null
@@ -935,17 +939,17 @@ object CellConfigPanel {
                 val inRowY = mouseY >= startY && mouseY <= startY + h
                 val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
                 if (inRowY && inRowX) {
-                    activeSliderLabel = label
+                    activeSliderLabel = idPrefix + label
                     draggingMin = true
                     draggingMax = false
                 }
             }
             
-            if (mouseDown && activeSliderLabel == label) {
+            if (mouseDown && activeSliderLabel == (idPrefix + label)) {
                 val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
                 val rawVal = minLimit + pct * rangeSpan
                 onValueChanged(rawVal)
-            } else if (!mouseDown && activeSliderLabel == label) {
+            } else if (!mouseDown && activeSliderLabel == (idPrefix + label)) {
                 draggingMin = false
                 draggingMax = false
                 activeSliderLabel = null

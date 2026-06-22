@@ -53,3 +53,24 @@ fun evaluateModulator(modulator: CvModulator): Float {
         }
     }
 }
+
+fun getCombinedModulatorValue(mods: List<CvModulator>): Float {
+    if (mods.isEmpty()) return 0f
+    
+    var result = 0f
+    var first = true
+    for (mod in mods) {
+        if (mod.bypassed) continue
+        val cv = evaluateModulator(mod) * mod.weight
+        if (first) {
+            result = cv
+            first = false
+        } else {
+            result = when (mod.operator) {
+                llm.slop.spirals.parameters.ModulationOperator.ADD -> result + cv
+                llm.slop.spirals.parameters.ModulationOperator.MUL -> result * (1.0f + cv)
+            }
+        }
+    }
+    return result.coerceIn(-1.0f, 1.0f)
+}

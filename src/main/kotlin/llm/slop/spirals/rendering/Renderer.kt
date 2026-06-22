@@ -143,8 +143,10 @@ class Renderer {
         glBindTexture(GL_TEXTURE_2D, deck.getCurrentHistoryFBO().texture)
         feedbackShader.setUniform("uTextureHistory", 1)
 
-        // Set feedback parameters
-        feedbackShader.setUniform("uDecay", deck.fbDecay.value)
+        // Set feedback parameters (map feedback strength S to decay using a cubic curve)
+        val s = deck.fbDecay.value
+        val decayVal = Math.pow((1.0f - s).toDouble(), 3.0).toFloat()
+        feedbackShader.setUniform("uDecay", decayVal)
         feedbackShader.setUniform("uGain", deck.fbGain.value)
         feedbackShader.setUniform("uZoom", deck.fbZoom.value)
         feedbackShader.setUniform("uRotate", deck.fbRotate.value)

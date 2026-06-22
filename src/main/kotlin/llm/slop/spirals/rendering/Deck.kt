@@ -22,7 +22,7 @@ class Deck(
     private var fbIndex = 0
 
     // Feedback parameters with custom clamp ranges
-    val fbDecay = ModulatableParameter(0.02f, minClamp = 0f, maxClamp = 1f)
+    val fbDecay = ModulatableParameter(0.73f, minClamp = 0f, maxClamp = 1f)
     val fbGain = ModulatableParameter(1.0f, minClamp = 0f, maxClamp = 2f)
     val fbZoom = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f) // negative is zoom out, positive is zoom in
     val fbRotate = ModulatableParameter(0.0f, minClamp = -3.14f, maxClamp = 3.14f) // in radians

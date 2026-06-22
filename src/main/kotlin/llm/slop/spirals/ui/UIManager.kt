@@ -268,7 +268,7 @@ class UIManager(private val windowHandle: Long) {
         }
 
         slider("Gain",      deck.source.globalAlpha, 0f, 1f)
-        slider("FB Decay",  deck.fbDecay,   0f, 0.2f)
+        slider("Feedback",  deck.fbDecay,   0f, 1f)
         slider("FB Gain",   deck.fbGain,    0.9f, 1.1f)
         slider("FB Zoom",   deck.fbZoom,   -0.1f, 0.1f)
         slider("FB Rotate", deck.fbRotate, -0.1f, 0.1f)
@@ -278,11 +278,6 @@ class UIManager(private val windowHandle: Long) {
         ImGui.spacing()
         if (ImGui.button("🎲 Randomize Modulators", ImGui.getContentRegionAvailX(), 30f)) {
             deck.randomizeModulators()
-            val cell = patchState.selectedCell
-            val param = patchState.selectedParam
-            if (cell != null && param != null && cell.paramKey.startsWith(label)) {
-                patchState.editingModulator = param.modulators.find { it.sourceId == cell.cvSourceId }
-            }
         }
 
         ImGui.popID()
