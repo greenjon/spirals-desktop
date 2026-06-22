@@ -27,13 +27,57 @@ data class CvModulator(
     val slopeMin: Float = slope,
     val slopeMax: Float = slope,
 
+    val randomizeWeight: Boolean = true,
+    val randomizeSubdivision: Boolean = true,
+    val randomizePhaseOffset: Boolean = true,
+    val randomizeSlope: Boolean = true,
+
     val id: String = UUID.randomUUID().toString()
 ) {
     fun randomizeActiveValues(random: kotlin.random.Random = kotlin.random.Random.Default): CvModulator {
-        val newWeight = if (weightMin == weightMax) weightMin else random.nextFloat() * (weightMax - weightMin) + weightMin
-        val newPhase = if (phaseOffsetMin == phaseOffsetMax) phaseOffsetMin else random.nextFloat() * (phaseOffsetMax - phaseOffsetMin) + phaseOffsetMin
-        val newSlope = if (slopeMin == slopeMax) slopeMin else random.nextFloat() * (slopeMax - slopeMin) + slopeMin
+        val newWeight = if (randomizeWeight) {
+            if (weightMin == weightMax) weightMin else random.nextFloat() * (weightMax - weightMin) + weightMin
+        } else weight
 
+        val newPhase = if (randomizePhaseOffset) {
+            if (phaseOffsetMin == phaseOffsetMax) phaseOffsetMin else random.nextFloat() * (phaseOffsetMax - phaseOffsetMin) + phaseOffsetMin
+        } else phaseOffset
+
+        val newSlope = if (randomizeSlope) {
+            if (slopeMin == slopeMax) slopeMin else random.nextFloat() * (slopeMax - slopeMin) + slopeMin
+        } else slope
+
+        val newSubdiv = if (randomizeSubdivision) {
+            if (subdivisionMin == subdivisionMax) {
+                subdivisionMin
+            } else {
+                if (sourceId == "beatPhase" || sourceId == "sampleAndHold") {
+                    val options = floatArrayOf(0.125f, 0.25f, 0.5f, 1f, 2f, 4f, 8f, 16f, 32f, 64f, 128f, 256f)
+                    val valid = options.filter { it in subdivisionMin..subdivisionMax }
+                    if (valid.isNotEmpty()) valid.random(random) else subdivisionMin
+                } else {
+                    // LFO Speed is continuous. 0.1s to 10s.
+                    random.nextFloat() * (subdivisionMax - subdivisionMin) + subdivisionMin
+                }
+            }
+        } else subdivision
+
+        return this.copy(
+            weight = newWeight,
+            subdivision = newSubdiv,
+            phaseOffset = newPhase,
+            slope = newSlope
+        )
+    }
+
+    fun randomizeWeight(random: kotlin.random.Random = kotlin.random.Random.Default): CvModulator {
+        if (!randomizeWeight) return this
+        val newWeight = if (weightMin == weightMax) weightMin else random.nextFloat() * (weightMax - weightMin) + weightMin
+        return this.copy(weight = newWeight)
+    }
+
+    fun randomizeSubdivision(random: kotlin.random.Random = kotlin.random.Random.Default): CvModulator {
+        if (!randomizeSubdivision) return this
         val newSubdiv = if (subdivisionMin == subdivisionMax) {
             subdivisionMin
         } else {
@@ -42,16 +86,21 @@ data class CvModulator(
                 val valid = options.filter { it in subdivisionMin..subdivisionMax }
                 if (valid.isNotEmpty()) valid.random(random) else subdivisionMin
             } else {
-                // LFO Speed is continuous. 0.1s to 10s.
                 random.nextFloat() * (subdivisionMax - subdivisionMin) + subdivisionMin
             }
         }
+        return this.copy(subdivision = newSubdiv)
+    }
 
-        return this.copy(
-            weight = newWeight,
-            subdivision = newSubdiv,
-            phaseOffset = newPhase,
-            slope = newSlope
-        )
+    fun randomizePhaseOffset(random: kotlin.random.Random = kotlin.random.Random.Default): CvModulator {
+        if (!randomizePhaseOffset) return this
+        val newPhase = if (phaseOffsetMin == phaseOffsetMax) phaseOffsetMin else random.nextFloat() * (phaseOffsetMax - phaseOffsetMin) + phaseOffsetMin
+        return this.copy(phaseOffset = newPhase)
+    }
+
+    fun randomizeSlope(random: kotlin.random.Random = kotlin.random.Random.Default): CvModulator {
+        if (!randomizeSlope) return this
+        val newSlope = if (slopeMin == slopeMax) slopeMin else random.nextFloat() * (slopeMax - slopeMin) + slopeMin
+        return this.copy(slope = newSlope)
     }
 }

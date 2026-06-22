@@ -2,6 +2,7 @@ package llm.slop.spirals.ui
 
 import imgui.ImGui
 import imgui.flag.ImGuiColorEditFlags
+import imgui.type.ImBoolean
 import imgui.type.ImInt
 import llm.slop.spirals.cv.CVRegistry
 import llm.slop.spirals.cv.CvHistoryBuffer
@@ -59,25 +60,57 @@ object CellConfigPanel {
 
             drawCustomRangeSlider(
                 label = "Base Range",
+                currentValue = param.baseValue,
                 currentMin = param.baseMin,
                 currentMax = param.baseMax,
                 minLimit = 0f,
                 maxLimit = 1f,
+                isRandomizable = param.randomizeBase,
+                showControls = true,
                 formatValue = { "%.3f".format(it) },
+                onRandomizableChanged = { checked ->
+                    if (checked) {
+                        val rMin = param.baseMin
+                        val rMax = param.baseMax
+                        val (nextMin, nextMax) = if (rMin == rMax) {
+                            Pair((param.baseValue - 0.1f).coerceAtLeast(0f), (param.baseValue + 0.1f).coerceAtMost(1f))
+                        } else {
+                            Pair(rMin, rMax)
+                        }
+                        param.randomizeBase = true
+                        param.baseMin = nextMin
+                        param.baseMax = nextMax
+                    } else {
+                        param.randomizeBase = false
+                        param.baseMin = param.baseValue
+                        param.baseMax = param.baseValue
+                    }
+                },
+                onRandomizeNow = {
+                    param.randomizeBaseValue()
+                },
                 onRangeChanged = { nextMin, nextMax ->
                     param.baseMin = nextMin
                     param.baseMax = nextMax
-                    if (nextMin == nextMax) {
-                        param.baseValue = nextMin
-                    } else {
-                        param.baseValue = param.baseValue.coerceIn(nextMin, nextMax)
-                    }
+                    param.baseValue = param.baseValue.coerceIn(nextMin, nextMax)
+                },
+                onValueChanged = { newVal ->
+                    param.baseValue = newVal
+                    param.baseMin = newVal
+                    param.baseMax = newVal
                 }
             )
 
             ImGui.spacing()
+            val randomizeBaseActive = param.randomizeBase
+            if (!randomizeBaseActive) {
+                ImGui.beginDisabled()
+            }
             if (ImGui.button("🎲 Randomize Base Value", ImGui.getContentRegionAvailX(), 30f)) {
                 param.randomizeBaseValue()
+            }
+            if (!randomizeBaseActive) {
+                ImGui.endDisabled()
             }
 
             ImGui.spacing()
@@ -192,17 +225,51 @@ object CellConfigPanel {
         // ── Weight ───────────────────────────────────────────────
         drawCustomRangeSlider(
             label = "Weight",
+            currentValue = existing.weight,
             currentMin = existing.weightMin,
             currentMax = existing.weightMax,
             minLimit = -1f,
             maxLimit = 1f,
+            isRandomizable = existing.randomizeWeight,
             formatValue = { "%.3f".format(it) },
+            onRandomizableChanged = { checked ->
+                if (checked) {
+                    val rMin = existing.weightMin
+                    val rMax = existing.weightMax
+                    val (nextMin, nextMax) = if (rMin == rMax) {
+                        Pair((existing.weight - 0.1f).coerceAtLeast(-1f), (existing.weight + 0.1f).coerceAtMost(1f))
+                    } else {
+                        Pair(rMin, rMax)
+                    }
+                    replaceModulator(state, param, existing.copy(
+                        randomizeWeight = true,
+                        weightMin = nextMin,
+                        weightMax = nextMax
+                    ))
+                } else {
+                    replaceModulator(state, param, existing.copy(
+                        randomizeWeight = false,
+                        weightMin = existing.weight,
+                        weightMax = existing.weight
+                    ))
+                }
+            },
+            onRandomizeNow = {
+                replaceModulator(state, param, existing.randomizeWeight())
+            },
             onRangeChanged = { nextMin, nextMax ->
                 val nextActive = existing.weight.coerceIn(nextMin, nextMax)
                 replaceModulator(state, param, existing.copy(
                     weightMin = nextMin,
                     weightMax = nextMax,
                     weight = nextActive
+                ))
+            },
+            onValueChanged = { newVal ->
+                replaceModulator(state, param, existing.copy(
+                    weight = newVal,
+                    weightMin = newVal,
+                    weightMax = newVal
                 ))
             }
         )
@@ -234,14 +301,45 @@ object CellConfigPanel {
         if (isBeat || isSnh) {
             val currentMinIdx = subdivisionOptions.indexOfFirst { it == existing.subdivisionMin }.coerceAtLeast(0)
             val currentMaxIdx = subdivisionOptions.indexOfFirst { it == existing.subdivisionMax }.coerceAtLeast(0)
+            val currentActiveIdx = subdivisionOptions.indexOfFirst { it == existing.subdivision }.coerceAtLeast(0)
             
             drawCustomRangeSlider(
                 label = "Beat Division",
+                currentValue = currentActiveIdx.toFloat(),
                 currentMin = currentMinIdx.toFloat(),
                 currentMax = currentMaxIdx.toFloat(),
                 minLimit = 0f,
                 maxLimit = (subdivisionOptions.size - 1).toFloat(),
+                isRandomizable = existing.randomizeSubdivision,
                 formatValue = { idx -> subdivisionLabels[idx.toInt().coerceIn(0, subdivisionOptions.size - 1)] },
+                onRandomizableChanged = { checked ->
+                    if (checked) {
+                        val rMin = existing.subdivisionMin
+                        val rMax = existing.subdivisionMax
+                        val (nextMin, nextMax) = if (rMin == rMax) {
+                            val idx = subdivisionOptions.indexOfFirst { it == rMin }.coerceIn(0, subdivisionOptions.size - 1)
+                            val minIdx = (idx - 1).coerceAtLeast(0)
+                            val maxIdx = (idx + 1).coerceAtMost(subdivisionOptions.size - 1)
+                            Pair(subdivisionOptions[minIdx], subdivisionOptions[maxIdx])
+                        } else {
+                            Pair(rMin, rMax)
+                        }
+                        replaceModulator(state, param, existing.copy(
+                            randomizeSubdivision = true,
+                            subdivisionMin = nextMin,
+                            subdivisionMax = nextMax
+                        ))
+                    } else {
+                        replaceModulator(state, param, existing.copy(
+                            randomizeSubdivision = false,
+                            subdivisionMin = existing.subdivision,
+                            subdivisionMax = existing.subdivision
+                        ))
+                    }
+                },
+                onRandomizeNow = {
+                    replaceModulator(state, param, existing.randomizeSubdivision())
+                },
                 onRangeChanged = { nextMinIdx, nextMaxIdx ->
                     val nextMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
                     val nextMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
@@ -250,6 +348,14 @@ object CellConfigPanel {
                         subdivisionMin = nextMinVal,
                         subdivisionMax = nextMaxVal,
                         subdivision = nextActive
+                    ))
+                },
+                onValueChanged = { newValIdx ->
+                    val newVal = subdivisionOptions[newValIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                    replaceModulator(state, param, existing.copy(
+                        subdivision = newVal,
+                        subdivisionMin = newVal,
+                        subdivisionMax = newVal
                     ))
                 }
             )
@@ -284,17 +390,51 @@ object CellConfigPanel {
 
             drawCustomRangeSlider(
                 label = "LFO Period",
+                currentValue = existing.subdivision,
                 currentMin = existing.subdivisionMin,
                 currentMax = existing.subdivisionMax,
                 minLimit = 0.001f,
                 maxLimit = 1f,
+                isRandomizable = existing.randomizeSubdivision,
                 formatValue = formatFunc,
+                onRandomizableChanged = { checked ->
+                    if (checked) {
+                        val rMin = existing.subdivisionMin
+                        val rMax = existing.subdivisionMax
+                        val (nextMin, nextMax) = if (rMin == rMax) {
+                            Pair((existing.subdivision - 0.05f).coerceAtLeast(0.001f), (existing.subdivision + 0.05f).coerceAtMost(1f))
+                        } else {
+                            Pair(rMin, rMax)
+                        }
+                        replaceModulator(state, param, existing.copy(
+                            randomizeSubdivision = true,
+                            subdivisionMin = nextMin,
+                            subdivisionMax = nextMax
+                        ))
+                    } else {
+                        replaceModulator(state, param, existing.copy(
+                            randomizeSubdivision = false,
+                            subdivisionMin = existing.subdivision,
+                            subdivisionMax = existing.subdivision
+                        ))
+                    }
+                },
+                onRandomizeNow = {
+                    replaceModulator(state, param, existing.randomizeSubdivision())
+                },
                 onRangeChanged = { nextMin, nextMax ->
                     val nextActive = existing.subdivision.coerceIn(nextMin, nextMax)
                     replaceModulator(state, param, existing.copy(
                         subdivisionMin = nextMin,
                         subdivisionMax = nextMax,
                         subdivision = nextActive
+                    ))
+                },
+                onValueChanged = { newVal ->
+                    replaceModulator(state, param, existing.copy(
+                        subdivision = newVal,
+                        subdivisionMin = newVal,
+                        subdivisionMax = newVal
                     ))
                 }
             )
@@ -304,17 +444,51 @@ object CellConfigPanel {
         // ── Phase Offset ─────────────────────────────────────────
         drawCustomRangeSlider(
             label = "Phase Offset",
+            currentValue = existing.phaseOffset,
             currentMin = existing.phaseOffsetMin,
             currentMax = existing.phaseOffsetMax,
             minLimit = 0f,
             maxLimit = 1f,
+            isRandomizable = existing.randomizePhaseOffset,
             formatValue = { "%.3f".format(it) },
+            onRandomizableChanged = { checked ->
+                if (checked) {
+                    val rMin = existing.phaseOffsetMin
+                    val rMax = existing.phaseOffsetMax
+                    val (nextMin, nextMax) = if (rMin == rMax) {
+                        Pair((existing.phaseOffset - 0.1f).coerceAtLeast(0f), (existing.phaseOffset + 0.1f).coerceAtMost(1f))
+                    } else {
+                        Pair(rMin, rMax)
+                    }
+                    replaceModulator(state, param, existing.copy(
+                        randomizePhaseOffset = true,
+                        phaseOffsetMin = nextMin,
+                        phaseOffsetMax = nextMax
+                    ))
+                } else {
+                    replaceModulator(state, param, existing.copy(
+                        randomizePhaseOffset = false,
+                        phaseOffsetMin = existing.phaseOffset,
+                        phaseOffsetMax = existing.phaseOffset
+                    ))
+                }
+            },
+            onRandomizeNow = {
+                replaceModulator(state, param, existing.randomizePhaseOffset())
+            },
             onRangeChanged = { nextMin, nextMax ->
                 val nextActive = existing.phaseOffset.coerceIn(nextMin, nextMax)
                 replaceModulator(state, param, existing.copy(
                     phaseOffsetMin = nextMin,
                     phaseOffsetMax = nextMax,
                     phaseOffset = nextActive
+                ))
+            },
+            onValueChanged = { newVal ->
+                replaceModulator(state, param, existing.copy(
+                    phaseOffset = newVal,
+                    phaseOffsetMin = newVal,
+                    phaseOffsetMax = newVal
                 ))
             }
         )
@@ -332,17 +506,51 @@ object CellConfigPanel {
             }
             drawCustomRangeSlider(
                 label = slopeLabel,
+                currentValue = existing.slope,
                 currentMin = existing.slopeMin,
                 currentMax = existing.slopeMax,
                 minLimit = 0f,
                 maxLimit = 1f,
+                isRandomizable = existing.randomizeSlope,
                 formatValue = { "%.3f".format(it) },
+                onRandomizableChanged = { checked ->
+                    if (checked) {
+                        val rMin = existing.slopeMin
+                        val rMax = existing.slopeMax
+                        val (nextMin, nextMax) = if (rMin == rMax) {
+                            Pair((existing.slope - 0.1f).coerceAtLeast(0f), (existing.slope + 0.1f).coerceAtMost(1f))
+                        } else {
+                            Pair(rMin, rMax)
+                        }
+                        replaceModulator(state, param, existing.copy(
+                            randomizeSlope = true,
+                            slopeMin = nextMin,
+                            slopeMax = nextMax
+                        ))
+                    } else {
+                        replaceModulator(state, param, existing.copy(
+                            randomizeSlope = false,
+                            slopeMin = existing.slope,
+                            slopeMax = existing.slope
+                        ))
+                    }
+                },
+                onRandomizeNow = {
+                    replaceModulator(state, param, existing.randomizeSlope())
+                },
                 onRangeChanged = { nextMin, nextMax ->
                     val nextActive = existing.slope.coerceIn(nextMin, nextMax)
                     replaceModulator(state, param, existing.copy(
                         slopeMin = nextMin,
                         slopeMax = nextMax,
                         slope = nextActive
+                    ))
+                },
+                onValueChanged = { newVal ->
+                    replaceModulator(state, param, existing.copy(
+                        slope = newVal,
+                        slopeMin = newVal,
+                        slopeMax = newVal
                     ))
                 }
             )
@@ -549,6 +757,62 @@ object CellConfigPanel {
         formatValue: (Float) -> String,
         onRangeChanged: (Float, Float) -> Unit
     ) {
+        drawCustomRangeSlider(
+            label = label,
+            currentValue = currentMin,
+            currentMin = currentMin,
+            currentMax = currentMax,
+            minLimit = minLimit,
+            maxLimit = maxLimit,
+            isRandomizable = true,
+            showControls = false,
+            formatValue = formatValue,
+            onRangeChanged = onRangeChanged
+        )
+    }
+
+    private fun drawCustomRangeSlider(
+        label: String,
+        currentValue: Float,
+        currentMin: Float,
+        currentMax: Float,
+        minLimit: Float,
+        maxLimit: Float,
+        isRandomizable: Boolean,
+        showControls: Boolean = true,
+        formatValue: (Float) -> String,
+        onRandomizableChanged: (Boolean) -> Unit = {},
+        onRandomizeNow: () -> Unit = {},
+        onRangeChanged: (Float, Float) -> Unit = { _, _ -> },
+        onValueChanged: (Float) -> Unit = {}
+    ) {
+        val rowStartX = ImGui.getCursorScreenPosX()
+        val rowStartY = ImGui.getCursorScreenPosY()
+
+        ImGui.pushID(label)
+
+        if (showControls) {
+            val checked = ImBoolean(isRandomizable)
+            if (ImGui.checkbox("##check", checked)) {
+                onRandomizableChanged(checked.get())
+            }
+            ImGui.sameLine()
+
+            if (!isRandomizable) {
+                ImGui.beginDisabled()
+            }
+            if (ImGui.button("↻", 25f, 25f)) {
+                onRandomizeNow()
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Randomize $label now")
+            }
+            if (!isRandomizable) {
+                ImGui.endDisabled()
+            }
+            ImGui.sameLine()
+        }
+
         val w = ImGui.getContentRegionAvailX()
         val h = 36f // height of the widget row
         
@@ -569,103 +833,164 @@ object CellConfigPanel {
         val lineWidth = lineEndX - lineStartX
         val centerY = startY + h / 2f
         
-        // Calculate percentages
         val rangeSpan = maxLimit - minLimit
-        val minPct = if (rangeSpan > 0f) (currentMin - minLimit) / rangeSpan else 0f
-        val maxPct = if (rangeSpan > 0f) (currentMax - minLimit) / rangeSpan else 0f
-        
-        val minHandleX = lineStartX + minPct * lineWidth
-        val maxHandleX = lineStartX + maxPct * lineWidth
-        
-        // Handle dragging logic
+
+        // Handle dragging logic and rendering based on mode
         val mousePressed = ImGui.isMouseClicked(0)
         val mouseDown = ImGui.isMouseDown(0)
-        
-        if (mousePressed) {
-            val inRowY = mouseY >= startY && mouseY <= startY + h
-            val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
-            if (inRowY && inRowX) {
-                activeSliderLabel = label
-                val distToMin = kotlin.math.abs(mouseX - minHandleX)
-                val distToMax = kotlin.math.abs(mouseX - maxHandleX)
-                if (distToMin < distToMax) {
-                    draggingMin = true
-                    draggingMax = false
-                } else {
-                    draggingMax = true
-                    draggingMin = false
+
+        if (isRandomizable) {
+            val minPct = if (rangeSpan > 0f) (currentMin - minLimit) / rangeSpan else 0f
+            val maxPct = if (rangeSpan > 0f) (currentMax - minLimit) / rangeSpan else 0f
+            
+            val minHandleX = lineStartX + minPct * lineWidth
+            val maxHandleX = lineStartX + maxPct * lineWidth
+
+            if (mousePressed) {
+                val inRowY = mouseY >= startY && mouseY <= startY + h
+                val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
+                if (inRowY && inRowX) {
+                    activeSliderLabel = label
+                    val distToMin = kotlin.math.abs(mouseX - minHandleX)
+                    val distToMax = kotlin.math.abs(mouseX - maxHandleX)
+                    if (distToMin < distToMax) {
+                        draggingMin = true
+                        draggingMax = false
+                    } else {
+                        draggingMax = true
+                        draggingMin = false
+                    }
                 }
             }
-        }
-        
-        if (mouseDown && activeSliderLabel == label) {
-            val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
-            val rawVal = minLimit + pct * rangeSpan
-            if (draggingMin) {
-                val nextMin = rawVal.coerceIn(minLimit, currentMax)
-                onRangeChanged(nextMin, currentMax)
-            } else if (draggingMax) {
-                val nextMax = rawVal.coerceIn(currentMin, maxLimit)
-                onRangeChanged(currentMin, nextMax)
+            
+            if (mouseDown && activeSliderLabel == label) {
+                val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
+                val rawVal = minLimit + pct * rangeSpan
+                if (draggingMin) {
+                    val nextMin = rawVal.coerceIn(minLimit, currentMax)
+                    onRangeChanged(nextMin, currentMax)
+                } else if (draggingMax) {
+                    val nextMax = rawVal.coerceIn(currentMin, maxLimit)
+                    onRangeChanged(currentMin, nextMax)
+                }
+            } else if (!mouseDown && activeSliderLabel == label) {
+                draggingMin = false
+                draggingMax = false
+                activeSliderLabel = null
             }
-        } else if (!mouseDown && activeSliderLabel == label) {
-            draggingMin = false
-            draggingMax = false
-            activeSliderLabel = null
+
+            // ── Render (Range mode) ──
+            
+            // 1. Text Labels (Left side)
+            ImGui.setCursorScreenPos(startX, startY + 2f)
+            UITheme.body(label)
+            
+            ImGui.setCursorScreenPos(startX + 8f, startY + 18f)
+            val valueStr = "${formatValue(currentMin)} - ${formatValue(currentMax)}"
+            UITheme.caption(valueStr)
+            
+            // 2. Thin horizontal line
+            val lineCol = ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1.0f)
+            dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
+            
+            // 3. Highlighted range line between handles
+            val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
+            dl.addLine(minHandleX, centerY, maxHandleX, centerY, activeRangeCol, 3f)
+            
+            // 4. Draw Handles (taller than wide rectangles)
+            val handleW = 6f
+            val handleH = 16f
+            
+            val handleBgCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
+            val handleBorderCol = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f)
+            
+            // Min Handle
+            dl.addRectFilled(
+                minHandleX - handleW / 2f, centerY - handleH / 2f,
+                minHandleX + handleW / 2f, centerY + handleH / 2f,
+                handleBgCol, 1f
+            )
+            dl.addRect(
+                minHandleX - handleW / 2f, centerY - handleH / 2f,
+                minHandleX + handleW / 2f, centerY + handleH / 2f,
+                handleBorderCol, 1f
+            )
+            
+            // Max Handle
+            dl.addRectFilled(
+                maxHandleX - handleW / 2f, centerY - handleH / 2f,
+                maxHandleX + handleW / 2f, centerY + handleH / 2f,
+                handleBgCol, 1f
+            )
+            dl.addRect(
+                maxHandleX - handleW / 2f, centerY - handleH / 2f,
+                maxHandleX + handleW / 2f, centerY + handleH / 2f,
+                handleBorderCol, 1f
+            )
+        } else {
+            val valPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
+            val valHandleX = lineStartX + valPct * lineWidth
+
+            if (mousePressed) {
+                val inRowY = mouseY >= startY && mouseY <= startY + h
+                val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
+                if (inRowY && inRowX) {
+                    activeSliderLabel = label
+                    draggingMin = true
+                    draggingMax = false
+                }
+            }
+            
+            if (mouseDown && activeSliderLabel == label) {
+                val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
+                val rawVal = minLimit + pct * rangeSpan
+                onValueChanged(rawVal)
+            } else if (!mouseDown && activeSliderLabel == label) {
+                draggingMin = false
+                draggingMax = false
+                activeSliderLabel = null
+            }
+
+            // ── Render (Static mode) ──
+            
+            // 1. Text Labels (Left side)
+            ImGui.setCursorScreenPos(startX, startY + 2f)
+            UITheme.body(label)
+            
+            ImGui.setCursorScreenPos(startX + 8f, startY + 18f)
+            val valueStr = "${formatValue(currentValue)} (Static)"
+            UITheme.caption(valueStr)
+            
+            // 2. Thin horizontal line (muted)
+            val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1.0f)
+            dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
+            
+            // 3. Highlighted track up to handle (muted)
+            val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.4f, 0.45f, 0.5f, 0.5f)
+            dl.addLine(lineStartX, centerY, valHandleX, centerY, activeRangeCol, 3f)
+            
+            // 4. Draw Single Handle (muted)
+            val handleW = 6f
+            val handleH = 16f
+            
+            val handleBgCol = ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1.0f)
+            val handleBorderCol = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f)
+            
+            dl.addRectFilled(
+                valHandleX - handleW / 2f, centerY - handleH / 2f,
+                valHandleX + handleW / 2f, centerY + handleH / 2f,
+                handleBgCol, 1f
+            )
+            dl.addRect(
+                valHandleX - handleW / 2f, centerY - handleH / 2f,
+                valHandleX + handleW / 2f, centerY + handleH / 2f,
+                handleBorderCol, 1f
+            )
         }
-        
-        // ── Render ───────────────────────────────────────────────────────────
-        
-        // 1. Text Labels (Left side)
-        // Line 1: Variable Name
-        ImGui.setCursorScreenPos(startX, startY + 2f)
-        UITheme.body(label)
-        
-        // Line 2: Current Min/Max Value String
-        ImGui.setCursorScreenPos(startX + 8f, startY + 18f)
-        val valueStr = "${formatValue(currentMin)} - ${formatValue(currentMax)}"
-        UITheme.caption(valueStr)
-        
-        // 2. Thin horizontal line
-        val lineCol = ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1.0f)
-        dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
-        
-        // 3. Highlighted range line between handles
-        val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
-        dl.addLine(minHandleX, centerY, maxHandleX, centerY, activeRangeCol, 3f)
-        
-        // 4. Draw Handles (taller than wide rectangles)
-        val handleW = 6f
-        val handleH = 16f
-        
-        val handleBgCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
-        val handleBorderCol = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f)
-        
-        // Min Handle
-        dl.addRectFilled(
-            minHandleX - handleW / 2f, centerY - handleH / 2f,
-            minHandleX + handleW / 2f, centerY + handleH / 2f,
-            handleBgCol, 1f
-        )
-        dl.addRect(
-            minHandleX - handleW / 2f, centerY - handleH / 2f,
-            minHandleX + handleW / 2f, centerY + handleH / 2f,
-            handleBorderCol, 1f
-        )
-        
-        // Max Handle
-        dl.addRectFilled(
-            maxHandleX - handleW / 2f, centerY - handleH / 2f,
-            maxHandleX + handleW / 2f, centerY + handleH / 2f,
-            handleBgCol, 1f
-        )
-        dl.addRect(
-            maxHandleX - handleW / 2f, centerY - handleH / 2f,
-            maxHandleX + handleW / 2f, centerY + handleH / 2f,
-            handleBorderCol, 1f
-        )
-        
-        // Reset Cursor Pos for subsequent UI
-        ImGui.setCursorScreenPos(startX, startY + h)
+
+        ImGui.popID()
+
+        // Reset Cursor Pos to prevent horizontal drift for downstream UI
+        ImGui.setCursorScreenPos(rowStartX, rowStartY + h)
     }
 }
