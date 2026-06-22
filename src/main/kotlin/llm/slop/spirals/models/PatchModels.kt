@@ -1,0 +1,220 @@
+package llm.slop.spirals.models
+
+import kotlinx.serialization.Serializable
+import llm.slop.spirals.parameters.*
+import llm.slop.spirals.rendering.*
+
+@Serializable
+data class ModulatorDto(
+    val sourceId: String,
+    val operator: String, // "ADD" or "MUL"
+    val weight: Float,
+    val bypassed: Boolean = false,
+    val waveform: String = "SINE",
+    val subdivision: Float = 1.0f,
+    val phaseOffset: Float = 0.0f,
+    val slope: Float = 0.5f,
+    val lfoSpeedMode: String = "FAST",
+    
+    // Randomization bounds
+    val weightMin: Float,
+    val weightMax: Float,
+    val subdivisionMin: Float,
+    val subdivisionMax: Float,
+    val phaseOffsetMin: Float,
+    val phaseOffsetMax: Float,
+    val slopeMin: Float,
+    val slopeMax: Float,
+    val randomizeWeight: Boolean = false,
+    val randomizeSubdivision: Boolean = false,
+    val randomizePhaseOffset: Boolean = false,
+    val randomizeSlope: Boolean = false
+)
+
+@Serializable
+data class ParameterDto(
+    val baseValue: Float,
+    val baseMin: Float,
+    val baseMax: Float,
+    val randomizeBase: Boolean,
+    val modulators: List<ModulatorDto>
+)
+
+@Serializable
+data class DeckPatchDto(
+    val version: Int = 1,
+    val name: String,
+    val visualSourceType: String, // e.g., "Mandala"
+    val recipe: MandalaRecipeDto, // For restoring recipe structure
+    val parameters: Map<String, ParameterDto>, // Visual source params
+    val feedbackParameters: Map<String, ParameterDto>, // Feedback chain params
+    val globalAlpha: ParameterDto,
+    val globalScale: ParameterDto
+)
+
+@Serializable
+data class MandalaRecipeDto(
+    val a: Int,
+    val b: Int,
+    val c: Int,
+    val d: Int
+)
+
+@Serializable
+data class GlobalPatchDto(
+    val version: Int = 1,
+    val name: String,
+    val crossfade: ParameterDto,
+    val masterAlpha: ParameterDto,
+    val blendMode: Float,
+    val deckA: DeckPatchDto,
+    val deckB: DeckPatchDto
+)
+
+// --- Extension Converters ---
+
+fun CvModulator.toDto(): ModulatorDto = ModulatorDto(
+    sourceId = sourceId,
+    operator = operator.name,
+    weight = weight,
+    bypassed = bypassed,
+    waveform = waveform.name,
+    subdivision = subdivision,
+    phaseOffset = phaseOffset,
+    slope = slope,
+    lfoSpeedMode = lfoSpeedMode.name,
+    weightMin = weightMin,
+    weightMax = weightMax,
+    subdivisionMin = subdivisionMin,
+    subdivisionMax = subdivisionMax,
+    phaseOffsetMin = phaseOffsetMin,
+    phaseOffsetMax = phaseOffsetMax,
+    slopeMin = slopeMin,
+    slopeMax = slopeMax,
+    randomizeWeight = randomizeWeight,
+    randomizeSubdivision = randomizeSubdivision,
+    randomizePhaseOffset = randomizePhaseOffset,
+    randomizeSlope = randomizeSlope
+)
+
+fun ModulatorDto.toDomain(): CvModulator = CvModulator(
+    sourceId = sourceId,
+    operator = ModulationOperator.valueOf(operator),
+    weight = weight,
+    bypassed = bypassed,
+    waveform = Waveform.valueOf(waveform),
+    subdivision = subdivision,
+    phaseOffset = phaseOffset,
+    slope = slope,
+    lfoSpeedMode = LfoSpeedMode.valueOf(lfoSpeedMode),
+    weightMin = weightMin,
+    weightMax = weightMax,
+    subdivisionMin = subdivisionMin,
+    subdivisionMax = subdivisionMax,
+    phaseOffsetMin = phaseOffsetMin,
+    phaseOffsetMax = phaseOffsetMax,
+    slopeMin = slopeMin,
+    slopeMax = slopeMax,
+    randomizeWeight = randomizeWeight,
+    randomizeSubdivision = randomizeSubdivision,
+    randomizePhaseOffset = randomizePhaseOffset,
+    randomizeSlope = randomizeSlope
+)
+
+fun ModulatableParameter.toDto(): ParameterDto = ParameterDto(
+    baseValue = baseValue,
+    baseMin = baseMin,
+    baseMax = baseMax,
+    randomizeBase = randomizeBase,
+    modulators = modulators.map { it.toDto() }
+)
+
+fun ModulatableParameter.applyDto(dto: ParameterDto) {
+    this.baseValue = dto.baseValue
+    this.baseMin = dto.baseMin
+    this.baseMax = dto.baseMax
+    this.randomizeBase = dto.randomizeBase
+    
+    // Safety check for CopyOnWriteArrayList: clear and addAll
+    this.modulators.clear()
+    this.modulators.addAll(dto.modulators.map { it.toDomain() })
+}
+
+fun MandalaRatio.toDto(): MandalaRecipeDto = MandalaRecipeDto(a, b, c, d)
+
+fun Deck.toDto(name: String): DeckPatchDto {
+    val mandala = source as Mandala
+    val recipeDto = mandala.recipe.toDto()
+    
+    val paramsMap = mandala.parameters.mapValues { it.value.toDto() }
+    
+    val feedbackParamsMap = mapOf(
+        "fbDecay" to fbDecay.toDto(),
+        "fbGain" to fbGain.toDto(),
+        "fbZoom" to fbZoom.toDto(),
+        "fbRotate" to fbRotate.toDto(),
+        "fbHueShift" to fbHueShift.toDto(),
+        "fbBlur" to fbBlur.toDto()
+    )
+    
+    return DeckPatchDto(
+        name = name,
+        visualSourceType = "Mandala",
+        recipe = recipeDto,
+        parameters = paramsMap,
+        feedbackParameters = feedbackParamsMap,
+        globalAlpha = source.globalAlpha.toDto(),
+        globalScale = source.globalScale.toDto()
+    )
+}
+
+fun Deck.applyDto(dto: DeckPatchDto) {
+    val mandala = source as Mandala
+    
+    // Recreate or lookup recipe
+    val recipe = MandalaLibrary.MandalaRatios.firstOrNull {
+        it.a == dto.recipe.a && it.b == dto.recipe.b &&
+        it.c == dto.recipe.c && it.d == dto.recipe.d
+    } ?: MandalaRatio(
+        id = "custom_${dto.recipe.a}_${dto.recipe.b}_${dto.recipe.c}_${dto.recipe.d}",
+        a = dto.recipe.a,
+        b = dto.recipe.b,
+        c = dto.recipe.c,
+        d = dto.recipe.d
+    )
+    mandala.recipe = recipe
+    
+    // Apply visual source parameters
+    for ((key, paramDto) in dto.parameters) {
+        mandala.parameters[key]?.applyDto(paramDto)
+    }
+    
+    // Apply feedback parameters
+    dto.feedbackParameters["fbDecay"]?.let { fbDecay.applyDto(it) }
+    dto.feedbackParameters["fbGain"]?.let { fbGain.applyDto(it) }
+    dto.feedbackParameters["fbZoom"]?.let { fbZoom.applyDto(it) }
+    dto.feedbackParameters["fbRotate"]?.let { fbRotate.applyDto(it) }
+    dto.feedbackParameters["fbHueShift"]?.let { fbHueShift.applyDto(it) }
+    dto.feedbackParameters["fbBlur"]?.let { fbBlur.applyDto(it) }
+    
+    // Apply global parameters
+    source.globalAlpha.applyDto(dto.globalAlpha)
+    source.globalScale.applyDto(dto.globalScale)
+}
+
+fun Mixer.toDto(name: String): GlobalPatchDto = GlobalPatchDto(
+    name = name,
+    crossfade = crossfade.toDto(),
+    masterAlpha = masterAlpha.toDto(),
+    blendMode = mode.baseValue,
+    deckA = deckA.toDto("Deck A"),
+    deckB = deckB.toDto("Deck B")
+)
+
+fun Mixer.applyDto(dto: GlobalPatchDto) {
+    crossfade.applyDto(dto.crossfade)
+    masterAlpha.applyDto(dto.masterAlpha)
+    mode.set(dto.blendMode)
+    deckA.applyDto(dto.deckA)
+    deckB.applyDto(dto.deckB)
+}

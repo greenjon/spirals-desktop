@@ -1,0 +1,149 @@
+package llm.slop.spirals.models
+
+import llm.slop.spirals.parameters.ModulatableParameter
+import llm.slop.spirals.parameters.ModulationOperator
+import llm.slop.spirals.rendering.Mixer
+
+object ClipboardManager {
+    var cellClipboard: CellClipboardData? = null
+    var rowClipboard: RowClipboardData? = null
+
+    private val GENERATORS = listOf("beatPhase", "lfo", "sampleAndHold")
+
+    fun mapModulatorToDestination(dto: ModulatorDto, destCvId: String): ModulatorDto {
+        val isSourceGenerator = dto.sourceId in GENERATORS
+        val isDestGenerator = destCvId in GENERATORS
+        
+        var mapped = dto.copy(sourceId = destCvId)
+        
+        if (!isSourceGenerator && isDestGenerator) {
+            // Generate default speed/waveform properties
+            mapped = mapped.copy(
+                waveform = "SINE",
+                subdivision = 1.0f,
+                subdivisionMin = 1.0f,
+                subdivisionMax = 1.0f,
+                lfoSpeedMode = "FAST",
+                phaseOffset = 0.0f,
+                phaseOffsetMin = 0.0f,
+                phaseOffsetMax = 0.0f,
+                slope = 0.5f,
+                slopeMin = 0.5f,
+                slopeMax = 0.5f
+            )
+        }
+        
+        return mapped
+    }
+
+    fun applyCellClipboard(param: ModulatableParameter, destCvId: String, data: CellClipboardData) {
+        val mappedMods = data.modulators.map { mapModulatorToDestination(it, destCvId) }
+        
+        // Remove existing modulators for this CV ID and append the new ones
+        param.modulators.removeIf { it.sourceId == destCvId }
+        param.modulators.addAll(mappedMods.map { it.toDomain() })
+    }
+
+    fun findParameterByKey(mixer: Mixer, key: String): ModulatableParameter? {
+        val parts = key.split("/")
+        if (parts.isEmpty()) return null
+        return when (parts[0]) {
+            "Mixer" -> {
+                if (parts.size > 1) {
+                    when (parts[1]) {
+                        "crossfade" -> mixer.crossfade
+                        "masterAlpha" -> mixer.masterAlpha
+                        else -> null
+                    }
+                } else null
+            }
+            "Deck A", "Deck B" -> {
+                val deck = if (parts[0] == "Deck A") mixer.deckA else mixer.deckB
+                if (parts.size > 1) {
+                    when (parts[1]) {
+                        "Geometry" -> {
+                            if (parts.size > 2) deck.source.parameters[parts[2]] else null
+                        }
+                        "Color" -> {
+                            if (parts.size > 2) deck.source.parameters[parts[2]] else null
+                        }
+                        "Gain" -> deck.source.globalAlpha
+                        "GScale" -> deck.source.globalScale
+                        "FB" -> {
+                            if (parts.size > 2) {
+                                when (parts[2]) {
+                                    "Decay" -> deck.fbDecay
+                                    "Gain" -> deck.fbGain
+                                    "Zoom" -> deck.fbZoom
+                                    "Rotate" -> deck.fbRotate
+                                    "HueShift" -> deck.fbHueShift
+                                    "Blur" -> deck.fbBlur
+                                    else -> null
+                                }
+                            } else null
+                        }
+                        else -> null
+                    }
+                } else null
+            }
+            else -> null
+        }
+    }
+
+    fun normalizeValue(value: Float, srcMin: Float, srcMax: Float, destMin: Float, destMax: Float): Float {
+        if (srcMin == srcMax) return value.coerceIn(destMin, destMax)
+        val pct = (value - srcMin) / (srcMax - srcMin)
+        return (destMin + pct * (destMax - destMin)).coerceIn(destMin, destMax)
+    }
+
+    fun applyRowClipboard(destParam: ModulatableParameter, data: RowClipboardData, mixer: Mixer) {
+        val srcParam = findParameterByKey(mixer, data.sourceParamKey)
+        val srcMin = srcParam?.minClamp ?: 0f
+        val srcMax = srcParam?.maxClamp ?: 1f
+        
+        val destMin = destParam.minClamp
+        val destMax = destParam.maxClamp
+        
+        val srcRange = srcMax - srcMin
+        val destRange = destMax - destMin
+        
+        fun scaleVal(v: Float) = normalizeValue(v, srcMin, srcMax, destMin, destMax)
+        
+        val newBaseValue = scaleVal(data.parameter.baseValue)
+        val newBaseMin = scaleVal(data.parameter.baseMin)
+        val newBaseMax = scaleVal(data.parameter.baseMax)
+        
+        val weightScale = if (srcRange != 0f) destRange / srcRange else 1f
+        
+        val mappedMods = data.parameter.modulators.map { modDto ->
+            val weightVal = if (modDto.operator == "ADD") modDto.weight * weightScale else modDto.weight
+            val weightMinVal = if (modDto.operator == "ADD") modDto.weightMin * weightScale else modDto.weightMin
+            val weightMaxVal = if (modDto.operator == "ADD") modDto.weightMax * weightScale else modDto.weightMax
+            
+            modDto.copy(
+                weight = weightVal.coerceIn(-1f, 1f),
+                weightMin = weightMinVal.coerceIn(-1f, 1f),
+                weightMax = weightMaxVal.coerceIn(-1f, 1f)
+            ).toDomain()
+        }
+        
+        destParam.baseValue = newBaseValue
+        destParam.baseMin = newBaseMin
+        destParam.baseMax = newBaseMax
+        destParam.randomizeBase = data.parameter.randomizeBase
+        
+        destParam.modulators.clear()
+        destParam.modulators.addAll(mappedMods)
+    }
+}
+
+data class CellClipboardData(
+    val sourceParamKey: String,
+    val sourceCvId: String,
+    val modulators: List<ModulatorDto>
+)
+
+data class RowClipboardData(
+    val sourceParamKey: String,
+    val parameter: ParameterDto
+)

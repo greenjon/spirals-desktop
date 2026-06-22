@@ -27,10 +27,10 @@ data class CvModulator(
     val slopeMin: Float = slope,
     val slopeMax: Float = slope,
 
-    val randomizeWeight: Boolean = true,
-    val randomizeSubdivision: Boolean = true,
-    val randomizePhaseOffset: Boolean = true,
-    val randomizeSlope: Boolean = true,
+    val randomizeWeight: Boolean = false,
+    val randomizeSubdivision: Boolean = false,
+    val randomizePhaseOffset: Boolean = false,
+    val randomizeSlope: Boolean = false,
 
     val id: String = UUID.randomUUID().toString()
 ) {

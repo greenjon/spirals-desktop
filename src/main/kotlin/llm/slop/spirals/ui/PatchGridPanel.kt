@@ -8,6 +8,10 @@ import llm.slop.spirals.parameters.ModulatableParameter
 import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mandala
 import llm.slop.spirals.rendering.Mixer
+import llm.slop.spirals.models.ClipboardManager
+import llm.slop.spirals.models.CellClipboardData
+import llm.slop.spirals.models.RowClipboardData
+import llm.slop.spirals.models.toDto
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -49,12 +53,12 @@ object PatchGridPanel {
         ImGui.spacing()
 
         drawGroup("Mixer", state) {
-            drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW)
-            drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW)
+            drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer)
+            drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer)
         }
 
-        drawDeckGroup("Deck A", mixer.deckA, state, labelColW)
-        drawDeckGroup("Deck B", mixer.deckB, state, labelColW)
+        drawDeckGroup("Deck A", mixer.deckA, state, labelColW, mixer)
+        drawDeckGroup("Deck B", mixer.deckB, state, labelColW, mixer)
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -162,36 +166,36 @@ object PatchGridPanel {
         }
     }
 
-    private fun drawDeckGroup(deckLabel: String, deck: Deck, state: PatchGridState, labelColW: Float) {
+    private fun drawDeckGroup(deckLabel: String, deck: Deck, state: PatchGridState, labelColW: Float, mixer: Mixer) {
         drawGroup(deckLabel, state) {
             val mandala = deck.source as? Mandala
 
             if (mandala != null) {
                 drawSubGroup("Geometry", state) {
-                    drawParamRow("L1",       "$deckLabel/Geometry/L1",       mandala.parameters["L1"]!!,       state, labelColW)
-                    drawParamRow("L2",       "$deckLabel/Geometry/L2",       mandala.parameters["L2"]!!,       state, labelColW)
-                    drawParamRow("L3",       "$deckLabel/Geometry/L3",       mandala.parameters["L3"]!!,       state, labelColW)
-                    drawParamRow("L4",       "$deckLabel/Geometry/L4",       mandala.parameters["L4"]!!,       state, labelColW)
-                    drawParamRow("Scale",    "$deckLabel/Geometry/Scale",    mandala.parameters["Scale"]!!,    state, labelColW)
-                    drawParamRow("Rotation", "$deckLabel/Geometry/Rotation", mandala.parameters["Rotation"]!!, state, labelColW)
+                    drawParamRow("L1",       "$deckLabel/Geometry/L1",       mandala.parameters["L1"]!!,       state, labelColW, mixer)
+                    drawParamRow("L2",       "$deckLabel/Geometry/L2",       mandala.parameters["L2"]!!,       state, labelColW, mixer)
+                    drawParamRow("L3",       "$deckLabel/Geometry/L3",       mandala.parameters["L3"]!!,       state, labelColW, mixer)
+                    drawParamRow("L4",       "$deckLabel/Geometry/L4",       mandala.parameters["L4"]!!,       state, labelColW, mixer)
+                    drawParamRow("Scale",    "$deckLabel/Geometry/Scale",    mandala.parameters["Scale"]!!,    state, labelColW, mixer)
+                    drawParamRow("Rotation", "$deckLabel/Geometry/Rotation", mandala.parameters["Rotation"]!!, state, labelColW, mixer)
                 }
                 drawSubGroup("Color", state) {
-                    drawParamRow("Thickness",  "$deckLabel/Color/Thickness",  mandala.parameters["Thickness"]!!,  state, labelColW)
-                    drawParamRow("Hue Offset", "$deckLabel/Color/HueOffset",  mandala.parameters["Hue Offset"]!!, state, labelColW)
-                    drawParamRow("Hue Sweep",  "$deckLabel/Color/HueSweep",   mandala.parameters["Hue Sweep"]!!,  state, labelColW)
-                    drawParamRow("Depth",      "$deckLabel/Color/Depth",      mandala.parameters["Depth"]!!,      state, labelColW)
+                    drawParamRow("Thickness",  "$deckLabel/Color/Thickness",  mandala.parameters["Thickness"]!!,  state, labelColW, mixer)
+                    drawParamRow("Hue Offset", "$deckLabel/Color/HueOffset",  mandala.parameters["Hue Offset"]!!, state, labelColW, mixer)
+                    drawParamRow("Hue Sweep",  "$deckLabel/Color/HueSweep",   mandala.parameters["Hue Sweep"]!!,  state, labelColW, mixer)
+                    drawParamRow("Depth",      "$deckLabel/Color/Depth",      mandala.parameters["Depth"]!!,      state, labelColW, mixer)
                 }
-                drawParamRow("Gain",  "$deckLabel/Gain",  mandala.globalAlpha, state, labelColW)
-                drawParamRow("Scale", "$deckLabel/GScale", mandala.globalScale, state, labelColW)
+                drawParamRow("Gain",  "$deckLabel/Gain",  mandala.globalAlpha, state, labelColW, mixer)
+                drawParamRow("Scale", "$deckLabel/GScale", mandala.globalScale, state, labelColW, mixer)
             }
 
             drawSubGroup("Feedback", state) {
-                drawParamRow("Feedback",    "$deckLabel/FB/Decay",    deck.fbDecay,    state, labelColW)
-                drawParamRow("FB Gain",     "$deckLabel/FB/Gain",     deck.fbGain,     state, labelColW)
-                drawParamRow("FB Zoom",     "$deckLabel/FB/Zoom",     deck.fbZoom,     state, labelColW)
-                drawParamRow("FB Rotate",   "$deckLabel/FB/Rotate",   deck.fbRotate,   state, labelColW)
-                drawParamRow("FB Hue Shift","$deckLabel/FB/HueShift", deck.fbHueShift, state, labelColW)
-                drawParamRow("FB Blur",     "$deckLabel/FB/Blur",     deck.fbBlur,     state, labelColW)
+                drawParamRow("Feedback",    "$deckLabel/FB/Decay",    deck.fbDecay,    state, labelColW, mixer)
+                drawParamRow("FB Gain",     "$deckLabel/FB/Gain",     deck.fbGain,     state, labelColW, mixer)
+                drawParamRow("FB Zoom",     "$deckLabel/FB/Zoom",     deck.fbZoom,     state, labelColW, mixer)
+                drawParamRow("FB Rotate",   "$deckLabel/FB/Rotate",   deck.fbRotate,   state, labelColW, mixer)
+                drawParamRow("FB Hue Shift","$deckLabel/FB/HueShift", deck.fbHueShift, state, labelColW, mixer)
+                drawParamRow("FB Blur",     "$deckLabel/FB/Blur",     deck.fbBlur,     state, labelColW, mixer)
             }
         }
     }
@@ -204,7 +208,8 @@ object PatchGridPanel {
         paramKey: String,
         param: ModulatableParameter,
         state: PatchGridState,
-        labelColW: Float
+        labelColW: Float,
+        mixer: Mixer
     ) {
         ImGui.pushID(paramKey)
 
@@ -214,7 +219,24 @@ object PatchGridPanel {
         val rowScreenY = ImGui.getCursorScreenPosY()
         
         ImGui.setCursorPosY(rowY + (CELL - ImGui.getTextLineHeight()) * 0.5f)
+        val cursorStartX = ImGui.getCursorPosX()
         UITheme.body(label)
+        ImGui.sameLine(cursorStartX)
+        ImGui.invisibleButton("row_label_btn_$paramKey", labelColW - CELL_PAD, CELL)
+        if (ImGui.beginPopupContextItem("row_menu_$paramKey")) {
+            if (ImGui.menuItem("Copy Row Modulations")) {
+                ClipboardManager.rowClipboard = RowClipboardData(paramKey, param.toDto())
+            }
+            val hasRowClip = ClipboardManager.rowClipboard != null
+            if (ImGui.menuItem("Paste Row Modulations", null, false, hasRowClip)) {
+                ClipboardManager.rowClipboard?.let { ClipboardManager.applyRowClipboard(param, it, mixer) }
+            }
+            ImGui.separator()
+            if (ImGui.menuItem("Reset Parameter to Default")) {
+                param.reset()
+            }
+            ImGui.endPopup()
+        }
         ImGui.setCursorPosY(rowY)
 
         val dl = ImGui.getWindowDrawList()
@@ -315,6 +337,28 @@ object PatchGridPanel {
             ImGui.invisibleButton("##cell_$cvId", CELL, CELL)
             if (ImGui.isItemClicked()) {
                 state.select(cellId, param)
+            }
+            if (ImGui.beginPopupContextItem("cell_menu_$paramKey-$cvId")) {
+                if (ImGui.menuItem("Copy Cell Modulators")) {
+                    ClipboardManager.cellClipboard = CellClipboardData(paramKey, cvId, activeMods.map { it.toDto() })
+                }
+                val hasCellClip = ClipboardManager.cellClipboard != null
+                if (ImGui.menuItem("Paste Modulator(s)", null, false, hasCellClip)) {
+                    ClipboardManager.cellClipboard?.let { ClipboardManager.applyCellClipboard(param, cvId, it) }
+                }
+                if (activeMods.isNotEmpty()) {
+                    if (ImGui.menuItem("Clear Modulator(s)")) {
+                        param.modulators.removeAll(activeMods)
+                    }
+                    if (ImGui.menuItem(if (isBypassed) "Enable Modulator(s)" else "Bypass Modulator(s)")) {
+                        val updated = param.modulators.map {
+                            if (it.sourceId == cvId) it.copy(bypassed = !it.bypassed) else it
+                        }
+                        param.modulators.clear()
+                        param.modulators.addAll(updated)
+                    }
+                }
+                ImGui.endPopup()
             }
 
             // Cell background

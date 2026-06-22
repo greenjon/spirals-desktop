@@ -4,6 +4,8 @@ import imgui.ImGui
 import imgui.flag.ImGuiConfigFlags
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImInt
+import imgui.type.ImString
+import java.io.File
 import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mandala
 import llm.slop.spirals.rendering.MandalaRatio
@@ -36,6 +38,12 @@ class UIManager(private val windowHandle: Long) {
 
     // Patch grid state shared between PatchGridPanel and CellConfigPanel
     private val patchState = PatchGridState()
+
+    private val deckAPresetIndex = ImInt(0)
+    private val deckBPresetIndex = ImInt(0)
+    private val deckASaveName = ImString(32)
+    private val deckBSaveName = ImString(32)
+    private var currentGlobalPatchFile: File? = null
 
     private val recipes = listOf(
         MandalaRatio("Recipe A", 26, 23, 14, 14),
@@ -95,7 +103,7 @@ class UIManager(private val windowHandle: Long) {
         imguiGlfw.newFrame()
         ImGui.newFrame()
 
-        drawMenuBar()
+        drawMenuBar(mixer)
         // openPopup must be called at root ID-stack level — not inside the menu bar.
         if (pendingOpenSettings) {
             SettingsPanel.open()
@@ -121,9 +129,48 @@ class UIManager(private val windowHandle: Long) {
         if (newSize != appliedBaseSize) pendingFontSize = newSize
     }
 
-    private fun drawMenuBar() {
+    private fun loadGlobalPatchWithDialog() {
+        val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Load Project", java.awt.FileDialog.LOAD)
+        dialog.file = "*.json"
+        dialog.isVisible = true
+        if (dialog.directory != null && dialog.file != null) {
+            val file = File(dialog.directory, dialog.file)
+            currentGlobalPatchFile = file
+            llm.slop.spirals.patches.PatchManager.loadGlobalPatchAsync(file)
+        }
+    }
+
+    private fun saveGlobalPatch(mixer: Mixer, forceAs: Boolean) {
+        val file = if (forceAs || currentGlobalPatchFile == null) {
+            val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Save Project", java.awt.FileDialog.SAVE)
+            dialog.file = "project.json"
+            dialog.isVisible = true
+            if (dialog.directory != null && dialog.file != null) {
+                File(dialog.directory, dialog.file)
+            } else null
+        } else {
+            currentGlobalPatchFile
+        }
+        if (file != null) {
+            currentGlobalPatchFile = file
+            val name = file.nameWithoutExtension
+            llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
+        }
+    }
+
+    private fun drawMenuBar(mixer: Mixer) {
         if (ImGui.beginMainMenuBar()) {
             if (ImGui.beginMenu("File")) {
+                if (ImGui.menuItem("Load Project...")) {
+                    loadGlobalPatchWithDialog()
+                }
+                if (ImGui.menuItem("Save Project")) {
+                    saveGlobalPatch(mixer, false)
+                }
+                if (ImGui.menuItem("Save Project As...")) {
+                    saveGlobalPatch(mixer, true)
+                }
+                ImGui.separator()
                 if (ImGui.menuItem("Exit")) { logger.info { "Exit clicked" } }
                 ImGui.endMenu()
             }
@@ -134,6 +181,65 @@ class UIManager(private val windowHandle: Long) {
             }
             ImGui.endMainMenuBar()
         }
+    }
+
+    private fun getAvailableDeckPresets(): Array<String> {
+        val dir = File("presets/decks")
+        if (!dir.exists()) dir.mkdirs()
+        val files = dir.listFiles { _, name -> name.endsWith(".json") } ?: emptyArray()
+        val list = mutableListOf<String>()
+        list.add("None")
+        list.addAll(files.map { it.nameWithoutExtension })
+        return list.toTypedArray()
+    }
+
+    private fun loadDeckPreset(presetName: String, deck: Deck, isDeckA: Boolean) {
+        if (presetName == "None") return
+        val file = File("presets/decks/$presetName.json")
+        if (file.exists()) {
+            llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, isDeckA)
+        }
+    }
+
+    private fun saveDeckPreset(name: String, deck: Deck) {
+        if (name.isBlank()) return
+        val file = File("presets/decks/$name.json")
+        llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name)
+    }
+
+    private fun drawDeckHeader(label: String, deck: Deck, isDeckA: Boolean) {
+        ImGui.pushID(label)
+        UITheme.h3(label)
+        ImGui.sameLine(80f)
+
+        val presets = getAvailableDeckPresets()
+        val selectedIndex = if (isDeckA) deckAPresetIndex else deckBPresetIndex
+        if (selectedIndex.get() >= presets.size) {
+            selectedIndex.set(0)
+        }
+
+        ImGui.pushItemWidth(120f)
+        if (ImGui.combo("##preset_$label", selectedIndex, presets)) {
+            loadDeckPreset(presets[selectedIndex.get()], deck, isDeckA)
+        }
+        ImGui.popItemWidth()
+
+        ImGui.sameLine()
+        if (ImGui.button("💾##save_$label")) {
+            ImGui.openPopup("save_deck_preset_popup_$label")
+        }
+
+        if (ImGui.beginPopup("save_deck_preset_popup_$label")) {
+            val nameInput = if (isDeckA) deckASaveName else deckBSaveName
+            ImGui.inputText("Name", nameInput)
+            ImGui.sameLine()
+            if (ImGui.button("Save")) {
+                saveDeckPreset(nameInput.get(), deck)
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
+        }
+        ImGui.popID()
     }
 
     private fun drawLayout(mixer: Mixer, displayWidth: Float, displayHeight: Float) {
@@ -197,10 +303,10 @@ class UIManager(private val windowHandle: Long) {
 
         ImGui.columns(2, "subMonitors", false)
         ImGui.setColumnWidth(0, availW * 0.5f)
-        UITheme.h3("Deck A")
+        drawDeckHeader("Deck A", mixer.deckA, true)
         ImGui.image(mixer.deckA.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
         ImGui.nextColumn()
-        UITheme.h3("Deck B")
+        drawDeckHeader("Deck B", mixer.deckB, false)
         ImGui.image(mixer.deckB.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
         ImGui.nextColumn()
         ImGui.columns(1)

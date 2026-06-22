@@ -32,6 +32,7 @@ object CellConfigPanel {
     private var draggingMin = false
     private var draggingMax = false
     private var activeSliderLabel: String? = null
+    private var clickMouseX = 0f
 
     fun draw(state: PatchGridState) {
         val cell = state.selectedCell
@@ -299,7 +300,13 @@ object CellConfigPanel {
                 val randomized = existing.randomizeActiveValues()
                 replaceModulator(state, param, randomized)
             }
-            return
+            ImGui.popID()
+            if (idx < activeMods.size - 1) {
+                ImGui.spacing()
+                ImGui.separator()
+                ImGui.spacing()
+            }
+            continue
         }
 
         // ── Waveform (Beat / LFO only) ───────────────────────────
@@ -855,14 +862,29 @@ object CellConfigPanel {
                 val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
                 if (inRowY && inRowX) {
                     activeSliderLabel = idPrefix + label
-                    val distToMin = kotlin.math.abs(mouseX - minHandleX)
-                    val distToMax = kotlin.math.abs(mouseX - maxHandleX)
-                    if (distToMin < distToMax) {
-                        draggingMin = true
-                        draggingMax = false
+                    val isOverlapping = kotlin.math.abs(minHandleX - maxHandleX) < 4f
+                    if (isOverlapping) {
+                        if (mouseX < minHandleX - 5f) {
+                            draggingMin = true
+                            draggingMax = false
+                        } else if (mouseX > maxHandleX + 5f) {
+                            draggingMax = true
+                            draggingMin = false
+                        } else {
+                            draggingMin = false
+                            draggingMax = false
+                            clickMouseX = mouseX
+                        }
                     } else {
-                        draggingMax = true
-                        draggingMin = false
+                        val distToMin = kotlin.math.abs(mouseX - minHandleX)
+                        val distToMax = kotlin.math.abs(mouseX - maxHandleX)
+                        if (distToMin < distToMax) {
+                            draggingMin = true
+                            draggingMax = false
+                        } else {
+                            draggingMax = true
+                            draggingMin = false
+                        }
                     }
                 }
             }
@@ -870,7 +892,18 @@ object CellConfigPanel {
             if (mouseDown && activeSliderLabel == (idPrefix + label)) {
                 val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
                 val rawVal = minLimit + pct * rangeSpan
-                if (draggingMin) {
+                if (!draggingMin && !draggingMax) {
+                    val dragThreshold = 2f // pixels
+                    if (mouseX > clickMouseX + dragThreshold) {
+                        draggingMax = true
+                        val nextMax = rawVal.coerceIn(currentMin, maxLimit)
+                        onRangeChanged(currentMin, nextMax)
+                    } else if (mouseX < clickMouseX - dragThreshold) {
+                        draggingMin = true
+                        val nextMin = rawVal.coerceIn(minLimit, currentMax)
+                        onRangeChanged(nextMin, currentMax)
+                    }
+                } else if (draggingMin) {
                     val nextMin = rawVal.coerceIn(minLimit, currentMax)
                     onRangeChanged(nextMin, currentMax)
                 } else if (draggingMax) {

@@ -16,7 +16,7 @@ class Mixer(
     val masterFBO = FBO(width, height)
 
     // Blend parameters
-    val crossfade = ModulatableParameter(0.5f) // 0.0 = Deck A, 1.0 = Deck B
+    val crossfade = ModulatableParameter(0.0f) // 0.0 = Deck A, 1.0 = Deck B
     val mode = ModulatableParameter(4.0f) // 0 = ADD, 1 = SCREEN, 2 = MULT, 3 = MAX, 4 = XFADE
     val masterAlpha = ModulatableParameter(1.0f) // Master output gain
 

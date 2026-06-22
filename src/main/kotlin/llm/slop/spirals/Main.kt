@@ -12,6 +12,7 @@ import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.ui.UIManager
 import llm.slop.spirals.audio.AudioEngine
 import llm.slop.spirals.cv.CVRegistry
+import llm.slop.spirals.patches.PatchManager
 import mu.KotlinLogging
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
@@ -21,6 +22,10 @@ private val logger = KotlinLogging.logger {}
 
 fun main() {
     logger.info { "Starting Spirals Desktop..." }
+
+    // Ensure preset directories exist
+    java.io.File("presets/decks").mkdirs()
+    java.io.File("presets/global").mkdirs()
 
     // Initialize GLFW
     if (!glfwInit()) {
@@ -120,6 +125,9 @@ fun main() {
         }
 
         // === RENDERING PHASE ===
+
+        // Apply loaded patches from queues atomically on the main thread
+        PatchManager.applyPendingPatches(mixer)
 
         // Update all global CV signals
         CVRegistry.updateAll()

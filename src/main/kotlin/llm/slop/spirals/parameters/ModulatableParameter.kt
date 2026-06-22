@@ -13,16 +13,25 @@ class ModulatableParameter(
     val historySize: Int = 200,
     val minClamp: Float = 0.0f,
     val maxClamp: Float = 1.0f,
-    var randomizeBase: Boolean = true
+    var randomizeBase: Boolean = false
 ) {
     val modulators = CopyOnWriteArrayList<CvModulator>()
     val history = CvHistoryBuffer(historySize)
 
+    val defaultValue: Float = baseValue
     var baseMin: Float = baseValue
     var baseMax: Float = baseValue
 
     var value: Float = baseValue
         private set
+
+    fun reset() {
+        baseValue = defaultValue
+        baseMin = defaultValue
+        baseMax = defaultValue
+        randomizeBase = false
+        modulators.clear()
+    }
 
     /**
      * Randomizes the static baseValue within the [baseMin, baseMax] range.
