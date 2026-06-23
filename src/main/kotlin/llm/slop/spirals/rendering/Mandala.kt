@@ -81,7 +81,15 @@ class Mandala(
         "Hue Sweep" to ModulatableParameter(0.0f),
         "Depth" to ModulatableParameter(0.35f),
         "Lobes" to ModulatableParameter(recipe.petals.toFloat(), minClamp = 3.0f, maxClamp = 26.0f),
-        "Recipe Select" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f)
+        "Recipe Select" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Style" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 2.0f),
+        "Bg Feedback" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Hue" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Sat" to ModulatableParameter(0.8f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Val" to ModulatableParameter(0.5f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Sweep" to ModulatableParameter(0.2f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Speed" to ModulatableParameter(0.2f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Bg Zoom" to ModulatableParameter(1.0f, minClamp = 0.1f, maxClamp = 10.0f)
     )
 
     init {

@@ -14,6 +14,8 @@ class Renderer {
     private val mandalaShader: Shader
     private val feedbackShader: Shader
     private val mixerShader: Shader
+    private val backgroundShader: Shader
+    private val blitShader: Shader
 
     private var mandalaVAO: Int = 0
     private var mandalaVBO: Int = 0
@@ -24,6 +26,8 @@ class Renderer {
         mandalaShader = Shader.fromResources("shaders/mandala.vert", "shaders/mandala.frag")
         feedbackShader = Shader.fromResources("shaders/blit.vert", "shaders/feedback.frag")
         mixerShader = Shader.fromResources("shaders/blit.vert", "shaders/mixer.frag")
+        backgroundShader = Shader.fromResources("shaders/blit.vert", "shaders/background.frag")
+        blitShader = Shader.fromResources("shaders/blit.vert", "shaders/blit.frag")
 
         // Initialize VAO and VBO for Mandala geometry (ribbon coordinates)
         val expansionBuffer = Mandala.expansionBuffer
@@ -58,6 +62,24 @@ class Renderer {
         }
     }
 
+    private fun renderBackground(mandala: Mandala, alpha: Float) {
+        backgroundShader.bind()
+        val p = mandala.parameters
+        val style = p["Bg Style"]?.value?.toInt() ?: 0
+        backgroundShader.setUniform("uBgStyle", style)
+        backgroundShader.setUniform("uBgHue", p["Bg Hue"]?.value ?: 0f)
+        backgroundShader.setUniform("uBgSat", p["Bg Sat"]?.value ?: 0.8f)
+        backgroundShader.setUniform("uBgVal", p["Bg Val"]?.value ?: 0.5f)
+        backgroundShader.setUniform("uBgSweep", p["Bg Sweep"]?.value ?: 0.2f)
+        backgroundShader.setUniform("uBgSpeed", p["Bg Speed"]?.value ?: 0.2f)
+        backgroundShader.setUniform("uBgZoom", p["Bg Zoom"]?.value ?: 1.0f)
+        backgroundShader.setUniform("uTime", org.lwjgl.glfw.GLFW.glfwGetTime().toFloat())
+        backgroundShader.setUniform("uAlpha", alpha)
+
+        Geometry.drawFullscreenQuad()
+        backgroundShader.unbind()
+    }
+
     /**
      * Renders a Mandala to the specified FBO.
      */
@@ -68,10 +90,19 @@ class Renderer {
         glClearColor(0f, 0f, 0f, 0f)
         glClear(GL_COLOR_BUFFER_BIT)
 
+        val p = mandala.parameters
+        val bgStyle = p["Bg Style"]?.value ?: 0f
+        if (bgStyle > 0.5f) {
+            val bgFeedback = p["Bg Feedback"]?.value ?: 0f
+            val alpha = bgFeedback * mandala.globalAlpha.value
+            if (alpha > 0.001f) {
+                renderBackground(mandala, alpha)
+            }
+        }
+
         mandalaShader.bind()
 
         // Set arm length parameters (L1 to L4)
-        val p = mandala.parameters
         mandalaShader.setUniform("uL1", p["L1"]?.value ?: 0f)
         mandalaShader.setUniform("uL2", p["L2"]?.value ?: 0f)
         mandalaShader.setUniform("uL3", p["L3"]?.value ?: 0f)
@@ -168,6 +199,33 @@ class Renderer {
         feedbackShader.unbind()
         nextHistoryFBO.unbind()
 
+        val mandala = deck.source as? Mandala
+        val bgStyle = mandala?.parameters?.get("Bg Style")?.value ?: 0f
+        if (bgStyle > 0.5f && mandala != null) {
+            deck.cleanFBO.bind()
+            glClearColor(0f, 0f, 0f, 0f)
+            glClear(GL_COLOR_BUFFER_BIT)
+
+            val bgFeedback = mandala.parameters["Bg Feedback"]?.value ?: 0f
+            val staticAlpha = (1.0f - bgFeedback) * mandala.globalAlpha.value
+            if (staticAlpha > 0.001f) {
+                renderBackground(mandala, staticAlpha)
+            }
+
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+            blitShader.bind()
+            glActiveTexture(GL_TEXTURE0)
+            glBindTexture(GL_TEXTURE_2D, nextHistoryFBO.texture)
+            blitShader.setUniform("uTexture", 0)
+
+            Geometry.drawFullscreenQuad()
+
+            blitShader.unbind()
+            deck.cleanFBO.unbind()
+        }
+
         // Re-enable blending for subsequent rendering passes
         glEnable(GL_BLEND)
 
@@ -191,12 +249,12 @@ class Renderer {
 
         // Bind Deck A output texture to Unit 0
         glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, mixer.deckA.getCurrentHistoryFBO().texture)
+        glBindTexture(GL_TEXTURE_2D, mixer.deckA.getOutputTexture())
         mixerShader.setUniform("uTex1", 0)
 
         // Bind Deck B output texture to Unit 1
         glActiveTexture(GL_TEXTURE1)
-        glBindTexture(GL_TEXTURE_2D, mixer.deckB.getCurrentHistoryFBO().texture)
+        glBindTexture(GL_TEXTURE_2D, mixer.deckB.getOutputTexture())
         mixerShader.setUniform("uTex2", 1)
 
         // Set mix uniforms
@@ -221,6 +279,8 @@ class Renderer {
             mandalaShader.dispose()
             feedbackShader.dispose()
             mixerShader.dispose()
+            backgroundShader.dispose()
+            blitShader.dispose()
             isDisposed = true
         }
     }

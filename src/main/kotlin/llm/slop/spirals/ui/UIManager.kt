@@ -423,7 +423,7 @@ class UIManager(private val windowHandle: Long) {
 
         // Column 0: Deck A Header + Preview
         drawDeckHeader("Deck A", mixer.deckA, true)
-        ImGui.image(mixer.deckA.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
+        ImGui.image(mixer.deckA.getOutputTexture(), subW, subH, 0f, 1f, 1f, 0f)
         ImGui.nextColumn()
 
         // Column 1: Copy Buttons (above the previews, centered horizontally)
@@ -441,7 +441,7 @@ class UIManager(private val windowHandle: Long) {
 
         // Column 2: Deck B Header + Preview
         drawDeckHeader("Deck B", mixer.deckB, false)
-        ImGui.image(mixer.deckB.getCurrentHistoryFBO().texture, subW, subH, 0f, 1f, 1f, 0f)
+        ImGui.image(mixer.deckB.getOutputTexture(), subW, subH, 0f, 1f, 1f, 0f)
         ImGui.nextColumn()
 
         ImGui.columns(1)
@@ -544,6 +544,38 @@ class UIManager(private val windowHandle: Long) {
         slider("FB Rotate", deck.fbRotate, -0.1f, 0.1f)
         slider("FB Hue",    deck.fbHueShift,-0.1f, 0.1f)
         slider("FB Blur",   deck.fbBlur,    0f, 0.2f)
+
+        if (mandala != null) {
+            ImGui.spacing()
+            ImGui.separator()
+            ImGui.spacing()
+            UITheme.h3("Background")
+
+            val bgStyleParam = mandala.parameters["Bg Style"]!!
+            val bgStyleLabels = arrayOf("Off", "Solid Color", "Plasma")
+            val bgStyleCombo = imgui.type.ImInt(bgStyleParam.baseValue.toInt())
+            
+            UITheme.body("Bg Style")
+            ImGui.sameLine(80f)
+            ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
+            if (ImGui.combo("##bg_style", bgStyleCombo, bgStyleLabels)) {
+                bgStyleParam.set(bgStyleCombo.get().toFloat())
+            }
+            ImGui.popItemWidth()
+
+            if (bgStyleCombo.get() > 0) {
+                slider("Bg Feedback", mandala.parameters["Bg Feedback"]!!, 0f, 1f)
+                slider("Bg Hue",      mandala.parameters["Bg Hue"]!!,      0f, 1f)
+                slider("Bg Sat",      mandala.parameters["Bg Sat"]!!,      0f, 1f)
+                slider("Bg Val",      mandala.parameters["Bg Val"]!!,      0f, 1f)
+
+                if (bgStyleCombo.get() == 2) { // Plasma only
+                    slider("Bg Sweep", mandala.parameters["Bg Sweep"]!!, 0f, 1f)
+                    slider("Bg Speed", mandala.parameters["Bg Speed"]!!, 0f, 1f)
+                    slider("Bg Zoom",  mandala.parameters["Bg Zoom"]!!,  0.1f, 10f)
+                }
+            }
+        }
 
         ImGui.spacing()
         if (ImGui.button("Randomize Modulators", ImGui.getContentRegionAvailX(), 30f)) {

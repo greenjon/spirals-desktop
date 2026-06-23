@@ -157,6 +157,7 @@ object CellConfigPanel {
             } else {
                 val isLobes = paramKey.endsWith("/Geometry/Lobes")
                 val isRecipeSelect = paramKey.endsWith("/Geometry/Recipe")
+                val isBgStyle = paramKey.endsWith("/Background/Style")
 
                 drawCustomRangeSlider(
                     label = "Base Range",
@@ -169,6 +170,14 @@ object CellConfigPanel {
                     showControls = true,
                     formatValue = {
                         when {
+                            isBgStyle -> {
+                                when (it.roundToInt()) {
+                                    0 -> "Off"
+                                    1 -> "Solid Color"
+                                    2 -> "Plasma"
+                                    else -> "Off"
+                                }
+                            }
                             isLobes -> "${it.roundToInt()} lobes"
                             isRecipeSelect -> {
                                 if (mandala != null) {
@@ -233,11 +242,20 @@ object CellConfigPanel {
             }
 
             ImGui.spacing()
+            val isBgStyle = paramKey.endsWith("/Background/Style")
             if (isHueSweep && mandala != null) {
                 val petals = mandala.recipe.petals
                 val options = mandala.getSymmetricHueCycles(petals)
                 val idx = if (options.size > 1) (param.baseValue * (options.size - 1)).roundToInt().coerceIn(0, options.size - 1) else 0
                 UITheme.caption("Static Base Value: ${options[idx]} cycles")
+            } else if (isBgStyle) {
+                val label = when (param.baseValue.roundToInt()) {
+                    0 -> "Off"
+                    1 -> "Solid Color"
+                    2 -> "Plasma"
+                    else -> "Off"
+                }
+                UITheme.caption("Static Base Value: $label")
             } else {
                 UITheme.caption("Static Base Value: %.3f".format(param.baseValue))
             }
@@ -329,6 +347,7 @@ object CellConfigPanel {
             for (mod in toRemove) {
                 param.modulators.remove(mod)
             }
+            ImGui.popStyleColor()
             return
         }
         ImGui.popStyleColor()
