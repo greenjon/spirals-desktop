@@ -51,7 +51,11 @@ object PatchGridPanel {
         gridStartX = ImGui.getCursorScreenPosX()
         val extraColsW = 3 * (CELL + CELL_PAD)
         val cvCols = getCvColumns()
-        val labelColW = (avail - cvCols.size * (CELL + CELL_PAD) - extraColsW).coerceAtLeast(120f)
+        
+        // Calculate label column width based on the maximum possible columns (10 audio/CV)
+        // so that the grid stays left-aligned instead of expanding when columns are hidden.
+        val maxCvCols = 10
+        val labelColW = (avail - maxCvCols * (CELL + CELL_PAD) - extraColsW).coerceAtLeast(120f)
 
         handleKeyboardShortcuts(state, mixer)
 
