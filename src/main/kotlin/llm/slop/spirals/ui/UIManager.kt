@@ -426,7 +426,7 @@ class UIManager(private val windowHandle: Long) {
         ImGui.nextColumn()
 
         // Column 1: Copy Buttons (above the previews, centered horizontally)
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + 5f)
+        ImGui.dummy(1f, 5f)
         if (ImGui.button("<##copyToA", btnW - 4f, 25f)) {
             val dto = mixer.deckB.toDto("Deck B")
             mixer.deckA.applyDto(dto)
@@ -468,14 +468,12 @@ class UIManager(private val windowHandle: Long) {
 
         ImGui.columns(2, "deckCtrls", true)
         UITheme.h3("Deck A")
-        ImGui.nextColumn()
-        UITheme.h3("Deck B")
-        ImGui.nextColumn()
-        
         ImGui.separator()
-        
         drawDeckControls("Deck A", mixer.deckA)
         ImGui.nextColumn()
+        
+        UITheme.h3("Deck B")
+        ImGui.separator()
         drawDeckControls("Deck B", mixer.deckB)
         ImGui.nextColumn()
         ImGui.columns(1)
