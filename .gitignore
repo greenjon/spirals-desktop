@@ -30,6 +30,8 @@ logs/
 patches/*.json
 !patches/default.json
 presets/
+spirals-settings.properties
+imgui.ini
 
 # Native libraries
 *.so

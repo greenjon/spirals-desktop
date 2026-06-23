@@ -43,6 +43,9 @@ object UITheme {
     /** True if the JACK audio engine should process incoming audio and estimate tempo. */
     var audioEngineEnabled: Boolean = true
 
+    /** True if the background video should be rendered and UI panels are semi-transparent. */
+    var backgroundVideoEnabled: Boolean = false
+
     init {
         loadSettings()
     }
@@ -62,8 +65,13 @@ object UITheme {
                     audioEngineEnabled = savedAudio
                     logger.info { "Loaded audioEngineEnabled from settings file: $audioEngineEnabled" }
                 }
+                val savedBgVideo = props.getProperty("backgroundVideoEnabled")?.toBooleanStrictOrNull()
+                if (savedBgVideo != null) {
+                    backgroundVideoEnabled = savedBgVideo
+                    logger.info { "Loaded backgroundVideoEnabled from settings file: $backgroundVideoEnabled" }
+                }
             } else {
-                logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled" }
+                logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled" }
             }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to load settings, using defaults" }
@@ -75,8 +83,9 @@ object UITheme {
             val props = Properties()
             props.setProperty("baseSize", baseSize.toString())
             props.setProperty("audioEngineEnabled", audioEngineEnabled.toString())
+            props.setProperty("backgroundVideoEnabled", backgroundVideoEnabled.toString())
             settingsFile.outputStream().use { props.store(it, "Spirals Settings") }
-            logger.info { "Saved baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled to settings file" }
+            logger.info { "Saved baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled to settings file" }
         } catch (e: Exception) {
             logger.error(e) { "Failed to save settings" }
         }

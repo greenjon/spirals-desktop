@@ -1,6 +1,7 @@
 package llm.slop.spirals.ui
 
 import imgui.ImGui
+import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiConfigFlags
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImInt
@@ -43,6 +44,31 @@ class UIManager(private val windowHandle: Long) {
     // Set to true for one frame when the Settings menu item is clicked; consumed
     // immediately after endMainMenuBar so openPopup runs at root ID-stack level.
     private var pendingOpenSettings = false
+
+    private var lastBgVideoEnabled: Boolean? = null
+
+    private fun updateUiTransparency() {
+        val enabled = UITheme.backgroundVideoEnabled
+        if (enabled == lastBgVideoEnabled) return
+        lastBgVideoEnabled = enabled
+
+        val style = ImGui.getStyle()
+        if (enabled) {
+            // Semi-transparent style for a cool VJ look
+            style.setColor(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 0.75f)
+            style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.04f, 0.75f)
+            style.setColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.16f, 0.75f)
+            style.setColor(ImGuiCol.MenuBarBg, 0.14f, 0.14f, 0.14f, 0.75f)
+            style.setColor(ImGuiCol.PopupBg, 0.08f, 0.08f, 0.08f, 0.75f)
+        } else {
+            // Completely opaque colors
+            style.setColor(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 1.00f)
+            style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.04f, 1.00f)
+            style.setColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.16f, 1.00f)
+            style.setColor(ImGuiCol.MenuBarBg, 0.14f, 0.14f, 0.14f, 1.00f)
+            style.setColor(ImGuiCol.PopupBg, 0.08f, 0.08f, 0.08f, 1.00f)
+        }
+    }
 
     // Patch grid state shared between PatchGridPanel and CellConfigPanel
     private val patchState = PatchGridState()
@@ -143,6 +169,7 @@ class UIManager(private val windowHandle: Long) {
 
         imguiGlfw.newFrame()
         ImGui.newFrame()
+        updateUiTransparency()
 
         drawMenuBar(mixer)
         // openPopup must be called at root ID-stack level — not inside the menu bar.

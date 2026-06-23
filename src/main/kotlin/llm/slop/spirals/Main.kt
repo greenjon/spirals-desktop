@@ -151,17 +151,22 @@ fun main() {
         mixer.update()
         renderer.renderMixer(mixer)
 
-        // 4. Blit the Mixer's master FBO to the screen viewport
+        // 4. Blit the Mixer's master FBO to the screen viewport if enabled
         glViewport(0, 0, w[0], h[0])
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f)
         glClear(GL_COLOR_BUFFER_BIT)
 
-        blitShader.bind()
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, mixer.masterFBO.texture)
-        blitShader.setUniform("uTexture", 0)
-        Geometry.drawFullscreenQuad()
-        blitShader.unbind()
+        if (UITheme.backgroundVideoEnabled) {
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+            blitShader.bind()
+            glActiveTexture(GL_TEXTURE0)
+            glBindTexture(GL_TEXTURE_2D, mixer.masterFBO.texture)
+            blitShader.setUniform("uTexture", 0)
+            Geometry.drawFullscreenQuad()
+            blitShader.unbind()
+        }
         glBindVertexArray(0) // Ensure VAO is unbound for ImGui overlay rendering
 
         // Check for errors (only first few frames to avoid spam)

@@ -127,6 +127,29 @@ object SettingsPanel {
         ImGui.separator()
         ImGui.spacing()
 
+        // ─────────────────────────────────────────────────────────────────────
+        // Video Settings
+        // ─────────────────────────────────────────────────────────────────────
+        UITheme.h2("Video")
+        ImGui.separator()
+        ImGui.spacing()
+
+        val bgVideoEnabled = ImBoolean(UITheme.backgroundVideoEnabled)
+        if (ImGui.checkbox("Background Video", bgVideoEnabled)) {
+            val nextVal = bgVideoEnabled.get()
+            if (nextVal != UITheme.backgroundVideoEnabled) {
+                UITheme.backgroundVideoEnabled = nextVal
+                UITheme.saveSettings()
+            }
+        }
+        ImGui.spacing()
+        UITheme.caption("When enabled, the final output video renders behind the UI,")
+        UITheme.caption("and the interface panels become semi-transparent.")
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+
         // Centred Close button
         val closeW = 110f
         ImGui.setCursorPosX((MODAL_W - 32f - closeW) * 0.5f + ImGui.getWindowContentRegionMinX())

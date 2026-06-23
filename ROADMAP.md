@@ -95,7 +95,7 @@ Parameter.kt: Represents a single visual parameter (ModulatableParameter from An
 Modulation.kt: Defines CvModulator (CV source, weight, operator, bypass).
 Integrate Parameter.kt into Mandala.kt and Mixer.kt parameters.
 Milestone: Parameters in Mandala and Mixer are now ModulatableParameters.
-Phase 4: UI & Interactivity
+Phase 4: UI & Interactivity (Complete)
 Goal: Develop the grid-based patcher UI and integrate MIDI input.
 
 4.1. Hierarchical Parameter System
@@ -128,6 +128,7 @@ CV-specific controls ported from Android ModulatorRow:
 Live value bar shown at bottom of panel.
 Milestone: Can click a cell, configure modulation, see live value feedback.
 4.4. MIDI Input
+Status: COMPLETE
 
 MIDIManager.kt: Wrapper for javax.sound.midi, detects MIDI devices.
 Maps MIDI CC messages to new CV sources in CVRegistry.
@@ -137,6 +138,7 @@ Phase 5: Patch Management & Refinements
 Goal: Implement saving/loading of presets and general polishing.
 
 5.1. Patch Serialization
+Status: COMPLETE
 
 Patch.kt: Data class representing a complete patch (all parameters, CV sources, modulations).
 PatchManager.kt: Uses kotlinx.serialization (JSON) to save and load Patch objects.
@@ -149,12 +151,14 @@ Milestone: Can save/load entire visual configurations.
 - **Completed**: Added parameter-level randomization toggles (non-destructive) and individual reload triggers (`↻`) for CV modulators and parameter Base values, including single-handle static sliders.
 - Milestone: Can generate new mandala variations with a single click and granularly lock/reload parameters.
 5.3. Performance & Debugging
+Status: IN PROGRESS (Partially Complete)
 
 OpenGL profiling (e.g., glGetDebugMessageLog).
 Optimize shader performance.
 Refine audio processing for efficiency.
 Milestone: Smooth performance at target framerate, minimal audio latency.
 5.4. Documentation & Release
+Status: IN PROGRESS (Partially Complete)
 
 Update README.md with usage instructions.
 Add inline code documentation.

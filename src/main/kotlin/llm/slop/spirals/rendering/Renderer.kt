@@ -90,6 +90,9 @@ class Renderer {
         glClearColor(0f, 0f, 0f, 0f)
         glClear(GL_COLOR_BUFFER_BIT)
 
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
         val p = mandala.parameters
         val bgStyle = p["Bg Style"]?.value ?: 0f
         if (bgStyle > 0.5f) {
@@ -206,6 +209,9 @@ class Renderer {
             glClearColor(0f, 0f, 0f, 0f)
             glClear(GL_COLOR_BUFFER_BIT)
 
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
             val bgFeedback = mandala.parameters["Bg Feedback"]?.value ?: 0f
             val staticAlpha = (1.0f - bgFeedback) * mandala.globalAlpha.value
             if (staticAlpha > 0.001f) {
@@ -213,7 +219,7 @@ class Renderer {
             }
 
             glEnable(GL_BLEND)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
             blitShader.bind()
             glActiveTexture(GL_TEXTURE0)
@@ -244,6 +250,8 @@ class Renderer {
 
         glClearColor(0f, 0f, 0f, 1f)
         glClear(GL_COLOR_BUFFER_BIT)
+
+        glDisable(GL_BLEND)
 
         mixerShader.bind()
 
