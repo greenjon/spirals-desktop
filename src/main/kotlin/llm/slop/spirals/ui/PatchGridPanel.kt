@@ -23,18 +23,21 @@ import kotlin.math.sin
  */
 object PatchGridPanel {
 
-    // CV columns shown in the grid, in display order
-    private val CV_COLUMNS = listOf(
-        "amp", "bass", "mid", "high", "bassFlux", "onset", "accent",
-        "beatPhase", "lfo", "sampleAndHold"
-    )
-    private val CV_LABELS = listOf(
-        "AMP", "BASS", "MID", "HIGH", "FLUX", "ONSET", "ACCENT",
-        "BEAT", "LFO", "RAND"
-    )
+    private fun getCvColumns(): List<String> {
+        return if (UITheme.audioEngineEnabled) {
+            listOf("amp", "bass", "mid", "high", "bassFlux", "onset", "accent", "beatPhase", "lfo", "sampleAndHold")
+        } else {
+            listOf("lfo", "sampleAndHold")
+        }
+    }
 
-    // Vertical version of labels for space-saving column headers
-    private val CV_LABELS_VERTICAL = CV_LABELS.map { it.toList().joinToString("\n") }
+    private fun getCvLabels(): List<String> {
+        return if (UITheme.audioEngineEnabled) {
+            listOf("AMP", "BASS", "MID", "HIGH", "FLUX", "ONSET", "ACCENT", "BEAT", "LFO", "RAND")
+        } else {
+            listOf("LFO", "RAND")
+        }
+    }
 
 
     // Size of each cell square (px)
@@ -47,7 +50,8 @@ object PatchGridPanel {
         val avail = ImGui.getContentRegionAvailX()
         gridStartX = ImGui.getCursorScreenPosX()
         val extraColsW = 3 * (CELL + CELL_PAD)
-        val labelColW = (avail - CV_COLUMNS.size * (CELL + CELL_PAD) - extraColsW).coerceAtLeast(120f)
+        val cvCols = getCvColumns()
+        val labelColW = (avail - cvCols.size * (CELL + CELL_PAD) - extraColsW).coerceAtLeast(120f)
 
         handleKeyboardShortcuts(state, mixer)
 
@@ -73,8 +77,9 @@ object PatchGridPanel {
         
         // Calculate the maximum height needed for the vertical labels
         var maxH = 0f
+        val cvLabelsVertical = getCvLabels().map { it.toList().joinToString("\n") }
         UITheme.withFont(UITheme.FontLevel.CAPTION) {
-            for (label in CV_LABELS_VERTICAL) {
+            for (label in cvLabelsVertical) {
                 val h = ImGui.calcTextSize(label).y
                 if (h > maxH) maxH = h
             }
@@ -138,7 +143,7 @@ object PatchGridPanel {
         UITheme.caption(labelMidi)
 
         // Draw each column header vertically
-        for ((idx, label) in CV_LABELS_VERTICAL.withIndex()) {
+        for ((idx, label) in cvLabelsVertical.withIndex()) {
             val colX = startX + labelColW + 3 * (CELL + CELL_PAD) + idx * (CELL + CELL_PAD)
             dl.addLine(colX - CELL_PAD * 0.5f, startY, colX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
             
@@ -150,7 +155,7 @@ object PatchGridPanel {
         }
         
         // Draw final separator line on the right edge
-        val rightColX = startX + labelColW + (CV_LABELS_VERTICAL.size + 3) * (CELL + CELL_PAD)
+        val rightColX = startX + labelColW + (cvLabelsVertical.size + 3) * (CELL + CELL_PAD)
         dl.addLine(rightColX - CELL_PAD * 0.5f, startY, rightColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
         
         // Restore cursor to where the dummy left off
@@ -437,7 +442,8 @@ object PatchGridPanel {
         }
 
         // 3. CV cells
-        for ((colIdx, cvId) in CV_COLUMNS.withIndex()) {
+        val cvCols = getCvColumns()
+        for ((colIdx, cvId) in cvCols.withIndex()) {
             val cellId = PatchCellId(paramKey, cvId)
             val isSelected = state.selectedCell == cellId
             val activeMods = param.modulators.filter {

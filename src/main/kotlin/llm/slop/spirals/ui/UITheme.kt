@@ -40,6 +40,9 @@ object UITheme {
     /** Base pixel size at which BODY text is rendered. All others are derived. */
     var baseSize: Float = 20f
 
+    /** True if the JACK audio engine should process incoming audio and estimate tempo. */
+    var audioEngineEnabled: Boolean = true
+
     init {
         loadSettings()
     }
@@ -54,11 +57,16 @@ object UITheme {
                     baseSize = savedSize
                     logger.info { "Loaded baseSize from settings file: $baseSize" }
                 }
+                val savedAudio = props.getProperty("audioEngineEnabled")?.toBooleanStrictOrNull()
+                if (savedAudio != null) {
+                    audioEngineEnabled = savedAudio
+                    logger.info { "Loaded audioEngineEnabled from settings file: $audioEngineEnabled" }
+                }
             } else {
-                logger.info { "No settings file found, using default baseSize: $baseSize" }
+                logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled" }
             }
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to load settings, using default baseSize: $baseSize" }
+            logger.warn(e) { "Failed to load settings, using defaults" }
         }
     }
 
@@ -66,8 +74,9 @@ object UITheme {
         try {
             val props = Properties()
             props.setProperty("baseSize", baseSize.toString())
+            props.setProperty("audioEngineEnabled", audioEngineEnabled.toString())
             settingsFile.outputStream().use { props.store(it, "Spirals Settings") }
-            logger.info { "Saved baseSize to settings file: $baseSize" }
+            logger.info { "Saved baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled to settings file" }
         } catch (e: Exception) {
             logger.error(e) { "Failed to save settings" }
         }

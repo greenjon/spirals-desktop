@@ -11,6 +11,7 @@ import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.ui.UIManager
 import llm.slop.spirals.audio.AudioEngine
+import llm.slop.spirals.ui.UITheme
 import llm.slop.spirals.cv.CVRegistry
 import llm.slop.spirals.patches.PatchManager
 import mu.KotlinLogging
@@ -104,9 +105,10 @@ fun main() {
 
     logger.info { "GL state configured" }
 
-    // Start Audio engine
-    val audioEngine = AudioEngine()
-    audioEngine.start()
+    // Start Audio engine if enabled
+    if (UITheme.audioEngineEnabled) {
+        AudioEngine.start()
+    }
 
     // Main loop
     var frameCount = 0
@@ -175,7 +177,7 @@ fun main() {
 
     // Cleanup
     logger.info { "Shutting down..." }
-    audioEngine.stop()
+    AudioEngine.stop()
     llm.slop.spirals.midi.MidiEngine.close()
 
     // Dispose rendering resources

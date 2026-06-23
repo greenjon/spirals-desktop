@@ -8,7 +8,7 @@ import kotlin.math.max
  * Orchestrates the audio capture client and runs the real-time DSP analysis pipeline.
  * Separates audio into bands, detects transients/onsets, estimates BPM, and updates CVRegistry.
  */
-class AudioEngine {
+object AudioEngine {
     private var jackClient: JackClient? = null
     
     // DSP filters

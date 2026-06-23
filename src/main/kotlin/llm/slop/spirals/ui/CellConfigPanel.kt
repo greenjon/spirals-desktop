@@ -64,7 +64,7 @@ object CellConfigPanel {
         } else {
             param.modulators.filter { it.sourceId == cvId }
         }
-        val isMidiMod = cvId == "midi" && activeMods.isNotEmpty()
+        val isMidiMod = cvId == "midi"
 
         val isBeat = cvId == "beatPhase"
         val isLfo = cvId == "lfo"
@@ -301,20 +301,20 @@ object CellConfigPanel {
 
         UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey)
         ImGui.sameLine()
-        if (cvId == "midi") {
-            val firstMidiMod = activeMods.firstOrNull()
-            val midiId = firstMidiMod?.sourceId ?: ""
-            val parts = if (midiId.startsWith("midi_cc_")) {
-                midiId.substring("midi_cc_".length).split('_')
+        if (isMidiMod) {
+            val firstMidiMod = activeMods.firstOrNull { it.sourceId.startsWith("midi_cc_") }
+            val label = if (firstMidiMod != null) {
+                val midiId = firstMidiMod.sourceId
+                val parts = midiId.substring("midi_cc_".length).split('_')
+                if (parts.size >= 2) {
+                    val ch = parts[0].toIntOrNull() ?: 0
+                    val cc = parts[1].toIntOrNull() ?: 0
+                    if (ch == 0) "MIDI CC $cc" else "MIDI Ch ${ch + 1} CC $cc"
+                } else "MIDI"
             } else {
-                emptyList()
+                "Unmapped MIDI (Click MIDI Map to bind)"
             }
-            val label = if (parts.size >= 2) {
-                val ch = parts[0].toIntOrNull() ?: 0
-                val cc = parts[1].toIntOrNull() ?: 0
-                if (ch == 0) "MIDI CC $cc" else "MIDI Ch ${ch + 1} CC $cc"
-            } else "MIDI"
-            UITheme.caption("  <--  $label")
+            UITheme.caption("  <--  $cvId ($label)")
         } else {
             UITheme.caption("  <--  $cvId")
         }

@@ -5,6 +5,7 @@ import imgui.flag.ImGuiCond
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiTableColumnFlags
 import imgui.flag.ImGuiWindowFlags
+import imgui.type.ImBoolean
 
 /**
  * Modal settings overlay. Call [open] when the menu item is clicked.
@@ -98,8 +99,29 @@ object SettingsPanel {
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Future sections go here (e.g. Colours, Layout…)
+        // Audio Engine Settings
         // ─────────────────────────────────────────────────────────────────────
+        ImGui.spacing()
+        UITheme.h2("Audio")
+        ImGui.separator()
+        ImGui.spacing()
+
+        val audioEnabled = ImBoolean(UITheme.audioEngineEnabled)
+        if (ImGui.checkbox("Enable Audio Engine (JACK)", audioEnabled)) {
+            val nextVal = audioEnabled.get()
+            if (nextVal != UITheme.audioEngineEnabled) {
+                UITheme.audioEngineEnabled = nextVal
+                UITheme.saveSettings()
+                if (nextVal) {
+                    llm.slop.spirals.audio.AudioEngine.start()
+                } else {
+                    llm.slop.spirals.audio.AudioEngine.stop()
+                }
+            }
+        }
+        ImGui.spacing()
+        UITheme.caption("Disabling the audio engine stops JACK audio processing")
+        UITheme.caption("and limits patch grid columns to LFO, RAND, and MIDI.")
 
         ImGui.spacing()
         ImGui.separator()
