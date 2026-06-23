@@ -46,7 +46,7 @@ object PatchGridPanel {
     fun draw(mixer: Mixer, state: PatchGridState) {
         val avail = ImGui.getContentRegionAvailX()
         gridStartX = ImGui.getCursorScreenPosX()
-        val extraColsW = 2 * (CELL + CELL_PAD)
+        val extraColsW = 3 * (CELL + CELL_PAD)
         val labelColW = (avail - CV_COLUMNS.size * (CELL + CELL_PAD) - extraColsW).coerceAtLeast(120f)
 
         handleKeyboardShortcuts(state, mixer)
@@ -80,8 +80,10 @@ object PatchGridPanel {
             }
             val hFinal = ImGui.calcTextSize("F\nI\nN\nA\nL").y
             val hBase = ImGui.calcTextSize("B\nA\nS\nE").y
+            val hMidi = ImGui.calcTextSize("M\nI\nD\nI").y
             if (hFinal > maxH) maxH = hFinal
             if (hBase > maxH) maxH = hBase
+            if (hMidi > maxH) maxH = hMidi
         }
         
         // Reserve vertical space for headers
@@ -125,9 +127,19 @@ object PatchGridPanel {
         ImGui.setCursorScreenPos(baseColX + offsetX, startY)
         UITheme.caption(labelBase)
 
+        // Draw MIDI header
+        val midiColX = startX + labelColW + 2 * (CELL + CELL_PAD)
+        dl.addLine(midiColX - CELL_PAD * 0.5f, startY, midiColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
+        var twMidi = 0f
+        val labelMidi = "M\nI\nD\nI"
+        UITheme.withFont(UITheme.FontLevel.CAPTION) { twMidi = ImGui.calcTextSize(labelMidi).x }
+        offsetX = ((CELL - twMidi) * 0.5f).coerceAtLeast(0f)
+        ImGui.setCursorScreenPos(midiColX + offsetX, startY)
+        UITheme.caption(labelMidi)
+
         // Draw each column header vertically
         for ((idx, label) in CV_LABELS_VERTICAL.withIndex()) {
-            val colX = startX + labelColW + 2 * (CELL + CELL_PAD) + idx * (CELL + CELL_PAD)
+            val colX = startX + labelColW + 3 * (CELL + CELL_PAD) + idx * (CELL + CELL_PAD)
             dl.addLine(colX - CELL_PAD * 0.5f, startY, colX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
             
             var tw = 0f
@@ -138,7 +150,7 @@ object PatchGridPanel {
         }
         
         // Draw final separator line on the right edge
-        val rightColX = startX + labelColW + (CV_LABELS_VERTICAL.size + 2) * (CELL + CELL_PAD)
+        val rightColX = startX + labelColW + (CV_LABELS_VERTICAL.size + 3) * (CELL + CELL_PAD)
         dl.addLine(rightColX - CELL_PAD * 0.5f, startY, rightColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
         
         // Restore cursor to where the dummy left off
@@ -346,17 +358,95 @@ object PatchGridPanel {
         dl.addCircleFilled(baseDotX, baseDotY, 3f, baseDotCol)
         dl.addRect(baseX, baseY, baseX + CELL, baseY + CELL, baseBorderCol, 3f)
 
+        // 2.5 MIDI Cell
+        val midiX = gridStartX + labelColW + 2 * (CELL + CELL_PAD)
+        val midiY = rowScreenY
+        val midiCellId = PatchCellId(paramKey, "midi")
+        val isMidiSelected = state.selectedCell == midiCellId
+        
+        // Find any MIDI modulator for this parameter
+        val midiMods = param.modulators.filter { it.sourceId.startsWith("midi_cc_") }
+        val hasMidiMod = midiMods.any { !it.bypassed }
+        val isMidiBypassed = midiMods.isNotEmpty() && midiMods.all { it.bypassed }
+        
+        val isMidiTarget = state.midiLearnTarget?.let {
+            it is MidiLearnTarget.GridCell && it.cellId == midiCellId
+        } ?: false
+
+        ImGui.setCursorScreenPos(midiX, midiY)
+        ImGui.invisibleButton("##midi_cell", CELL, CELL)
+        if (ImGui.isItemClicked()) {
+            if (state.isMidiLearnMode) {
+                state.midiLearnTarget = MidiLearnTarget.GridCell(midiCellId, param)
+            } else {
+                state.select(midiCellId, param)
+            }
+        }
+        
+        if (ImGui.beginPopupContextItem("midi_cell_menu_$paramKey")) {
+            if (midiMods.isNotEmpty()) {
+                if (ImGui.menuItem("Clear MIDI Modulator")) {
+                    param.modulators.removeAll(midiMods)
+                }
+                if (ImGui.menuItem(if (isMidiBypassed) "Enable MIDI Modulator" else "Bypass MIDI Modulator")) {
+                    val updated = param.modulators.map {
+                        if (it.sourceId.startsWith("midi_cc_")) it.copy(bypassed = !it.bypassed) else it
+                    }
+                    param.modulators.clear()
+                    param.modulators.addAll(updated)
+                }
+            }
+            ImGui.endPopup()
+        }
+
+        // Draw MIDI cell background and border
+        val midiBgCol = when {
+            isMidiTarget   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.4f, 0.5f, 1f)
+            isMidiSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
+            hasMidiMod     -> ImGui.colorConvertFloat4ToU32(0.05f, 0.15f, 0.2f, 1f)
+            else           -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
+        }
+        dl.addRectFilled(midiX, midiY, midiX + CELL, midiY + CELL, midiBgCol, 3f)
+        val midiBorderCol = when {
+            isMidiTarget   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 1.0f, 1f)
+            isMidiSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
+            hasMidiMod     -> ImGui.colorConvertFloat4ToU32(0.2f, 0.5f, 0.7f, 0.8f)
+            else           -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
+        }
+        dl.addRect(midiX, midiY, midiX + CELL, midiY + CELL, midiBorderCol, 3f)
+
+        // Draw dynamic indicator dot for MIDI CC if active
+        if (hasMidiMod || isMidiBypassed) {
+            val cx = midiX + r
+            val cy = midiY + r
+            val circleR = r - 5f
+            val circleCol = if (isMidiBypassed)
+                ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.4f)
+            else
+                ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 0.25f)
+            dl.addCircle(cx, cy, circleR, circleCol, 32, 1.5f)
+
+            if (!isMidiBypassed) {
+                val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(midiMods).coerceIn(-1f, 1f)
+                val angle = (3.0 * PI / 2.0) - liveVal * 2.0 * PI
+                val dotX = cx + circleR * cos(angle).toFloat()
+                val dotY = cy + circleR * sin(angle).toFloat()
+                val dotCol = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)
+                dl.addCircleFilled(dotX, dotY, 3f, dotCol)
+            }
+        }
+
         // 3. CV cells
         for ((colIdx, cvId) in CV_COLUMNS.withIndex()) {
             val cellId = PatchCellId(paramKey, cvId)
             val isSelected = state.selectedCell == cellId
             val activeMods = param.modulators.filter {
-                it.sourceId == cvId || (it.sourceId.startsWith("midi_cc_") && it.sourceId.endsWith("_$cvId"))
+                it.sourceId == cvId
             }
             val hasModulator = activeMods.any { !it.bypassed }
             val isBypassed = activeMods.isNotEmpty() && activeMods.all { it.bypassed }
 
-            val x = gridStartX + labelColW + 2 * (CELL + CELL_PAD) + colIdx * (CELL + CELL_PAD)
+            val x = gridStartX + labelColW + 3 * (CELL + CELL_PAD) + colIdx * (CELL + CELL_PAD)
             val y = rowScreenY
 
             val isTarget = state.midiLearnTarget?.let {
@@ -386,7 +476,7 @@ object PatchGridPanel {
                     }
                     if (ImGui.menuItem(if (isBypassed) "Enable Modulator(s)" else "Bypass Modulator(s)")) {
                         val updated = param.modulators.map {
-                            if (it.sourceId == cvId || (it.sourceId.startsWith("midi_cc_") && it.sourceId.endsWith("_$cvId"))) {
+                            if (it.sourceId == cvId) {
                                 it.copy(bypassed = !it.bypassed)
                             } else it
                         }

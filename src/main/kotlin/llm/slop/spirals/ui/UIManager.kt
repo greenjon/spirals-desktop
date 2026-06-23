@@ -105,19 +105,18 @@ class UIManager(private val windowHandle: Long) {
                         target.param.midiMapMax = target.max
                     }
                     is MidiLearnTarget.GridCell -> {
-                        // Clear existing modulators for this column/cell
-                        val cvId = target.cellId.cvSourceId
+                        // Clear existing MIDI modulators for this parameter
                         val existingMods = target.param.modulators.filter {
-                            it.sourceId == cvId || (it.sourceId.startsWith("midi_cc_") && it.sourceId.endsWith("_$cvId"))
+                            it.sourceId.startsWith("midi_cc_")
                         }
                         target.param.modulators.removeAll(existingMods)
 
-                        // Create new MIDI modulator linked to this column
-                        val exists = target.param.modulators.any { it.sourceId == "${midiId}_$cvId" }
+                        // Create new MIDI modulator directly
+                        val exists = target.param.modulators.any { it.sourceId == midiId }
                         if (!exists) {
                             target.param.modulators.add(
                                 llm.slop.spirals.parameters.CvModulator(
-                                    sourceId = "${midiId}_$cvId",
+                                    sourceId = midiId,
                                     weight = 1.0f,
                                     operator = llm.slop.spirals.parameters.ModulationOperator.ADD
                                 )

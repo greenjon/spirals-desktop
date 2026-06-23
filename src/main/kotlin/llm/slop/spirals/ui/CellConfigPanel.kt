@@ -59,14 +59,16 @@ object CellConfigPanel {
         }
         val mandala = deck?.source as? Mandala
 
-        val activeMods = param.modulators.filter {
-            it.sourceId == cvId || (it.sourceId.startsWith("midi_cc_") && it.sourceId.endsWith("_$cvId"))
+        val activeMods = if (cvId == "midi") {
+            param.modulators.filter { it.sourceId.startsWith("midi_cc_") }
+        } else {
+            param.modulators.filter { it.sourceId == cvId }
         }
-        val isMidiMod = activeMods.any { it.sourceId.startsWith("midi_cc_") }
+        val isMidiMod = cvId == "midi" && activeMods.isNotEmpty()
 
-        val isBeat = cvId == "beatPhase" && !isMidiMod
-        val isLfo = cvId == "lfo" && !isMidiMod
-        val isSnh = cvId == "sampleAndHold" && !isMidiMod
+        val isBeat = cvId == "beatPhase"
+        val isLfo = cvId == "lfo"
+        val isSnh = cvId == "sampleAndHold"
         val hasAdvanced = isBeat || isLfo || isSnh
 
         if (cvId == "base") {
@@ -299,16 +301,20 @@ object CellConfigPanel {
 
         UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey)
         ImGui.sameLine()
-        if (isMidiMod) {
-            val firstMidiMod = activeMods.firstOrNull { it.sourceId.startsWith("midi_cc_") }
+        if (cvId == "midi") {
+            val firstMidiMod = activeMods.firstOrNull()
             val midiId = firstMidiMod?.sourceId ?: ""
-            val parts = midiId.substring("midi_cc_".length).split('_')
+            val parts = if (midiId.startsWith("midi_cc_")) {
+                midiId.substring("midi_cc_".length).split('_')
+            } else {
+                emptyList()
+            }
             val label = if (parts.size >= 2) {
                 val ch = parts[0].toIntOrNull() ?: 0
                 val cc = parts[1].toIntOrNull() ?: 0
                 if (ch == 0) "MIDI CC $cc" else "MIDI Ch ${ch + 1} CC $cc"
             } else "MIDI"
-            UITheme.caption("  <--  $cvId ($label)")
+            UITheme.caption("  <--  $label")
         } else {
             UITheme.caption("  <--  $cvId")
         }
@@ -318,15 +324,24 @@ object CellConfigPanel {
         if (activeMods.isEmpty()) {
             activeHistory = null
             activeCellId = null
-            // Empty cell: offer to create
-            UITheme.caption("No patch at this intersection.")
-            ImGui.spacing()
-            if (ImGui.button("+ Add Patch", ImGui.getContentRegionAvailX(), 35f)) {
-                if (cvId in listOf("beatPhase", "lfo", "sampleAndHold")) {
-                    param.modulators.add(CvModulator(sourceId = cvId))
-                    param.modulators.add(CvModulator(sourceId = cvId, bypassed = true))
-                } else {
-                    param.modulators.add(CvModulator(sourceId = cvId))
+            if (cvId == "midi") {
+                UITheme.caption("No MIDI mapping on this parameter.")
+                ImGui.spacing()
+                UITheme.caption("To map a controller:")
+                UITheme.caption("1. Enable [MIDI Map] in the main menu bar.")
+                UITheme.caption("2. Click this cell (which will highlight in cyan).")
+                UITheme.caption("3. Turn a knob or move a fader on your MIDI controller.")
+            } else {
+                // Empty cell: offer to create
+                UITheme.caption("No patch at this intersection.")
+                ImGui.spacing()
+                if (ImGui.button("+ Add Patch", ImGui.getContentRegionAvailX(), 35f)) {
+                    if (cvId in listOf("beatPhase", "lfo", "sampleAndHold")) {
+                        param.modulators.add(CvModulator(sourceId = cvId))
+                        param.modulators.add(CvModulator(sourceId = cvId, bypassed = true))
+                    } else {
+                        param.modulators.add(CvModulator(sourceId = cvId))
+                    }
                 }
             }
             return
