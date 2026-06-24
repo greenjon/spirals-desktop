@@ -33,10 +33,29 @@ object CellConfigPanel {
 
     private var activeHistory: CvHistoryBuffer? = null
     private var activeCellId: PatchCellId? = null
+    private val virtualModulators = mutableListOf<CvModulator>()
+    private var lastActiveIds: Set<String> = emptySet()
     private var draggingMin = false
     private var draggingMax = false
     private var activeSliderLabel: String? = null
     private var clickMouseX = 0f
+
+    private fun initializeVirtualModulators(cvId: String, activeMods: List<CvModulator>, hasAdvanced: Boolean) {
+        virtualModulators.clear()
+        if (hasAdvanced) {
+            val activeCount = activeMods.size
+            if (activeCount == 0) {
+                virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
+                virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
+            } else if (activeCount == 1) {
+                virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
+            }
+        } else {
+            if (activeMods.isEmpty()) {
+                virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
+            }
+        }
+    }
 
     fun draw(state: PatchGridState, mixer: Mixer) {
         val cell = state.selectedCell
@@ -282,20 +301,6 @@ object CellConfigPanel {
             // Oscilloscope showing final value history
             drawFinalOscilloscope(param.history)
 
-            ImGui.spacing()
-            ImGui.separator()
-            ImGui.spacing()
-
-            val liveVal = param.value
-            UITheme.caption("Live Value: %.3f".format(liveVal))
-            val barW = ImGui.getContentRegionAvailX()
-            val dl = ImGui.getWindowDrawList()
-            val cx = ImGui.getCursorScreenPosX()
-            val cy = ImGui.getCursorScreenPosY()
-            dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-            dl.addRectFilled(cx, cy, cx + barW * liveVal.coerceIn(0f, 1f), cy + 10f,
-                ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 1f))
-            ImGui.dummy(barW, 10f)
             return
         }
 
@@ -334,17 +339,16 @@ object CellConfigPanel {
             return
         }
 
-        val modsToDraw = if (isVirtual) {
-            listOf(CvModulator(sourceId = cvId, bypassed = true))
-        } else {
-            activeMods
-        }
-
-        // Initialize or update oscilloscope history
-        if (activeCellId != cell || activeHistory == null) {
+        // Initialize or update oscilloscope history and virtual modulators
+        val currentActiveIds = activeMods.map { it.id }.toSet()
+        if (activeCellId != cell || activeHistory == null || currentActiveIds != lastActiveIds) {
             activeHistory = CvHistoryBuffer(200)
             activeCellId = cell
+            lastActiveIds = currentActiveIds
+            initializeVirtualModulators(cvId, activeMods, hasAdvanced)
         }
+
+        val modsToDraw = activeMods + virtualModulators.filter { vm -> activeMods.none { am -> am.id == vm.id } }
         val combinedVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods)
         activeHistory?.add(combinedVal)
 
@@ -380,8 +384,9 @@ object CellConfigPanel {
         // ── Modulators ───────────────────────────────────────────
         for ((idx, existing) in modsToDraw.withIndex()) {
             ImGui.pushID(existing.id)
-            if (activeMods.size > 1) {
-                UITheme.h3("Modulator ${idx + 1}")
+            if (modsToDraw.size > 1) {
+                val typeLabel = if (hasAdvanced) "Oscillator" else "Modulator"
+                UITheme.h3("$typeLabel ${idx + 1}")
                 ImGui.spacing()
             }
 
@@ -472,12 +477,12 @@ object CellConfigPanel {
         if (!hasAdvanced) {
             // ── Test Randomize Button ────────────────────────────────
             ImGui.spacing()
-            if (ImGui.button("🎲 Test Randomize", ImGui.getContentRegionAvailX(), 30f)) {
+            if (ImGui.button("Randomize", ImGui.getContentRegionAvailX(), 30f)) {
                 val randomized = existing.randomizeActiveValues()
                 replaceModulator(state, param, randomized)
             }
             ImGui.popID()
-            if (idx < activeMods.size - 1) {
+            if (idx < modsToDraw.size - 1) {
                 ImGui.spacing()
                 ImGui.separator()
                 ImGui.spacing()
@@ -763,32 +768,19 @@ object CellConfigPanel {
 
         // ── Test Randomize Button ────────────────────────────────
         ImGui.spacing()
-        if (ImGui.button("🎲 Test Randomize", ImGui.getContentRegionAvailX(), 30f)) {
+        if (ImGui.button("Randomize", ImGui.getContentRegionAvailX(), 30f)) {
             val randomized = existing.randomizeActiveValues()
             replaceModulator(state, param, randomized)
         }
 
             ImGui.popID()
-            if (idx < activeMods.size - 1) {
+            if (idx < modsToDraw.size - 1) {
                 ImGui.spacing()
                 ImGui.separator()
                 ImGui.spacing()
             }
         }
 
-        // ── Live value bar ───────────────────────────────────────
-        ImGui.spacing()
-        ImGui.separator()
-        val liveVal = param.value
-        UITheme.caption("Live Value: %.3f".format(liveVal))
-        val barW = ImGui.getContentRegionAvailX()
-        val dl = ImGui.getWindowDrawList()
-        val cx = ImGui.getCursorScreenPosX()
-        val cy = ImGui.getCursorScreenPosY()
-        dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-        dl.addRectFilled(cx, cy, cx + barW * liveVal.coerceIn(0f, 1f), cy + 10f,
-            ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 1f))
-        ImGui.dummy(barW, 10f)
     }
 
     private fun drawFinalOscilloscope(history: CvHistoryBuffer) {
@@ -852,13 +844,12 @@ object CellConfigPanel {
     }
 
     private fun replaceModulator(state: PatchGridState, param: llm.slop.spirals.parameters.ModulatableParameter, newMod: CvModulator) {
-        var idx = param.modulators.indexOfFirst { it.id == newMod.id }
-        if (idx < 0) {
-            idx = param.modulators.indexOfFirst { it.sourceId == newMod.sourceId && !newMod.sourceId.startsWith("midi_cc_") }
-        }
+        val idx = param.modulators.indexOfFirst { it.id == newMod.id }
+        val existing = if (idx >= 0) param.modulators[idx] else virtualModulators.firstOrNull { it.id == newMod.id }
+        val wasBypassed = existing?.bypassed ?: false
 
         // Auto-activate: if weight is adjusted to a non-zero value, activate/unbypass the modulator
-        val finalizedMod = if (newMod.bypassed && newMod.weight != 0.0f) {
+        val finalizedMod = if (wasBypassed && newMod.bypassed && newMod.weight != 0.0f) {
             newMod.copy(bypassed = false)
         } else {
             newMod
@@ -938,10 +929,7 @@ object CellConfigPanel {
         ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
         UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "-1.0")
         
-        // Right-aligned helper label
-        val textWidth = ImGui.calcTextSize("Modulation Output").x
-        ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 4f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "Modulation Output")
+
         
         // Restore cursor position for downstream ImGui rendering
         ImGui.setCursorScreenPos(startX, startY + h)
@@ -1003,15 +991,57 @@ object CellConfigPanel {
             if (!isRandomizable) {
                 ImGui.beginDisabled()
             }
-            if (ImGui.button("↻", 25f, 25f)) {
+            val buttonSize = ImGui.getFrameHeight()
+            val screenPosX = ImGui.getCursorScreenPosX()
+            val screenPosY = ImGui.getCursorScreenPosY()
+            if (ImGui.button("##rand", buttonSize, buttonSize)) {
                 onRandomizeNow()
             }
-            if (ImGui.isItemHovered()) {
+            val hovered = ImGui.isItemHovered()
+            if (hovered) {
                 ImGui.setTooltip("Randomize $label now")
             }
             if (!isRandomizable) {
                 ImGui.endDisabled()
             }
+
+            // Draw circle arrow icon on top of the button
+            val dl = ImGui.getWindowDrawList()
+            val centerX = screenPosX + buttonSize / 2f
+            val centerY = screenPosY + buttonSize / 2f
+            val radius = buttonSize * 0.22f
+            val thickness = 1.8f
+
+            val iconColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
+            } else if (ImGui.isItemActive()) {
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
+            } else if (hovered) {
+                ImGui.colorConvertFloat4ToU32(0.95f, 0.95f, 0.95f, 1.0f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
+            }
+
+            val numSegments = 16
+            val startAngle = -kotlin.math.PI.toFloat() * 0.5f
+            val sweepAngle = kotlin.math.PI.toFloat() * 1.55f
+
+            var prevX = centerX + radius * kotlin.math.cos(startAngle)
+            var prevY = centerY + radius * kotlin.math.sin(startAngle)
+            for (i in 1..numSegments) {
+                val angle = startAngle + (sweepAngle * i / numSegments)
+                val nextX = centerX + radius * kotlin.math.cos(angle)
+                val nextY = centerY + radius * kotlin.math.sin(angle)
+                dl.addLine(prevX, prevY, nextX, nextY, iconColor, thickness)
+                prevX = nextX
+                prevY = nextY
+            }
+
+            val tipX = centerX
+            val tipY = centerY - radius
+            val arrowSize = buttonSize * 0.12f
+            dl.addLine(tipX, tipY, tipX - arrowSize, tipY - arrowSize * 0.7f, iconColor, thickness)
+            dl.addLine(tipX, tipY, tipX - arrowSize * 0.7f, tipY + arrowSize, iconColor, thickness)
             ImGui.sameLine()
         }
 

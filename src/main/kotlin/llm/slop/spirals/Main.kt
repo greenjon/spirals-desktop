@@ -93,6 +93,7 @@ fun main() {
 
     // Create Mixer
     val mixer = Mixer(deckA, deckB)
+    PatchManager.initializeDefault(mixer)
     GLDebug.checkErrors("Mixer and Decks initialization")
 
     logger.info { "Rendering components initialized" }

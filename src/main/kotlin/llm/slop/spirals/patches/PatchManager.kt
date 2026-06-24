@@ -27,6 +27,29 @@ object PatchManager {
     var cachedDtoA: DeckPatchDto? = null
     var cachedDtoB: DeckPatchDto? = null
 
+    var cachedGlobalDto: GlobalPatchDto? = null
+    private var defaultGlobalPatchDto: GlobalPatchDto? = null
+
+    fun initializeDefault(mixer: Mixer) {
+        val dto = mixer.toDto("Untitled Project")
+        defaultGlobalPatchDto = dto
+        if (cachedGlobalDto == null) {
+            cachedGlobalDto = dto
+        }
+    }
+
+    fun isGlobalPatchDirty(mixer: Mixer): Boolean {
+        val cached = cachedGlobalDto ?: defaultGlobalPatchDto ?: return false
+        val current = mixer.toDto(cached.name)
+        return current != cached
+    }
+
+    fun resetToDefault(mixer: Mixer) {
+        val defaultDto = defaultGlobalPatchDto ?: return
+        mixer.applyDto(defaultDto)
+        cachedGlobalDto = defaultDto
+    }
+
     fun isDeckDirty(deck: Deck, isDeckA: Boolean): Boolean {
         val cached = if (isDeckA) cachedDtoA else cachedDtoB
         if (cached == null) return false
@@ -69,6 +92,7 @@ object PatchManager {
     fun saveGlobalPatchAsync(file: File, mixer: Mixer, name: String) {
         // Capture states on the main thread to ensure we don't read changing values from other threads
         val dto = mixer.toDto(name)
+        cachedGlobalDto = dto
         CompletableFuture.runAsync {
             try {
                 logger.info { "Saving global patch to ${file.absolutePath} in background..." }
@@ -104,6 +128,7 @@ object PatchManager {
         while (globalDto != null) {
             try {
                 mixer.applyDto(globalDto)
+                cachedGlobalDto = globalDto
                 logger.info { "Successfully applied global patch: ${globalDto.name}" }
             } catch (e: Exception) {
                 logger.error(e) { "Error applying global patch" }

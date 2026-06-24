@@ -33,9 +33,8 @@ class UIManager(private val windowHandle: Long) {
     // Tracks received MIDI CC events to process on the render thread
     private val pendingMidiEvents = ConcurrentLinkedQueue<Pair<Int, Int>>()
 
-    // Tracks the base size we last passed to scaleAllSizes so we can compute
-    // the correct delta ratio on subsequent changes.
-    private var appliedBaseSize: Float = UITheme.baseSize
+    // Clean default style to reset size attributes before scaling
+    private lateinit var defaultStyle: imgui.ImGuiStyle
 
     // Font rebuild must happen between frames (atlas is locked during a frame).
     // Store the requested size here; it is consumed at the top of the next render().
@@ -81,6 +80,14 @@ class UIManager(private val windowHandle: Long) {
     private var currentGlobalPatchFile: File? = null
     private var currentMixer: Mixer? = null
 
+    private var lastWindowTitle: String? = null
+
+    private enum class PendingProjectAction {
+        NONE, NEW, LOAD
+    }
+    private var pendingProjectAction = PendingProjectAction.NONE
+    private var pendingOpenConfirmPopup = false
+
 
     init {
         logger.info { "Initializing ImGui..." }
@@ -92,12 +99,11 @@ class UIManager(private val windowHandle: Long) {
         // is ready for the backend to upload on its first render call.
         UITheme.loadFonts(io)
 
+        // Save the default style right after context initialization so we can revert sizes
+        defaultStyle = imgui.ImGuiStyle()
+
         // Scale style sizes proportionally to the loaded baseSize relative to the baseline of 15f
-        val startupScale = UITheme.baseSize / 15f
-        if (startupScale != 1f) {
-            ImGui.getStyle().scaleAllSizes(startupScale)
-            logger.info { "Applied startup UI style scale: $startupScale (baseSize: ${UITheme.baseSize})" }
-        }
+        scaleStyleFromDefault(UITheme.baseSize)
 
         // Darken the modal backdrop for a more dramatic VJ-app feel.
         ImGui.getStyle().setColor(
@@ -117,6 +123,15 @@ class UIManager(private val windowHandle: Long) {
 
     fun render(mixer: Mixer, displayWidth: Float, displayHeight: Float) {
         currentMixer = mixer
+
+        // Update window title dynamically with project name and dirty status
+        val projectName = currentGlobalPatchFile?.nameWithoutExtension ?: "Untitled"
+        val isDirty = llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer)
+        val title = "Spirals Desktop - $projectName${if (isDirty) "*" else ""}"
+        if (title != lastWindowTitle) {
+            org.lwjgl.glfw.GLFW.glfwSetWindowTitle(windowHandle, title)
+            lastWindowTitle = title
+        }
 
         // Poll received MIDI events from our callback-driven queue
         while (true) {
@@ -155,17 +170,14 @@ class UIManager(private val windowHandle: Long) {
             }
         }
 
-        // ── Between-frame work (atlas is unlocked here) ───────────────────────
         pendingFontSize?.let { newSize ->
             pendingFontSize = null
-            val ratio = newSize / appliedBaseSize
             UITheme.baseSize = newSize
             UITheme.rebuildFonts(ImGui.getIO())
             imguiGl3.updateFontsTexture()
-            ImGui.getStyle().scaleAllSizes(ratio)
-            appliedBaseSize = newSize
+            scaleStyleFromDefault(newSize)
             UITheme.saveSettings()
-            logger.info { "Font size applied: ${newSize}px (ratio $ratio)" }
+            logger.info { "Font size applied: ${newSize}px" }
         }
 
         imguiGlfw.newFrame()
@@ -183,6 +195,10 @@ class UIManager(private val windowHandle: Long) {
                 AudioEnginePanel.open()
                 pendingOpenAudioEngineMonitor = false
             }
+            if (pendingOpenConfirmPopup) {
+                ImGui.openPopup("Save Changes?##confirm")
+                pendingOpenConfirmPopup = false
+            }
             drawLayout(mixer, displayWidth, displayHeight)
 
             // Settings modal — drawn outside any docked window so it floats freely.
@@ -194,6 +210,8 @@ class UIManager(private val windowHandle: Long) {
 
             // Audio Engine Monitor modal — drawn outside any docked window so it floats freely.
             AudioEnginePanel.draw(displayWidth, displayHeight)
+
+            drawConfirmPopup(mixer, displayWidth, displayHeight)
         }
 
         ImGui.render()
@@ -202,11 +220,10 @@ class UIManager(private val windowHandle: Long) {
 
     /**
      * Rebuilds the font atlas at [newSize] and scales widget style proportionally.
-     * [ImGui.getStyle().scaleAllSizes] is multiplicative, so we compute the delta
-     * ratio from the last applied size each time.
+     * Scale is computed relative to the baseline of 15f from a clean default style.
      */
     private fun applyFontSize(newSize: Float) {
-        if (newSize != appliedBaseSize) pendingFontSize = newSize
+        if (newSize != UITheme.baseSize) pendingFontSize = newSize
     }
 
     fun adjustFontSize(delta: Float) {
@@ -227,7 +244,7 @@ class UIManager(private val windowHandle: Long) {
         }
     }
 
-    private fun saveGlobalPatch(mixer: Mixer, forceAs: Boolean) {
+    private fun saveGlobalPatch(mixer: Mixer, forceAs: Boolean): Boolean {
         val file = if (forceAs || currentGlobalPatchFile == null) {
             val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Save Project", java.awt.FileDialog.SAVE)
             dialog.file = "project.json"
@@ -238,18 +255,90 @@ class UIManager(private val windowHandle: Long) {
         } else {
             currentGlobalPatchFile
         }
-        if (file != null) {
+        return if (file != null) {
             currentGlobalPatchFile = file
             val name = file.nameWithoutExtension
             llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
+            true
+        } else {
+            false
+        }
+    }
+
+    private fun performNewProject(mixer: Mixer) {
+        llm.slop.spirals.patches.PatchManager.resetToDefault(mixer)
+        currentGlobalPatchFile = null
+    }
+
+    private fun performLoadProject() {
+        loadGlobalPatchWithDialog()
+    }
+
+    private fun drawConfirmPopup(mixer: Mixer, displayW: Float, displayH: Float) {
+        ImGui.setNextWindowPos(
+            displayW * 0.5f, displayH * 0.5f,
+            imgui.flag.ImGuiCond.Appearing, 0.5f, 0.5f
+        )
+        
+        val flags = imgui.flag.ImGuiWindowFlags.AlwaysAutoResize or
+                    imgui.flag.ImGuiWindowFlags.NoMove            or
+                    imgui.flag.ImGuiWindowFlags.NoCollapse
+
+        if (ImGui.beginPopupModal("Save Changes?##confirm", flags)) {
+            ImGui.text("You have unsaved changes. Do you want to save them before proceeding?")
+            ImGui.spacing()
+            ImGui.separator()
+            ImGui.spacing()
+            
+            if (ImGui.button("Save", 80f, 0f)) {
+                val saved = saveGlobalPatch(mixer, false)
+                if (saved) {
+                    when (pendingProjectAction) {
+                        PendingProjectAction.NEW -> performNewProject(mixer)
+                        PendingProjectAction.LOAD -> performLoadProject()
+                        else -> {}
+                    }
+                }
+                pendingProjectAction = PendingProjectAction.NONE
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Discard", 80f, 0f)) {
+                when (pendingProjectAction) {
+                    PendingProjectAction.NEW -> performNewProject(mixer)
+                    PendingProjectAction.LOAD -> performLoadProject()
+                    else -> {}
+                }
+                pendingProjectAction = PendingProjectAction.NONE
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Cancel", 80f, 0f)) {
+                pendingProjectAction = PendingProjectAction.NONE
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
         }
     }
 
     private fun drawMenuBar(mixer: Mixer) {
         if (ImGui.beginMainMenuBar()) {
             if (ImGui.beginMenu("File")) {
+                if (ImGui.menuItem("New Project")) {
+                    if (llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer)) {
+                        pendingProjectAction = PendingProjectAction.NEW
+                        pendingOpenConfirmPopup = true
+                    } else {
+                        performNewProject(mixer)
+                    }
+                }
                 if (ImGui.menuItem("Load Project...")) {
-                    loadGlobalPatchWithDialog()
+                    if (llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer)) {
+                        pendingProjectAction = PendingProjectAction.LOAD
+                        pendingOpenConfirmPopup = true
+                    } else {
+                        performLoadProject()
+                    }
                 }
                 if (ImGui.menuItem("Save Project")) {
                     saveGlobalPatch(mixer, false)
@@ -508,16 +597,11 @@ class UIManager(private val windowHandle: Long) {
             "A <-- %.2f --> B".format(it)
         }
 
-        // Blend mode inline combo
-        UITheme.body("Blend Mode")
-        ImGui.sameLine(100f)
-        ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
+        // Blend mode inline text readout
         val modes = arrayOf("ADD", "SCREEN", "MULT", "MAX", "XFADE")
-        val modeIdx = ImInt(mixer.mode.baseValue.toInt())
-        if (ImGui.combo("##blendmode", modeIdx, modes)) {
-            mixer.mode.set(modeIdx.get().toFloat())
-        }
-        ImGui.popItemWidth()
+        val modeIdx = mixer.mode.value.toInt().coerceIn(0, 4)
+        UITheme.body("Blend Mode: ${modes[modeIdx]}")
+        ImGui.spacing()
 
         // Alpha (renamed from "Master Alpha")
         drawFlatSlider("Alpha", mixer.masterAlpha, 0f, 1f, 100f)
@@ -549,48 +633,24 @@ class UIManager(private val windowHandle: Long) {
         // Recipe inline combo (Lobes and Recipe selection)
         val mandala = deck.source as? Mandala
         if (mandala != null) {
-            val currentLobe = mandala.parameters["Lobes"]?.baseValue?.roundToInt() ?: mandala.recipe.petals
+            val lobesParam = mandala.parameters["Lobes"]!!
+            val currentLobe = lobesParam.value.roundToInt()
             val closestLobe = MandalaLibrary.uniquePetals.minByOrNull { kotlin.math.abs(it - currentLobe) } ?: 3
             
-            val lobeIdx = MandalaLibrary.uniquePetals.indexOf(closestLobe).coerceAtLeast(0)
-            val lobeCombo = ImInt(lobeIdx)
-            
-            val lobeLabels = MandalaLibrary.uniquePetals.map { lobes ->
-                val count = MandalaLibrary.recipesByPetals[lobes]?.size ?: 0
-                "$lobes lobes ($count)"
-            }.toTypedArray()
-
-            UITheme.body("Lobes")
-            ImGui.sameLine(80f)
-            ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
-            if (ImGui.combo("##lobes", lobeCombo, lobeLabels)) {
-                val nextLobe = MandalaLibrary.uniquePetals[lobeCombo.get()]
-                mandala.parameters["Lobes"]?.set(nextLobe.toFloat())
-                // Reset recipe selection to first recipe when changing lobe count manually
-                mandala.parameters["Recipe Select"]?.set(0.0f)
-            }
-            ImGui.popItemWidth()
+            UITheme.body("Lobes: $currentLobe")
 
             // Recipe selection dropdown
+            val recipeParam = mandala.parameters["Recipe Select"]!!
             val filtered = MandalaLibrary.recipesByPetals[closestLobe] ?: emptyList()
-            val currentSelect = mandala.parameters["Recipe Select"]?.baseValue ?: 0.0f
+            val currentSelect = recipeParam.value
             val recipeIdx = (currentSelect * (filtered.size - 1)).roundToInt().coerceIn(0, filtered.size - 1)
-            val recipeCombo = ImInt(recipeIdx)
 
-            val recipeNames = filtered.map { "[${it.a}, ${it.b}, ${it.c}, ${it.d}]" }.toTypedArray()
-
-            UITheme.body("Recipe")
-            ImGui.sameLine(80f)
-            ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
-            if (ImGui.combo("##recipe", recipeCombo, recipeNames)) {
-                val nextSelect = if (filtered.size > 1) {
-                    recipeCombo.get().toFloat() / (filtered.size - 1).toFloat()
-                } else {
-                    0.0f
-                }
-                mandala.parameters["Recipe Select"]?.set(nextSelect)
+            if (filtered.isNotEmpty() && recipeIdx in filtered.indices) {
+                val recipe = filtered[recipeIdx]
+                UITheme.body("Recipe: ${recipe.a},${recipe.b},${recipe.c},${recipe.d}")
+            } else {
+                UITheme.body("Recipe: None")
             }
-            ImGui.popItemWidth()
         }
 
         fun slider(lbl: String, param: ModulatableParameter,
@@ -615,24 +675,18 @@ class UIManager(private val windowHandle: Long) {
             UITheme.h3("Background")
 
             val bgStyleParam = mandala.parameters["Bg Style"]!!
+            val bgStyleIdx = bgStyleParam.value.toInt().coerceIn(0, 2)
             val bgStyleLabels = arrayOf("Off", "Solid Color", "Plasma")
-            val bgStyleCombo = imgui.type.ImInt(bgStyleParam.baseValue.toInt())
             
-            UITheme.body("Bg Style")
-            ImGui.sameLine(80f)
-            ImGui.pushItemWidth(ImGui.getContentRegionAvailX() - 5f)
-            if (ImGui.combo("##bg_style", bgStyleCombo, bgStyleLabels)) {
-                bgStyleParam.set(bgStyleCombo.get().toFloat())
-            }
-            ImGui.popItemWidth()
+            UITheme.body("Bg Style: ${bgStyleLabels[bgStyleIdx]}")
 
-            if (bgStyleCombo.get() > 0) {
+            if (bgStyleIdx > 0) {
                 slider("Bg Feedback", mandala.parameters["Bg Feedback"]!!, 0f, 1f)
                 slider("Bg Hue",      mandala.parameters["Bg Hue"]!!,      0f, 1f)
                 slider("Bg Sat",      mandala.parameters["Bg Sat"]!!,      0f, 1f)
                 slider("Bg Val",      mandala.parameters["Bg Val"]!!,      0f, 1f)
 
-                if (bgStyleCombo.get() == 2) { // Plasma only
+                if (bgStyleIdx == 2) { // Plasma only
                     slider("Bg Sweep", mandala.parameters["Bg Sweep"]!!, 0f, 1f)
                     slider("Bg Speed", mandala.parameters["Bg Speed"]!!, 0f, 1f)
                     slider("Bg Zoom",  mandala.parameters["Bg Zoom"]!!,  0.1f, 10f)
@@ -678,19 +732,6 @@ class UIManager(private val windowHandle: Long) {
             if (ImGui.isItemClicked(0)) {
                 patchState.midiLearnTarget = MidiLearnTarget.BaseValueSlider(label, param, min, max)
             }
-        } else {
-            // Process mouse dragging
-            val mousePressed = ImGui.isItemActive() || (ImGui.isItemHovered() && ImGui.isMouseDown(0))
-            val valueRange = max - min
-            val displayRange = displayMax - displayMin
-
-            if (mousePressed) {
-                val io = ImGui.getIO()
-                val pct = ((io.mousePos.x - barStartX) / barW).coerceIn(0f, 1f)
-                val nextDisplayVal = displayMin + pct * displayRange
-                val nextInternalVal = min + if (displayRange > 0f) ((nextDisplayVal - displayMin) / displayRange) * valueRange else 0f
-                param.set(nextInternalVal)
-            }
         }
 
         val valueRange = max - min
@@ -705,7 +746,7 @@ class UIManager(private val windowHandle: Long) {
             3f
         )
 
-        val currentDisplayVal = displayMin + if (valueRange > 0f) ((param.baseValue - min) / valueRange) * displayRange else 0f
+        val currentDisplayVal = displayMin + if (valueRange > 0f) ((param.value - min) / valueRange) * displayRange else 0f
         val fillCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
 
         if (displayMin < 0f && displayMax > 0f) {
@@ -721,7 +762,7 @@ class UIManager(private val windowHandle: Long) {
                 3f
             )
         } else {
-            val fillPct = if (valueRange > 0f) ((param.baseValue - min) / valueRange).coerceIn(0f, 1f) else 0f
+            val fillPct = if (valueRange > 0f) ((param.value - min) / valueRange).coerceIn(0f, 1f) else 0f
             if (fillPct > 0f) {
                 dl.addRectFilled(
                     barStartX, barScreenY,
@@ -772,7 +813,62 @@ class UIManager(private val windowHandle: Long) {
         ImGui.popID()
     }
 
+    private fun copyStyleSizes(from: imgui.ImGuiStyle, to: imgui.ImGuiStyle) {
+        to.setAlpha(from.getAlpha())
+        to.setDisabledAlpha(from.getDisabledAlpha())
+        to.setWindowPadding(from.getWindowPaddingX(), from.getWindowPaddingY())
+        to.setWindowRounding(from.getWindowRounding())
+        to.setWindowBorderSize(from.getWindowBorderSize())
+        to.setWindowMinSize(from.getWindowMinSizeX(), from.getWindowMinSizeY())
+        to.setWindowTitleAlign(from.getWindowTitleAlignX(), from.getWindowTitleAlignY())
+        to.setWindowMenuButtonPosition(from.getWindowMenuButtonPosition())
+        to.setChildRounding(from.getChildRounding())
+        to.setChildBorderSize(from.getChildBorderSize())
+        to.setPopupRounding(from.getPopupRounding())
+        to.setPopupBorderSize(from.getPopupBorderSize())
+        to.setFramePadding(from.getFramePaddingX(), from.getFramePaddingY())
+        to.setFrameRounding(from.getFrameRounding())
+        to.setFrameBorderSize(from.getFrameBorderSize())
+        to.setItemSpacing(from.getItemSpacingX(), from.getItemSpacingY())
+        to.setItemInnerSpacing(from.getItemInnerSpacingX(), from.getItemInnerSpacingY())
+        to.setCellPadding(from.getCellPaddingX(), from.getCellPaddingY())
+        to.setTouchExtraPadding(from.getTouchExtraPaddingX(), from.getTouchExtraPaddingY())
+        to.setIndentSpacing(from.getIndentSpacing())
+        to.setColumnsMinSpacing(from.getColumnsMinSpacing())
+        to.setScrollbarSize(from.getScrollbarSize())
+        to.setScrollbarRounding(from.getScrollbarRounding())
+        to.setGrabMinSize(from.getGrabMinSize())
+        to.setGrabRounding(from.getGrabRounding())
+        to.setLogSliderDeadzone(from.getLogSliderDeadzone())
+        to.setTabRounding(from.getTabRounding())
+        to.setTabBorderSize(from.getTabBorderSize())
+        to.setTabMinWidthForCloseButton(from.getTabMinWidthForCloseButton())
+        to.setColorButtonPosition(from.getColorButtonPosition())
+        to.setButtonTextAlign(from.getButtonTextAlignX(), from.getButtonTextAlignY())
+        to.setSelectableTextAlign(from.getSelectableTextAlignX(), from.getSelectableTextAlignY())
+        to.setDisplayWindowPadding(from.getDisplayWindowPaddingX(), from.getDisplayWindowPaddingY())
+        to.setDisplaySafeAreaPadding(from.getDisplaySafeAreaPaddingX(), from.getDisplaySafeAreaPaddingY())
+        to.setMouseCursorScale(from.getMouseCursorScale())
+    }
+
+    private fun scaleStyleFromDefault(newSize: Float) {
+        val style = ImGui.getStyle()
+        copyStyleSizes(defaultStyle, style)
+        val scale = newSize / 15f
+        if (scale != 1f) {
+            style.scaleAllSizes(scale)
+        }
+        // Safety guard: ensure critical sizes never underflow to or below 0.0f
+        if (style.scrollbarSize <= 0.0f) {
+            style.scrollbarSize = 1.0f
+        }
+        if (style.grabMinSize <= 0.0f) {
+            style.grabMinSize = 1.0f
+        }
+    }
+
     fun dispose() {
+        defaultStyle.destroy()
         imguiGl3.dispose()
         imguiGlfw.dispose()
         ImGui.destroyContext()
