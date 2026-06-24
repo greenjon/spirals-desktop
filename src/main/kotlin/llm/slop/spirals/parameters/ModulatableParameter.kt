@@ -4,6 +4,10 @@ import llm.slop.spirals.cv.CvHistoryBuffer
 import llm.slop.spirals.cv.evaluateModulator
 import java.util.concurrent.CopyOnWriteArrayList
 
+enum class MeterType {
+    MONOPOLAR, BIPOLAR, ENDLESS, DISCRETE
+}
+
 /**
  * A parameter that can be modulated by a base value and multiple CV sources.
  * Keeps a sliding history of its evaluated values.
@@ -13,7 +17,8 @@ class ModulatableParameter(
     val historySize: Int = 200,
     val minClamp: Float = 0.0f,
     val maxClamp: Float = 1.0f,
-    var randomizeBase: Boolean = false
+    var randomizeBase: Boolean = false,
+    val meterType: MeterType = if (minClamp < 0f) MeterType.BIPOLAR else MeterType.MONOPOLAR
 ) {
     val modulators = CopyOnWriteArrayList<CvModulator>()
     val history = CvHistoryBuffer(historySize)

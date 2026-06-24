@@ -414,7 +414,7 @@ object CellConfigPanel {
         ImGui.spacing()
 
         // ── Unified Oscilloscope ─────────────────────────────────
-        drawOscilloscope()
+        drawOscilloscope(param)
 
         ImGui.spacing()
         ImGui.separator()
@@ -961,7 +961,7 @@ object CellConfigPanel {
         }
     }
 
-    private fun drawOscilloscope() {
+    private fun drawOscilloscope(param: llm.slop.spirals.parameters.ModulatableParameter) {
         val history = activeHistory ?: return
         val historySize = history.size
         val w = ImGui.getContentRegionAvailX()
@@ -984,7 +984,7 @@ object CellConfigPanel {
         val gridColCenter = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 0.8f)
         val gridColFaint = ImGui.colorConvertFloat4ToU32(0.12f, 0.12f, 0.12f, 0.5f)
         
-        // Horizontal lines (Center, +1.0, -1.0)
+        // Horizontal lines (Center, Max, Min)
         dl.addLine(startX, centerY, startX + w, centerY, gridColCenter, 1.5f)
         dl.addLine(startX, startY + 5f, startX + w, startY + 5f, gridColFaint, 1f)
         dl.addLine(startX, startY + h - 5f, startX + w, startY + h - 5f, gridColFaint, 1f)
@@ -1003,13 +1003,26 @@ object CellConfigPanel {
         val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.9f, 1.0f) // neon cyan
         
         for (i in 0 until historySize - 1) {
-            val val1 = history.getAt(i).coerceIn(-1f, 1f)
-            val val2 = history.getAt(i + 1).coerceIn(-1f, 1f)
+            val raw1 = history.getAt(i).coerceIn(-1f, 1f)
+            val raw2 = history.getAt(i + 1).coerceIn(-1f, 1f)
+            
+            // Map the native -1..1 CV to the parameter's visual range based on MeterType
+            val norm1 = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
+                (raw1 + 1f) / 2f // Map -1..1 to 0..1 visually
+            } else {
+                raw1.coerceAtLeast(0f) // Map 0..1 to 0..1 visually (clipping negatives)
+            }
+            
+            val norm2 = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
+                (raw2 + 1f) / 2f
+            } else {
+                raw2.coerceAtLeast(0f)
+            }
             
             val x1 = startX + i * stepX
-            val y1 = centerY - val1 * (usableHeight / 2f)
+            val y1 = (startY + h - 5f) - norm1 * usableHeight
             val x2 = startX + (i + 1) * stepX
-            val y2 = centerY - val2 * (usableHeight / 2f)
+            val y2 = (startY + h - 5f) - norm2 * usableHeight
             
             dl.addLine(x1, y1, x2, y2, lineCol, 2.0f)
         }
@@ -1018,17 +1031,23 @@ object CellConfigPanel {
         val borderCol = ImGui.colorConvertFloat4ToU32(0.18f, 0.18f, 0.18f, 1.0f)
         dl.addRect(startX, startY, startX + w, startY + h, borderCol, 4f)
         
-        // 5. Y-Axis label markings
+        // 5. Y-Axis label markings (showing scaled bounds instead of hardcoded -1..1)
+        val maxLabel = "%.2f".format(param.maxClamp)
+        val midLabel = "%.2f".format(param.minClamp + (param.maxClamp - param.minClamp) / 2f)
+        val minLabel = "%.2f".format(param.minClamp)
+        
         ImGui.setCursorScreenPos(startX + 6f, startY + 4f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "+1.0")
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, maxLabel)
         
         ImGui.setCursorScreenPos(startX + 6f, centerY - 6f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "0.0")
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, midLabel)
         
         ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "-1.0")
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, minLabel)
         
-
+        val textWidth = ImGui.calcTextSize("Raw Modulator CV").x
+        ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 4f)
+        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "Raw Modulator CV")
         
         // Restore cursor position for downstream ImGui rendering
         ImGui.setCursorScreenPos(startX, startY + h)

@@ -25,8 +25,8 @@ class Deck(
     val fbDecay = ModulatableParameter(0.73f, minClamp = 0f, maxClamp = 1f)
     val fbGain = ModulatableParameter(1.0f, minClamp = 0f, maxClamp = 2f)
     val fbZoom = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f) // negative is zoom out, positive is zoom in
-    val fbRotate = ModulatableParameter(0.0f, minClamp = -3.14f, maxClamp = 3.14f) // in radians
-    val fbHueShift = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f) // range 0..1
+    val fbRotate = ModulatableParameter(0.0f, minClamp = -3.14f, maxClamp = 3.14f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS) // in radians
+    val fbHueShift = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS) // range 0..1
     val fbBlur = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f) // range 0..1
     val fbChroma = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
     val fbMode = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f) // 0 = Max, 1 = Difference

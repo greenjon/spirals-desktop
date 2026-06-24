@@ -366,25 +366,19 @@ object PatchGridPanel {
             isFinalSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
             else            -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
         }
-        dl.addRectFilled(finalX, finalY, finalX + CELL, finalY + CELL, finalBgCol, 3f)
-        
         val finalBorderCol = when {
             isFinalSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
             else            -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
         }
+        val finalColor = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)
         
-        // Draw a circle with a pointer representing the live modulated final value
-        val circleR = r - 5f
-        val circleCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 0.25f)
-        dl.addCircle(finalX + r, finalY + r, circleR, circleCol, 32, 1.5f)
-
-        val liveVal = param.value
-        val angle = (PI / 2.0) + liveVal * 2.0 * PI
-        val dotX = (finalX + r) + circleR * cos(angle).toFloat()
-        val dotY = (finalY + r) + circleR * sin(angle).toFloat()
-        val dotCol = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)
-        dl.addCircleFilled(dotX, dotY, 3f, dotCol)
-        dl.addRect(finalX, finalY, finalX + CELL, finalY + CELL, finalBorderCol, 3f)
+        drawKnobMeter(
+            dl = dl, x = finalX, y = finalY, r = r,
+            value = param.value, min = param.minClamp, max = param.maxClamp,
+            meterType = param.meterType,
+            baseValue = null, baseMin = null, baseMax = null,
+            color = finalColor, bgCol = finalBgCol, borderCol = finalBorderCol
+        )
 
         // 2. BASE Cell
         val baseX = gridStartX + labelColW + CELL + CELL_PAD
@@ -401,35 +395,19 @@ object PatchGridPanel {
             isBaseSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
             else           -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
         }
-        dl.addRectFilled(baseX, baseY, baseX + CELL, baseY + CELL, baseBgCol, 3f)
-        
         val baseBorderCol = when {
             isBaseSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
             else           -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
         }
+        val baseColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
         
-        // Draw circle with a pointer representing the static baseValue
-        val cx = baseX + r
-        val cy = baseY + r
-        val baseCircleR = r - 5f
-        val baseCircleCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.4f)
-        dl.addCircle(cx, cy, baseCircleR, baseCircleCol, 32, 1.5f)
-
-        // Draw base range vertical bar inside the circle if baseMin != baseMax
-        val baseMinY = param.baseMin * (CELL - 6f)
-        val baseMaxY = param.baseMax * (CELL - 6f)
-        if (param.baseMin != param.baseMax) {
-            val rangeCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 0.4f) // transparent gold
-            dl.addLine(cx, baseY + CELL - 3f - baseMaxY, cx, baseY + CELL - 3f - baseMinY, rangeCol, 3f)
-        }
-
-        // Draw pointer dot for static baseValue
-        val angleVal = (PI / 2.0) + param.baseValue * 2.0 * PI
-        val baseDotX = cx + baseCircleR * cos(angleVal).toFloat()
-        val baseDotY = cy + baseCircleR * sin(angleVal).toFloat()
-        val baseDotCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f) // solid gold
-        dl.addCircleFilled(baseDotX, baseDotY, 3f, baseDotCol)
-        dl.addRect(baseX, baseY, baseX + CELL, baseY + CELL, baseBorderCol, 3f)
+        drawKnobMeter(
+            dl = dl, x = baseX, y = baseY, r = r,
+            value = param.baseValue, min = param.minClamp, max = param.maxClamp,
+            meterType = param.meterType,
+            baseValue = param.baseValue, baseMin = param.baseMin, baseMax = param.baseMax,
+            color = baseColor, bgCol = baseBgCol, borderCol = baseBorderCol
+        )
 
         // 2.5 MIDI Cell
         val midiX = gridStartX + labelColW + 2 * (CELL + CELL_PAD)
@@ -472,41 +450,46 @@ object PatchGridPanel {
             ImGui.endPopup()
         }
 
-        // Draw MIDI cell background and border
         val midiBgCol = when {
             isMidiTarget   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.4f, 0.5f, 1f)
             isMidiSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
             hasMidiMod     -> ImGui.colorConvertFloat4ToU32(0.05f, 0.15f, 0.2f, 1f)
             else           -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
         }
-        dl.addRectFilled(midiX, midiY, midiX + CELL, midiY + CELL, midiBgCol, 3f)
         val midiBorderCol = when {
             isMidiTarget   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 1.0f, 1f)
             isMidiSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
             hasMidiMod     -> ImGui.colorConvertFloat4ToU32(0.2f, 0.5f, 0.7f, 0.8f)
             else           -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
         }
-        dl.addRect(midiX, midiY, midiX + CELL, midiY + CELL, midiBorderCol, 3f)
-
-        // Draw dynamic indicator dot for MIDI CC if active
+        
         if (hasMidiMod || isMidiBypassed) {
-            val cx = midiX + r
-            val cy = midiY + r
-            val circleR = r - 5f
-            val circleCol = if (isMidiBypassed)
-                ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.4f)
-            else
-                ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 0.25f)
-            dl.addCircle(cx, cy, circleR, circleCol, 32, 1.5f)
-
-            if (!isMidiBypassed) {
-                val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(midiMods).coerceIn(-1f, 1f)
-                val angle = (PI / 2.0) + liveVal * 2.0 * PI
-                val dotX = cx + circleR * cos(angle).toFloat()
-                val dotY = cy + circleR * sin(angle).toFloat()
-                val dotCol = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)
-                dl.addCircleFilled(dotX, dotY, 3f, dotCol)
+            val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(midiMods).coerceIn(-1f, 1f)
+            // Map the -1..1 modulator value to the parameter's visual range for display
+            val displayValue = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
+                // -1..1 maps to min..max
+                val range = param.maxClamp - param.minClamp
+                param.minClamp + ((liveVal + 1f) / 2f) * range
+            } else {
+                // CV 0..1 maps to min..max (assuming monopolar modulators typically pulse 0..1, though natively they are -1..1)
+                // Actually, just map the positive part for monopolar visualization
+                val range = param.maxClamp - param.minClamp
+                param.minClamp + ((liveVal.coerceAtLeast(0f))) * range
             }
+            
+            drawKnobMeter(
+                dl = dl, x = midiX, y = midiY, r = r,
+                value = displayValue, min = param.minClamp, max = param.maxClamp,
+                meterType = param.meterType,
+                baseValue = null, baseMin = null, baseMax = null,
+                color = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f),
+                bgCol = midiBgCol, borderCol = midiBorderCol,
+                isBypassed = isMidiBypassed
+            )
+        } else {
+            // Draw empty cell
+            dl.addRectFilled(midiX, midiY, midiX + CELL, midiY + CELL, midiBgCol, 3f)
+            dl.addRect(midiX, midiY, midiX + CELL, midiY + CELL, midiBorderCol, 3f)
         }
 
         // 3. CV cells
@@ -561,47 +544,175 @@ object PatchGridPanel {
                 ImGui.endPopup()
             }
 
-            // Cell background
             val bgCol = when {
                 isTarget      -> ImGui.colorConvertFloat4ToU32(0.0f, 0.4f, 0.5f, 1f) // listening target
                 isSelected    -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
                 hasModulator  -> ImGui.colorConvertFloat4ToU32(0.05f, 0.15f, 0.2f, 1f)
                 else          -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
             }
-            dl.addRectFilled(x, y, x + CELL, y + CELL, bgCol, 3f)
             val borderCol = when {
                 isTarget     -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 1.0f, 1f) // bright cyan
                 isSelected   -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
                 hasModulator -> ImGui.colorConvertFloat4ToU32(0.2f, 0.5f, 0.7f, 0.8f)
                 else         -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
             }
-            dl.addRect(x, y, x + CELL, y + CELL, borderCol, 3f)
 
-            // If a modulator is active, draw the indicator circle + moving dot
             if (hasModulator || isBypassed) {
-                val cx = x + r
-                val cy = y + r
-                val circleR = r - 5f
-                val circleCol = if (isBypassed)
-                    ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.4f)
-                else
-                    ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 0.25f)
-                dl.addCircle(cx, cy, circleR, circleCol, 32, 1.5f)
-
-                if (!isBypassed) {
-                    val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods).coerceIn(-1f, 1f)
-                    // Full circle: val goes 0..1 clockwise: angle = PI/2 + val*2*PI
-                    val angle = (PI / 2.0) + liveVal * 2.0 * PI
-                    val dotX = cx + circleR * cos(angle).toFloat()
-                    val dotY = cy + circleR * sin(angle).toFloat()
-                    val dotCol = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)
-                    dl.addCircleFilled(dotX, dotY, 3f, dotCol)
+                val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods).coerceIn(-1f, 1f)
+                val displayValue = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
+                    val range = param.maxClamp - param.minClamp
+                    param.minClamp + ((liveVal + 1f) / 2f) * range
+                } else {
+                    val range = param.maxClamp - param.minClamp
+                    param.minClamp + ((liveVal.coerceAtLeast(0f))) * range
                 }
+                
+                drawKnobMeter(
+                    dl = dl, x = x, y = y, r = r,
+                    value = displayValue, min = param.minClamp, max = param.maxClamp,
+                    meterType = param.meterType,
+                    baseValue = null, baseMin = null, baseMax = null,
+                    color = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f),
+                    bgCol = bgCol, borderCol = borderCol,
+                    isBypassed = isBypassed
+                )
+            } else {
+                dl.addRectFilled(x, y, x + CELL, y + CELL, bgCol, 3f)
+                dl.addRect(x, y, x + CELL, y + CELL, borderCol, 3f)
             }
         }
 
         ImGui.popID()
         ImGui.setCursorPos(rowX, rowY + CELL)
+    }
+
+    private fun drawKnobMeter(
+        dl: ImDrawList,
+        x: Float, y: Float, r: Float,
+        value: Float,
+        min: Float, max: Float,
+        meterType: llm.slop.spirals.parameters.MeterType,
+        baseValue: Float?,
+        baseMin: Float?,
+        baseMax: Float?,
+        color: Int,
+        bgCol: Int,
+        borderCol: Int,
+        isBypassed: Boolean = false
+    ) {
+        val cx = x + r
+        val cy = y + r
+
+        dl.addRectFilled(x, y, x + r * 2f, y + r * 2f, bgCol, 3f)
+        dl.addRect(x, y, x + r * 2f, y + r * 2f, borderCol, 3f)
+
+        val trackRadius = r - 5f
+        val trackCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, if (isBypassed) 0.2f else 0.4f)
+        val fillCol = if (isBypassed) ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.5f) else color
+
+        val aMin = PI.toFloat() * 0.75f  // 135 deg
+        val aMax = PI.toFloat() * 2.25f  // 405 deg
+        val aCenter = PI.toFloat() * 1.5f // 270 deg
+
+        val range = max - min
+        val normalized = if (range == 0f) 0.5f else ((value - min) / range).coerceIn(0f, 1f)
+
+        when (meterType) {
+            llm.slop.spirals.parameters.MeterType.ENDLESS, llm.slop.spirals.parameters.MeterType.DISCRETE -> {
+                dl.addCircle(cx, cy, trackRadius, trackCol, 32, 1.5f)
+                val angle = (PI / 2.0) + normalized * 2.0 * PI
+                val dotX = cx + trackRadius * cos(angle).toFloat()
+                val dotY = cy + trackRadius * sin(angle).toFloat()
+                dl.addCircleFilled(dotX, dotY, 3f, fillCol)
+
+                if (baseValue != null) {
+                    val bNorm = if (range == 0f) 0.5f else ((baseValue - min) / range).coerceIn(0f, 1f)
+                    val bAngle = (PI / 2.0) + bNorm * 2.0 * PI
+                    val bX = cx + trackRadius * cos(bAngle).toFloat()
+                    val bY = cy + trackRadius * sin(bAngle).toFloat()
+                    val bCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
+                    dl.addCircleFilled(bX, bY, 3f, bCol)
+                }
+            }
+            llm.slop.spirals.parameters.MeterType.MONOPOLAR -> {
+                dl.pathArcTo(cx, cy, trackRadius, aMin, aMax, 32)
+                dl.pathStroke(trackCol, 0, 1.5f)
+
+                if (normalized > 0f) {
+                    val fillAngle = aMin + normalized * (aMax - aMin)
+                    dl.pathArcTo(cx, cy, trackRadius, aMin, fillAngle, 32)
+                    dl.pathStroke(fillCol, 0, 2.5f)
+                }
+
+                val valAngle = aMin + normalized * (aMax - aMin)
+                val dotX = cx + trackRadius * cos(valAngle)
+                val dotY = cy + trackRadius * sin(valAngle)
+                dl.addCircleFilled(dotX, dotY, 3f, fillCol)
+
+                if (baseValue != null) {
+                    val bNorm = if (range == 0f) 0.5f else ((baseValue - min) / range).coerceIn(0f, 1f)
+                    val bAngle = aMin + bNorm * (aMax - aMin)
+                    val bX = cx + trackRadius * cos(bAngle)
+                    val bY = cy + trackRadius * sin(bAngle)
+                    val bCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
+                    dl.addCircleFilled(bX, bY, 2.5f, bCol)
+
+                    if (baseMin != null && baseMax != null && baseMin != baseMax) {
+                        val rMinNorm = if (range == 0f) 0.5f else ((baseMin - min) / range).coerceIn(0f, 1f)
+                        val rMaxNorm = if (range == 0f) 0.5f else ((baseMax - min) / range).coerceIn(0f, 1f)
+                        val rMinA = aMin + rMinNorm * (aMax - aMin)
+                        val rMaxA = aMin + rMaxNorm * (aMax - aMin)
+                        val rangeCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 0.4f)
+                        dl.pathArcTo(cx, cy, trackRadius - 3f, rMinA, rMaxA, 16)
+                        dl.pathStroke(rangeCol, 0, 2f)
+                    }
+                }
+            }
+            llm.slop.spirals.parameters.MeterType.BIPOLAR -> {
+                dl.pathArcTo(cx, cy, trackRadius, aMin, aMax, 32)
+                dl.pathStroke(trackCol, 0, 1.5f)
+
+                val cX = cx + (trackRadius - 2f) * cos(aCenter)
+                val cY = cy + (trackRadius - 2f) * sin(aCenter)
+                val cX2 = cx + (trackRadius + 2f) * cos(aCenter)
+                val cY2 = cy + (trackRadius + 2f) * sin(aCenter)
+                dl.addLine(cX, cY, cX2, cY2, trackCol, 1.5f)
+
+                if (normalized != 0.5f) {
+                    val valAngle = aMin + normalized * (aMax - aMin)
+                    if (normalized > 0.5f) {
+                        dl.pathArcTo(cx, cy, trackRadius, aCenter, valAngle, 16)
+                    } else {
+                        dl.pathArcTo(cx, cy, trackRadius, valAngle, aCenter, 16)
+                    }
+                    dl.pathStroke(fillCol, 0, 2.5f)
+                }
+
+                val valAngle = aMin + normalized * (aMax - aMin)
+                val dotX = cx + trackRadius * cos(valAngle)
+                val dotY = cy + trackRadius * sin(valAngle)
+                dl.addCircleFilled(dotX, dotY, 3f, fillCol)
+
+                if (baseValue != null) {
+                    val bNorm = if (range == 0f) 0.5f else ((baseValue - min) / range).coerceIn(0f, 1f)
+                    val bAngle = aMin + bNorm * (aMax - aMin)
+                    val bX = cx + trackRadius * cos(bAngle)
+                    val bY = cy + trackRadius * sin(bAngle)
+                    val bCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
+                    dl.addCircleFilled(bX, bY, 2.5f, bCol)
+
+                    if (baseMin != null && baseMax != null && baseMin != baseMax) {
+                        val rMinNorm = if (range == 0f) 0.5f else ((baseMin - min) / range).coerceIn(0f, 1f)
+                        val rMaxNorm = if (range == 0f) 0.5f else ((baseMax - min) / range).coerceIn(0f, 1f)
+                        val rMinA = aMin + rMinNorm * (aMax - aMin)
+                        val rMaxA = aMin + rMaxNorm * (aMax - aMin)
+                        val rangeCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 0.4f)
+                        dl.pathArcTo(cx, cy, trackRadius - 3f, rMinA, rMaxA, 16)
+                        dl.pathStroke(rangeCol, 0, 2f)
+                    }
+                }
+            }
+        }
     }
 
     private fun handleKeyboardShortcuts(state: PatchGridState, mixer: Mixer) {
