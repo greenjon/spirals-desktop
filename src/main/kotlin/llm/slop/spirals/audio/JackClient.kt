@@ -62,7 +62,7 @@ class JackClient(
 
             // Auto-connect to physical system inputs
             autoConnectInput()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             logger.warn { "Could not connect to JACK server: ${e.message}. Running in silent / fallback mode." }
             client = null
             inputPort = null

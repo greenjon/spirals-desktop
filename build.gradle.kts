@@ -1,3 +1,7 @@
+import java.net.URL
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
 plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
@@ -15,9 +19,6 @@ repositories {
 val lwjglVersion = "3.3.3"
 val imguiVersion = "1.86.11"
 
-// Detect OS for native libraries
-val lwjglNatives = "natives-linux"
-
 dependencies {
     // Kotlin
     implementation(kotlin("stdlib"))
@@ -32,17 +33,22 @@ dependencies {
     implementation("org.lwjgl", "lwjgl-openal")
     implementation("org.lwjgl", "lwjgl-stb")
 
-    // LWJGL - Natives
-    runtimeOnly("org.lwjgl", "lwjgl", classifier = lwjglNatives)
-    runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = lwjglNatives)
-    runtimeOnly("org.lwjgl", "lwjgl-opengl", classifier = lwjglNatives)
-    runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = lwjglNatives)
-    runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = lwjglNatives)
+    // LWJGL - Natives for all platforms
+    val lwjglNativesList = listOf("natives-linux", "natives-windows", "natives-macos", "natives-macos-arm64")
+    lwjglNativesList.forEach { platform ->
+        runtimeOnly("org.lwjgl", "lwjgl", classifier = platform)
+        runtimeOnly("org.lwjgl", "lwjgl-glfw", classifier = platform)
+        runtimeOnly("org.lwjgl", "lwjgl-opengl", classifier = platform)
+        runtimeOnly("org.lwjgl", "lwjgl-openal", classifier = platform)
+        runtimeOnly("org.lwjgl", "lwjgl-stb", classifier = platform)
+    }
 
     // ImGui
     implementation("io.github.spair", "imgui-java-binding", imguiVersion)
     implementation("io.github.spair", "imgui-java-lwjgl3", imguiVersion)
-    implementation("io.github.spair", "imgui-java-$lwjglNatives", imguiVersion)
+    implementation("io.github.spair", "imgui-java-natives-linux", imguiVersion)
+    implementation("io.github.spair", "imgui-java-natives-windows", imguiVersion)
+    implementation("io.github.spair", "imgui-java-natives-macos", imguiVersion)
 
     // JACK Audio (Linux only - will add fallbacks later)
     implementation("org.jaudiolibs:jnajack:1.4.0")
@@ -102,5 +108,218 @@ val generateDocs = tasks.register("generateDocs") {
 
 tasks.processResources {
     dependsOn(generateDocs)
+}
+
+val packageThumbDrive = tasks.register("packageThumbDrive") {
+    group = "distribution"
+    description = "Downloads platform JREs and packages the application for a thumb drive."
+    dependsOn("shadowJar")
+
+    val distDir = file("build/dist")
+    val jreCacheDir = file("build/jre-cache")
+
+    inputs.file(tasks.named("shadowJar").map { it.outputs.files.singleFile })
+    outputs.dir(distDir)
+
+    doLast {
+        distDir.deleteRecursively()
+        distDir.mkdirs()
+        jreCacheDir.mkdirs()
+
+        // 1. Copy shadowJar
+        val jarFile = tasks.named("shadowJar").get().outputs.files.singleFile
+        val destJar = file("$distDir/spirals-desktop-all.jar")
+        jarFile.copyTo(destJar, overwrite = true)
+        println("Copied shadowJar to ${destJar.absolutePath}")
+
+        // 2. Define platforms, their URLs, extension, and JRE folder
+        val platforms = listOf(
+            Triple("windows-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jre/hotspot/normal/eclipse", "zip"),
+            Triple("linux-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse", "tar.gz"),
+            Triple("macos-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/mac/x64/jre/hotspot/normal/eclipse", "tar.gz"),
+            Triple("macos-aarch64", "https://api.adoptium.net/v3/binary/latest/17/ga/mac/aarch64/jre/hotspot/normal/eclipse", "tar.gz")
+        )
+
+        platforms.forEach { (name, url, ext) ->
+            val cacheFile = file("$jreCacheDir/$name.$ext")
+            if (!cacheFile.exists()) {
+                println("Downloading JRE for $name...")
+                try {
+                    URL(url).openStream().use { input ->
+                        Files.copy(input, cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    }
+                    println("Successfully downloaded JRE for $name.")
+                } catch (e: Exception) {
+                    throw GradleException("Failed to download JRE for $name from $url: ${e.message}", e)
+                }
+            } else {
+                println("Using cached JRE for $name.")
+            }
+
+            // Extract JRE
+            val targetJreDir = file("$distDir/jre/$name")
+            targetJreDir.mkdirs()
+            println("Extracting JRE for $name to ${targetJreDir.absolutePath}...")
+
+            if (ext == "zip") {
+                copy {
+                    from(zipTree(cacheFile)) {
+                        eachFile {
+                            val segments = relativePath.segments
+                            if (segments.size > 1) {
+                                relativePath = RelativePath(true, *segments.sliceArray(1 until segments.size))
+                            } else {
+                                exclude()
+                            }
+                        }
+                    }
+                    into(targetJreDir)
+                    includeEmptyDirs = false
+                }
+            } else {
+                copy {
+                    from(tarTree(resources.gzip(cacheFile))) {
+                        eachFile {
+                            val segments = relativePath.segments
+                            if (segments.size > 1) {
+                                relativePath = RelativePath(true, *segments.sliceArray(1 until segments.size))
+                            } else {
+                                exclude()
+                            }
+                        }
+                    }
+                    into(targetJreDir)
+                    includeEmptyDirs = false
+                }
+            }
+        }
+
+        // 3. Write launchers
+        val runWindows = file("$distDir/run-windows.bat")
+        runWindows.writeText("""
+            @echo off
+            setlocal
+            cd /d "%~dp0"
+            if exist "jre\windows-x64\bin\java.exe" (
+                "jre\windows-x64\bin\java.exe" -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            ) else (
+                echo Bundled JRE not found. Trying system java...
+                java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            )
+            endlocal
+        """.trimIndent().replace("\n", "\r\n")) // Windows CRLF
+
+        val runLinux = file("$distDir/run-linux.sh")
+        runLinux.writeText("""
+            #!/bin/bash
+            SCRIPT_DIR="$(cd "$(dirname "${'$'}{BASH_SOURCE[0]}")" && pwd)"
+            cd "${'$'}SCRIPT_DIR"
+            if [ -f "jre/linux-x64/bin/java" ]; then
+                chmod +x jre/linux-x64/bin/java
+                ./jre/linux-x64/bin/java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            else
+                echo "Bundled JRE not found. Trying system java..."
+                java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            fi
+        """.trimIndent())
+        runLinux.setExecutable(true)
+
+        val runMacArm = file("$distDir/run-mac-arm.command")
+        runMacArm.writeText("""
+            #!/bin/bash
+            SCRIPT_DIR="$(cd "$(dirname "${'$'}{BASH_SOURCE[0]}")" && pwd)"
+            cd "${'$'}SCRIPT_DIR"
+            if [ -f "jre/macos-aarch64/bin/java" ]; then
+                chmod +x jre/macos-aarch64/bin/java
+                ./jre/macos-aarch64/bin/java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            else
+                echo "Bundled JRE not found. Trying system java..."
+                java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            fi
+        """.trimIndent())
+        runMacArm.setExecutable(true)
+
+        val runMacIntel = file("$distDir/run-mac-intel.command")
+        runMacIntel.writeText("""
+            #!/bin/bash
+            SCRIPT_DIR="$(cd "$(dirname "${'$'}{BASH_SOURCE[0]}")" && pwd)"
+            cd "${'$'}SCRIPT_DIR"
+            if [ -f "jre/macos-x64/bin/java" ]; then
+                chmod +x jre/macos-x64/bin/java
+                ./jre/macos-x64/bin/java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            else
+                echo "Bundled JRE not found. Trying system java..."
+                java -ea -XX:+UseZGC -XX:MaxGCPauseMillis=2 -Xms512m -Xmx2g -jar spirals-desktop-all.jar
+            fi
+        """.trimIndent())
+        runMacIntel.setExecutable(true)
+
+        println("Launcher scripts generated successfully.")
+    }
+}
+
+val zipWindows = tasks.register<Zip>("zipWindows") {
+    dependsOn(packageThumbDrive)
+    archiveFileName.set("spirals-desktop-windows-x64.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    from("build/dist") {
+        include("run-windows.bat")
+        include("spirals-desktop-all.jar")
+        include("jre/windows-x64/**")
+    }
+}
+
+val zipLinux = tasks.register<Zip>("zipLinux") {
+    dependsOn(packageThumbDrive)
+    archiveFileName.set("spirals-desktop-linux-x64.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    from("build/dist") {
+        include("run-linux.sh")
+        include("spirals-desktop-all.jar")
+        include("jre/linux-x64/**")
+    }
+    eachFile {
+        if (name == "run-linux.sh" || path.endsWith("/bin/java")) {
+            mode = 493 // 0755 in octal
+        }
+    }
+}
+
+val zipMacArm = tasks.register<Zip>("zipMacArm") {
+    dependsOn(packageThumbDrive)
+    archiveFileName.set("spirals-desktop-macos-arm64.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    from("build/dist") {
+        include("run-mac-arm.command")
+        include("spirals-desktop-all.jar")
+        include("jre/macos-aarch64/**")
+    }
+    eachFile {
+        if (name == "run-mac-arm.command" || path.endsWith("/bin/java")) {
+            mode = 493 // 0755 in octal
+        }
+    }
+}
+
+val zipMacIntel = tasks.register<Zip>("zipMacIntel") {
+    dependsOn(packageThumbDrive)
+    archiveFileName.set("spirals-desktop-macos-x64.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    from("build/dist") {
+        include("run-mac-intel.command")
+        include("spirals-desktop-all.jar")
+        include("jre/macos-x64/**")
+    }
+    eachFile {
+        if (name == "run-mac-intel.command" || path.endsWith("/bin/java")) {
+            mode = 493 // 0755 in octal
+        }
+    }
+}
+
+val packageZips = tasks.register("packageZips") {
+    group = "distribution"
+    description = "Assembles all platform-specific distribution ZIP archives."
+    dependsOn(zipWindows, zipLinux, zipMacArm, zipMacIntel)
 }
 
