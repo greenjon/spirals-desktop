@@ -37,3 +37,7 @@ imgui.ini
 *.so
 *.dylib
 *.dll
+
+# JVM Heap Dumps
+*.hprof
+

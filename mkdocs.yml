@@ -1,0 +1,38 @@
+site_name: Spirals Desktop
+site_description: Documentation for the Spirals real-time graphics and audio workstation.
+theme:
+  name: material
+  palette:
+    - scheme: dark
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - search.share
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - User Guide:
+    - Core Concepts: user_guide/concepts.md
+    - CV Modulation: user_guide/modulation.md
+    - Presets & MIDI: user_guide/midi_presets.md
+  - Developer Reference:
+    - Architecture Overview: developer/architecture.md
+    - Real-Time Audio & DSP: developer/audio_dsp.md
+    - OpenGL Rendering: developer/rendering.md
+  - Operations & Tuning: developer/ops_tuning.md

@@ -16,6 +16,8 @@
   - Implement comprehensive testing for the audio engine components.
 - [ ] **Thoroughly Test MIDI:**
   - Implement comprehensive testing for MIDI input and routing.
+- [ ] **MIDI Hardware Hotplugging:**
+  - Implement MIDI hardware hotplugging with Threaded Polling.
 - [ ] **Build Documentation:**
   - Write and organize MkDocs documentation.
   - Use Gemini 3.5 Flash (Medium) for boilerplate and structure.
