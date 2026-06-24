@@ -13,6 +13,7 @@ private val logger = KotlinLogging.logger {}
 object Geometry {
 
     private var fullscreenQuadVAO: Int = 0
+    private var secondaryFullscreenQuadVAO: Int = 0
     private var fullscreenQuadVBO: Int = 0
     private var isInitialized = false
 
@@ -88,12 +89,52 @@ object Geometry {
     }
 
     /**
+     * Draw the fullscreen quad in the secondary window context.
+     * Manages its own VAO since VAOs are not shared between contexts.
+     */
+    fun drawSecondaryFullscreenQuad() {
+        if (!isInitialized) {
+            initializeFullscreenQuad()
+        }
+        if (secondaryFullscreenQuadVAO == 0) {
+            secondaryFullscreenQuadVAO = glGenVertexArrays()
+            glBindVertexArray(secondaryFullscreenQuadVAO)
+            glBindBuffer(GL_ARRAY_BUFFER, fullscreenQuadVBO)
+
+            glVertexAttribPointer(0, 2, GL_FLOAT, false, 4 * Float.SIZE_BYTES, 0)
+            glEnableVertexAttribArray(0)
+
+            glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * Float.SIZE_BYTES, 2 * Float.SIZE_BYTES.toLong())
+            glEnableVertexAttribArray(1)
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0)
+            glBindVertexArray(0)
+            logger.debug { "Initialized secondary fullscreen quad VAO: $secondaryFullscreenQuadVAO" }
+        }
+        glBindVertexArray(secondaryFullscreenQuadVAO)
+        glDrawArrays(GL_TRIANGLES, 0, 6)
+        glBindVertexArray(0)
+    }
+
+    /**
+     * Resets the secondary VAO reference. Call this when the secondary window context is destroyed.
+     */
+    fun resetSecondaryContext() {
+        secondaryFullscreenQuadVAO = 0
+    }
+
+    /**
      * Clean up OpenGL resources
      */
     fun dispose() {
         if (isInitialized) {
             glDeleteBuffers(fullscreenQuadVBO)
             glDeleteVertexArrays(fullscreenQuadVAO)
+            if (secondaryFullscreenQuadVAO != 0) {
+                // Secondary VAO is typically deleted when the secondary context is destroyed.
+                // We reset the reference here.
+                secondaryFullscreenQuadVAO = 0
+            }
             isInitialized = false
             logger.debug { "Disposed fullscreen quad geometry" }
         }

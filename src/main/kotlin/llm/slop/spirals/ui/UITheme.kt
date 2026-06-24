@@ -49,6 +49,9 @@ object UITheme {
     /** True if grid sections and subgroups should autocollapse when another is opened. */
     var autocollapseEnabled: Boolean = true
 
+    /** True if the main window should hide all UI overlay panels to show full video mix. */
+    var cleanModeEnabled: Boolean = false
+
     init {
         loadSettings()
     }

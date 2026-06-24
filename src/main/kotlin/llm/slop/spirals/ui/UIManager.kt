@@ -172,27 +172,29 @@ class UIManager(private val windowHandle: Long) {
         ImGui.newFrame()
         updateUiTransparency()
 
-        drawMenuBar(mixer)
-        // openPopup must be called at root ID-stack level — not inside the menu bar.
-        if (pendingOpenSettings) {
-            SettingsPanel.open()
-            pendingOpenSettings = false
-        }
-        if (pendingOpenAudioEngineMonitor) {
-            AudioEnginePanel.open()
-            pendingOpenAudioEngineMonitor = false
-        }
-        drawLayout(mixer, displayWidth, displayHeight)
+        if (!UITheme.cleanModeEnabled) {
+            drawMenuBar(mixer)
+            // openPopup must be called at root ID-stack level — not inside the menu bar.
+            if (pendingOpenSettings) {
+                SettingsPanel.open()
+                pendingOpenSettings = false
+            }
+            if (pendingOpenAudioEngineMonitor) {
+                AudioEnginePanel.open()
+                pendingOpenAudioEngineMonitor = false
+            }
+            drawLayout(mixer, displayWidth, displayHeight)
 
-        // Settings modal — drawn outside any docked window so it floats freely.
-        SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight, { newSize ->
-            applyFontSize(newSize)
-        }, {
-            patchState.applyAutocollapseSetting()
-        })
+            // Settings modal — drawn outside any docked window so it floats freely.
+            SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight, { newSize ->
+                applyFontSize(newSize)
+            }, {
+                patchState.applyAutocollapseSetting()
+            })
 
-        // Audio Engine Monitor modal — drawn outside any docked window so it floats freely.
-        AudioEnginePanel.draw(displayWidth, displayHeight)
+            // Audio Engine Monitor modal — drawn outside any docked window so it floats freely.
+            AudioEnginePanel.draw(displayWidth, displayHeight)
+        }
 
         ImGui.render()
         imguiGl3.renderDrawData(ImGui.getDrawData())
@@ -205,6 +207,13 @@ class UIManager(private val windowHandle: Long) {
      */
     private fun applyFontSize(newSize: Float) {
         if (newSize != appliedBaseSize) pendingFontSize = newSize
+    }
+
+    fun adjustFontSize(delta: Float) {
+        val currentSize = UITheme.baseSize
+        val targetSize = currentSize + delta
+        val constrainedSize = targetSize.coerceIn(10f, 28f)
+        applyFontSize(constrainedSize)
     }
 
     private fun loadGlobalPatchWithDialog() {

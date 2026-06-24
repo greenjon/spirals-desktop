@@ -19,5 +19,6 @@ Detailed walkthroughs of the visual synth engine, CV routing matrix, and MIDI/Pr
 Under-the-hood details of the application architecture, DSP engine, and rendering pipelines.
 - **[Architecture Overview](developer/architecture.md)**: Main loop, threading boundaries, and concurrency safety.
 - **[Real-Time Audio & DSP](developer/audio_dsp.md)**: Zero-allocation JACK callbacks, biquad filters, and FFT.
+- **[Beat Sync & Stability](developer/beat_sync.md)**: Transient detection, median-filtered BPM estimation, and phase accumulation.
 - **[OpenGL Rendering](developer/rendering.md)**: Ping-pong framebuffers, shader compiles, and visual rendering math.
 - **[Operations & Tuning](developer/ops_tuning.md)**: JVM optimization flags (ZGC), PipeWire/JACK diagnostics, and troubleshooting.

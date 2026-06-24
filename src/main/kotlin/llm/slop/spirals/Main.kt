@@ -110,12 +110,58 @@ fun main() {
         AudioEngine.start()
     }
 
+    var secondaryWindow = 0L
+
+    // Auto-detect and open secondary window on startup if external monitor is found
+    val initialExternalMonitor = getExternalMonitor()
+    if (initialExternalMonitor != null) {
+        secondaryWindow = createSecondaryWindow(window)
+    }
+
+    // Setup key callback chaining to allow "f", "Spacebar", CTRL-, and CTRL= controls
+    var imguiKeyCallback: org.lwjgl.glfw.GLFWKeyCallback? = null
+    imguiKeyCallback = glfwSetKeyCallback(window) { win, key, scancode, action, mods ->
+        val isFontSizeHotKey = (mods and GLFW_MOD_CONTROL) != 0 && (key == GLFW_KEY_MINUS || key == GLFW_KEY_EQUAL)
+        val isHotKey = (key == GLFW_KEY_F || key == GLFW_KEY_SPACE || isFontSizeHotKey)
+        if (action == GLFW_PRESS) {
+            if (isFontSizeHotKey) {
+                if (key == GLFW_KEY_MINUS) {
+                    uiManager.adjustFontSize(-1f)
+                } else if (key == GLFW_KEY_EQUAL) {
+                    uiManager.adjustFontSize(1f)
+                }
+            } else if (key == GLFW_KEY_F) {
+                UITheme.cleanModeEnabled = !UITheme.cleanModeEnabled
+                logger.info { "Clean mode toggled: ${UITheme.cleanModeEnabled}" }
+            } else if (key == GLFW_KEY_SPACE) {
+                val io = imgui.ImGui.getIO()
+                if (!io.wantCaptureKeyboard || UITheme.cleanModeEnabled) {
+                    if (secondaryWindow == 0L) {
+                        secondaryWindow = createSecondaryWindow(window)
+                    } else {
+                        destroySecondaryWindow(secondaryWindow)
+                        secondaryWindow = 0L
+                    }
+                }
+            }
+        }
+        if (!isHotKey) {
+            imguiKeyCallback?.invoke(win, key, scancode, action, mods)
+        }
+    }
+
     // Main loop
     var frameCount = 0
     var lastTime = glfwGetTime()
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents()
+
+        // Clean up secondary window if it was closed manually by the user
+        if (secondaryWindow != 0L && glfwWindowShouldClose(secondaryWindow)) {
+            destroySecondaryWindow(secondaryWindow)
+            secondaryWindow = 0L
+        }
 
         // Calculate FPS
         frameCount++
@@ -156,7 +202,7 @@ fun main() {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f)
         glClear(GL_COLOR_BUFFER_BIT)
 
-        if (UITheme.backgroundVideoEnabled) {
+        if (UITheme.backgroundVideoEnabled || UITheme.cleanModeEnabled) {
             glEnable(GL_BLEND)
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -178,12 +224,48 @@ fun main() {
         uiManager.render(mixer, w[0].toFloat(), h[0].toFloat())
 
         glfwSwapBuffers(window)
+
+        // === SECONDARY WINDOW RENDER PHASE ===
+        if (secondaryWindow != 0L) {
+            glfwMakeContextCurrent(secondaryWindow)
+
+            val sw = IntArray(1)
+            val sh = IntArray(1)
+            glfwGetFramebufferSize(secondaryWindow, sw, sh)
+
+            glViewport(0, 0, sw[0], sh[0])
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+            glClear(GL_COLOR_BUFFER_BIT)
+
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+            blitShader.bind()
+            glActiveTexture(GL_TEXTURE0)
+            glBindTexture(GL_TEXTURE_2D, mixer.masterFBO.texture)
+            blitShader.setUniform("uTexture", 0)
+            Geometry.drawSecondaryFullscreenQuad()
+            blitShader.unbind()
+
+            glfwSwapBuffers(secondaryWindow)
+
+            // Switch back to main context
+            glfwMakeContextCurrent(window)
+        }
     }
 
     // Cleanup
     logger.info { "Shutting down..." }
     AudioEngine.stop()
     llm.slop.spirals.midi.MidiEngine.close()
+
+    // Free key callbacks
+    imguiKeyCallback?.free()
+
+    // Dispose secondary window
+    if (secondaryWindow != 0L) {
+        destroySecondaryWindow(secondaryWindow)
+    }
 
     // Dispose rendering resources
     renderer.dispose()
@@ -199,4 +281,55 @@ fun main() {
     // Dispose window
     glfwDestroyWindow(window)
     glfwTerminate()
+}
+
+private fun getExternalMonitor(): Long? {
+    val monitors = glfwGetMonitors() ?: return null
+    val primary = glfwGetPrimaryMonitor()
+    for (i in 0 until monitors.limit()) {
+        val m = monitors.get(i)
+        if (m != primary) {
+            return m
+        }
+    }
+    return null
+}
+
+private fun createSecondaryWindow(primaryWindow: Long): Long {
+    // Save current window hints, then reset them to default
+    glfwDefaultWindowHints()
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE)
+
+    val externalMonitor = getExternalMonitor()
+    if (externalMonitor != null) {
+        val mode = glfwGetVideoMode(externalMonitor) ?: return 0L
+        glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE)
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+        val win = glfwCreateWindow(mode.width(), mode.height(), "Spirals Output", externalMonitor, primaryWindow)
+        if (win != 0L) {
+            logger.info { "Created secondary window fullscreen on external monitor (width: ${mode.width()}, height: ${mode.height()})" }
+            return win
+        }
+    } else {
+        glfwWindowHint(GLFW_DECORATED, GLFW_TRUE)
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
+        val win = glfwCreateWindow(1280, 720, "Spirals Output Preview", 0, primaryWindow)
+        if (win != 0L) {
+            logger.info { "Created secondary preview window (no external monitor found)" }
+            return win
+        }
+    }
+    return 0L
+}
+
+private fun destroySecondaryWindow(win: Long) {
+    if (win != 0L) {
+        glfwDestroyWindow(win)
+        Geometry.resetSecondaryContext()
+        logger.info { "Destroyed secondary window" }
+    }
 }

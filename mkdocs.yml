@@ -34,5 +34,6 @@ nav:
   - Developer Reference:
     - Architecture Overview: developer/architecture.md
     - Real-Time Audio & DSP: developer/audio_dsp.md
+    - Beat Sync & Stability: developer/beat_sync.md
     - OpenGL Rendering: developer/rendering.md
   - Operations & Tuning: developer/ops_tuning.md
