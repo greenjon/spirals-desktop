@@ -20,3 +20,6 @@
 * ~~Subgroup Indentation: Stair-stepped the UI tree elements.~~
 * ~~Extending Grid Lines: Drew subtle column lines all the way down.~~
 * ~~Hover Highlighting (Crosshairs): Added highlights for the hovered row and column, creating a crosshair effect.~~
+* ~~Grouping Margin Lines: Added color-coded left border lines for subgroups.~~
+* ~~Top-Level Font Sizing & Spacing: Made Mixer, Deck A, and Deck B stand out as major headers.~~
+* ~~Intelligent Color Coding: Color-coded the CV headers, active knobs, and cell backgrounds by logical category. Added deck header background tints.~~

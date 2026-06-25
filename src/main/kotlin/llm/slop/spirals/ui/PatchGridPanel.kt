@@ -63,6 +63,28 @@ object PatchGridPanel {
         }
     }
 
+    private fun getCvColor(colId: String, alpha: Float = 1f): Int {
+        return when (colId) {
+            // Special
+            "final"          -> ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, alpha)
+            "base"           -> ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, alpha)
+            "midi"           -> ImGui.colorConvertFloat4ToU32(0.3f, 1.0f, 0.4f, alpha)
+            // Synthetic / Generators
+            "lfo"            -> ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, alpha)
+            "sampleAndHold"  -> ImGui.colorConvertFloat4ToU32(0.7f, 0.4f, 1.0f, alpha)
+            "beatPhase"      -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 1.0f, alpha)
+            // Amplitude / Spectral
+            "amp"            -> ImGui.colorConvertFloat4ToU32(0.7f, 0.9f, 0.1f, alpha)
+            "bass"           -> ImGui.colorConvertFloat4ToU32(0.9f, 0.2f, 0.2f, alpha)
+            "mid"            -> ImGui.colorConvertFloat4ToU32(0.9f, 0.5f, 0.1f, alpha)
+            "high"           -> ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.2f, alpha)
+            // Transients
+            "onset"          -> ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, alpha)
+            "accent"         -> ImGui.colorConvertFloat4ToU32(0.9f, 0.1f, 0.9f, alpha)
+            else             -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, alpha)
+        }
+    }
+
     private var gridStartX = 0f
     private var rowIndex = 0
 
@@ -82,13 +104,18 @@ object PatchGridPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        drawGroup("Mixer", state) {
+        drawGroup("Mixer", state, true) {
             drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer)
             drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer)
             drawParamRow("bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer)
         }
+        ImGui.spacing()
+        ImGui.spacing()
 
         drawDeckGroup("Deck A", mixer.deckA, state, labelColW, mixer)
+        ImGui.spacing()
+        ImGui.spacing()
+
         drawDeckGroup("Deck B", mixer.deckB, state, labelColW, mixer)
     }
 
@@ -145,7 +172,9 @@ object PatchGridPanel {
         UITheme.withFont(UITheme.FontLevel.CAPTION) { twFinal = ImGui.calcTextSize(labelFinal).x }
         var offsetX = ((CELL - twFinal) * 0.5f).coerceAtLeast(0f)
         ImGui.setCursorScreenPos(finalColX + offsetX, startY)
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("final"))
         UITheme.caption(labelFinal)
+        ImGui.popStyleColor()
 
         // Draw BASE header
         val baseColX = startX + labelColW + getColumnOffset("base")
@@ -155,7 +184,9 @@ object PatchGridPanel {
         UITheme.withFont(UITheme.FontLevel.CAPTION) { twBase = ImGui.calcTextSize(labelBase).x }
         offsetX = ((CELL - twBase) * 0.5f).coerceAtLeast(0f)
         ImGui.setCursorScreenPos(baseColX + offsetX, startY)
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("base"))
         UITheme.caption(labelBase)
+        ImGui.popStyleColor()
 
         // Draw MIDI header
         val midiColX = startX + labelColW + getColumnOffset("midi")
@@ -165,7 +196,9 @@ object PatchGridPanel {
         UITheme.withFont(UITheme.FontLevel.CAPTION) { twMidi = ImGui.calcTextSize(labelMidi).x }
         offsetX = ((CELL - twMidi) * 0.5f).coerceAtLeast(0f)
         ImGui.setCursorScreenPos(midiColX + offsetX, startY)
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("midi"))
         UITheme.caption(labelMidi)
+        ImGui.popStyleColor()
 
         // Draw each column header vertically
         val cvCols = getCvColumns()
@@ -178,7 +211,9 @@ object PatchGridPanel {
             UITheme.withFont(UITheme.FontLevel.CAPTION) { tw = ImGui.calcTextSize(label).x }
             val offX = ((CELL - tw) * 0.5f).coerceAtLeast(0f)
             ImGui.setCursorScreenPos(colX + offX, startY)
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor(cvId))
             UITheme.caption(label)
+            ImGui.popStyleColor()
         }
         
         // Draw final separator line on the right edge
@@ -190,7 +225,7 @@ object PatchGridPanel {
         ImGui.setCursorScreenPos(startX, afterHeadersY)
     }
 
-    private inline fun drawGroup(label: String, state: PatchGridState, block: () -> Unit) {
+    private inline fun drawGroup(label: String, state: PatchGridState, isTopLevel: Boolean = false, block: () -> Unit) {
         val open = state.groupOpen.getValue(label)
         val flags = ImGuiTreeNodeFlags.DefaultOpen or ImGuiTreeNodeFlags.SpanFullWidth
 
@@ -205,7 +240,35 @@ object PatchGridPanel {
             state.groupNeedsExpand[label] = false
         }
 
-        if (ImGui.treeNodeEx(label, if (open) flags else ImGuiTreeNodeFlags.None)) {
+        if (isTopLevel) {
+            val bgCol = when(label) {
+                "Deck A" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 0.15f)
+                "Deck B" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 0.15f)
+                else -> ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 0f)
+            }
+            if (bgCol != 0) {
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Header, bgCol)
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.HeaderHovered, bgCol) // make it look like a static background
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.HeaderActive, bgCol)
+            }
+        }
+
+        val treeOpen = if (isTopLevel) {
+            var res = false
+            UITheme.withFont(UITheme.FontLevel.H2) {
+                res = ImGui.treeNodeEx(label, if (open) flags else ImGuiTreeNodeFlags.None)
+            }
+            res
+        } else {
+            ImGui.treeNodeEx(label, if (open) flags else ImGuiTreeNodeFlags.None)
+        }
+
+        if (isTopLevel) {
+            val hasBg = (label == "Deck A" || label == "Deck B")
+            if (hasBg) ImGui.popStyleColor(3)
+        }
+
+        if (treeOpen) {
             state.groupOpen[label] = true
             block()
             ImGui.treePop()
@@ -236,9 +299,30 @@ object PatchGridPanel {
                 syncAndCollapseSubgroups(label, state)
             }
             state.groupOpen[key] = true
+            
+            // Record start Y for the margin line
+            val startY = ImGui.getCursorScreenPosY()
+            val dl = ImGui.getWindowDrawList()
+            
             ImGui.indent()
             block()
             ImGui.unindent()
+            
+            // Draw margin line
+            val endY = ImGui.getCursorScreenPosY()
+            val startX = gridStartX + 5f // Slightly indented from the absolute left margin
+            
+            // Choose color based on subgroup
+            val lineCol = when(label) {
+                "Geometry" -> ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.5f, 0.6f) // Greenish
+                "Color" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.6f, 0.6f)    // Pinkish
+                "Background" -> ImGui.colorConvertFloat4ToU32(0.4f, 0.5f, 0.8f, 0.6f) // Blueish
+                "Feedback" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.7f, 0.3f, 0.6f)   // Yellowish
+                else -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.6f)
+            }
+            
+            dl.addLine(startX, startY, startX, endY - 2f, lineCol, 3f)
+
             ImGui.treePop()
         } else {
             val wasOpen = open
@@ -277,7 +361,7 @@ object PatchGridPanel {
     }
 
     private fun drawDeckGroup(deckLabel: String, deck: Deck, state: PatchGridState, labelColW: Float, mixer: Mixer) {
-        drawGroup(deckLabel, state) {
+        drawGroup(deckLabel, state, true) {
             val mandala = deck.source as? Mandala
 
             if (mandala != null) {
@@ -407,13 +491,13 @@ object PatchGridPanel {
         
         val finalBgCol = when {
             isFinalSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
-            else            -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
+            else            -> getCvColor("final", 0.05f) // Subtle background tint
         }
         val finalBorderCol = when {
             isFinalSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
             else            -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
         }
-        val finalColor = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)
+        val finalColor = getCvColor("final") // Active meter color
         
         drawKnobMeter(
             dl = dl, x = finalX, y = finalY, r = r,
@@ -438,13 +522,13 @@ object PatchGridPanel {
         
         val baseBgCol = when {
             isBaseSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
-            else           -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
+            else           -> getCvColor("base", 0.05f)
         }
         val baseBorderCol = when {
             isBaseSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
             else           -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
         }
-        val baseColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
+        val baseColor = getCvColor("base")
         
         drawKnobMeter(
             dl = dl, x = baseX, y = baseY, r = r,
@@ -502,7 +586,7 @@ object PatchGridPanel {
             isMidiTarget   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.4f, 0.5f, 1f)
             isMidiSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
             hasMidiMod     -> ImGui.colorConvertFloat4ToU32(0.05f, 0.15f, 0.2f, 1f)
-            else           -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
+            else           -> getCvColor("midi", 0.05f)
         }
         val midiBorderCol = when {
             isMidiTarget   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 1.0f, 1f)
@@ -530,7 +614,7 @@ object PatchGridPanel {
                 value = displayValue, min = param.minClamp, max = param.maxClamp,
                 meterType = param.meterType,
                 baseValue = null, baseMin = null, baseMax = null,
-                color = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f),
+                color = getCvColor("midi"),
                 bgCol = midiBgCol, borderCol = midiBorderCol,
                 isBypassed = isMidiBypassed,
                 isHoveredRow = isHoveredRow, isHoveredCol = isMidiHoveredCol
@@ -606,7 +690,7 @@ object PatchGridPanel {
                 isTarget      -> ImGui.colorConvertFloat4ToU32(0.0f, 0.4f, 0.5f, 1f) // listening target
                 isSelected    -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
                 hasModulator  -> ImGui.colorConvertFloat4ToU32(0.05f, 0.15f, 0.2f, 1f)
-                else          -> ImGui.colorConvertFloat4ToU32(0.08f, 0.08f, 0.08f, 1f)
+                else          -> getCvColor(cvId, 0.05f)
             }
             val borderCol = when {
                 isTarget     -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 1.0f, 1f) // bright cyan
@@ -630,7 +714,7 @@ object PatchGridPanel {
                     value = displayValue, min = param.minClamp, max = param.maxClamp,
                     meterType = param.meterType,
                     baseValue = null, baseMin = null, baseMax = null,
-                    color = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f),
+                    color = getCvColor(cvId),
                     bgCol = bgCol, borderCol = borderCol,
                     isBypassed = isBypassed,
                     isHoveredRow = isHoveredRow, isHoveredCol = isHoveredCol
