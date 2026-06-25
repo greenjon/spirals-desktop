@@ -40,6 +40,9 @@ object CellConfigPanel {
     private var activeSliderLabel: String? = null
     private var clickMouseX = 0f
 
+    private val textBuffers = mutableMapOf<String, imgui.type.ImString>()
+    private val textWidgetActive = mutableMapOf<String, Boolean>()
+
     private fun initializeVirtualModulators(cvId: String, activeMods: List<CvModulator>, hasAdvanced: Boolean) {
         virtualModulators.clear()
         if (hasAdvanced) {
@@ -452,14 +455,14 @@ object CellConfigPanel {
             ImGui.beginGroup()
             UITheme.body("Waveform")
             val wfIdx = ImInt(existing.waveform.ordinal)
-            ImGui.pushItemWidth(120f)
+            ImGui.pushItemWidth(125f)
             if (ImGui.combo("##waveform", wfIdx, waveformLabels)) {
                 replaceModulator(state, param, existing.copy(waveform = Waveform.entries[wfIdx.get()]))
             }
             ImGui.popItemWidth()
             ImGui.endGroup()
             
-            ImGui.sameLine(0f, 20f)
+            ImGui.sameLine(0f, 10f)
         }
 
         ImGui.beginGroup()
@@ -469,7 +472,7 @@ object CellConfigPanel {
             ModulationOperator.MUL -> 1
             ModulationOperator.SCALE -> 2
         })
-        ImGui.pushItemWidth(120f)
+        ImGui.pushItemWidth(125f)
         if (ImGui.combo("##op", opIdx, operatorLabels)) {
             val newOp = when (opIdx.get()) {
                 0 -> ModulationOperator.ADD
@@ -1053,6 +1056,33 @@ object CellConfigPanel {
         ImGui.setCursorScreenPos(startX, startY + h)
     }
 
+    private fun drawTextInput(
+        key: String,
+        currentValue: Float,
+        minLimit: Float,
+        maxLimit: Float,
+        posX: Float,
+        posY: Float,
+        width: Float,
+        onChanged: (Float) -> Unit
+    ) {
+        val buffer = textBuffers.getOrPut(key) { imgui.type.ImString("%.3f".format(currentValue), 16) }
+        val active = textWidgetActive.getOrDefault(key, false)
+        if (!active) {
+            buffer.set("%.3f".format(currentValue))
+        }
+        ImGui.setCursorScreenPos(posX, posY)
+        ImGui.pushItemWidth(width)
+        if (ImGui.inputText("##input_$key", buffer)) {
+            val parsed = buffer.get().toFloatOrNull()
+            if (parsed != null) {
+                onChanged(parsed.coerceIn(minLimit, maxLimit))
+            }
+        }
+        textWidgetActive[key] = ImGui.isItemActive()
+        ImGui.popItemWidth()
+    }
+
     private fun drawCustomRangeSlider(
         label: String,
         currentMin: Float,
@@ -1099,73 +1129,8 @@ object CellConfigPanel {
 
         ImGui.pushID(label)
 
-        if (showControls) {
-            val checked = ImBoolean(isRandomizable)
-            if (ImGui.checkbox("##check", checked)) {
-                onRandomizableChanged(checked.get())
-            }
-            ImGui.sameLine()
-
-            if (!isRandomizable) {
-                ImGui.beginDisabled()
-            }
-            val buttonSize = ImGui.getFrameHeight()
-            val screenPosX = ImGui.getCursorScreenPosX()
-            val screenPosY = ImGui.getCursorScreenPosY()
-            if (ImGui.button("##rand", buttonSize, buttonSize)) {
-                onRandomizeNow()
-            }
-            val hovered = ImGui.isItemHovered()
-            if (hovered) {
-                ImGui.setTooltip("Randomize $label now")
-            }
-            if (!isRandomizable) {
-                ImGui.endDisabled()
-            }
-
-            // Draw circle arrow icon on top of the button
-            val dl = ImGui.getWindowDrawList()
-            val centerX = screenPosX + buttonSize / 2f
-            val centerY = screenPosY + buttonSize / 2f
-            val radius = buttonSize * 0.22f
-            val thickness = 1.8f
-
-            val iconColor = if (!isRandomizable) {
-                ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
-            } else if (ImGui.isItemActive()) {
-                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
-            } else if (hovered) {
-                ImGui.colorConvertFloat4ToU32(0.95f, 0.95f, 0.95f, 1.0f)
-            } else {
-                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
-            }
-
-            val numSegments = 16
-            val startAngle = -kotlin.math.PI.toFloat() * 0.5f
-            val sweepAngle = kotlin.math.PI.toFloat() * 1.55f
-
-            var prevX = centerX + radius * kotlin.math.cos(startAngle)
-            var prevY = centerY + radius * kotlin.math.sin(startAngle)
-            for (i in 1..numSegments) {
-                val angle = startAngle + (sweepAngle * i / numSegments)
-                val nextX = centerX + radius * kotlin.math.cos(angle)
-                val nextY = centerY + radius * kotlin.math.sin(angle)
-                dl.addLine(prevX, prevY, nextX, nextY, iconColor, thickness)
-                prevX = nextX
-                prevY = nextY
-            }
-
-            val tipX = centerX
-            val tipY = centerY - radius
-            val arrowSize = buttonSize * 0.12f
-            dl.addLine(tipX, tipY, tipX - arrowSize, tipY - arrowSize * 0.7f, iconColor, thickness)
-            dl.addLine(tipX, tipY, tipX - arrowSize * 0.7f, tipY + arrowSize, iconColor, thickness)
-            ImGui.sameLine()
-        }
-
         val w = ImGui.getContentRegionAvailX()
-        val h = 36f // height of the widget row
-        
+        val h = 44f
         val startX = ImGui.getCursorScreenPosX()
         val startY = ImGui.getCursorScreenPosY()
         
@@ -1177,27 +1142,167 @@ object CellConfigPanel {
         val mouseX = io.mousePos.x
         val mouseY = io.mousePos.y
         
-        val leftW = 120f
-        val lineStartX = startX + leftW
+        val buttonSize = ImGui.getFrameHeight()
+        val spacing = ImGui.getStyle().itemSpacing.x
+        val combinedWidth = buttonSize * 2f + spacing
+        
+        val labelColW = 125f
+        val textBoxesStartX = startX + labelColW + 20f
+        
+        val boxWidth = 65f
+        val boxSpacing = 8f
+        
+        val sliderStartX = textBoxesStartX + (if (isRandomizable) (boxWidth * 2f + boxSpacing) else boxWidth) + 15f
+        val lineStartX = sliderStartX
         val lineEndX = startX + w - 10f
         val lineWidth = lineEndX - lineStartX
-        val centerY = startY + h / 2f
+        val centerY = startY + 28f
         
         val rangeSpan = maxLimit - minLimit
 
-        // Handle dragging logic and rendering based on mode
+        // ─── ROW 1: Labels ───
+        ImGui.setCursorScreenPos(startX, startY + 2f)
+        UITheme.body(label)
+        
+        if (isRandomizable) {
+            ImGui.setCursorScreenPos(textBoxesStartX, startY + 2f)
+            UITheme.caption("Min")
+            
+            ImGui.setCursorScreenPos(textBoxesStartX + boxWidth + boxSpacing, startY + 2f)
+            UITheme.caption("Max")
+            
+            // Add "Current" label with [value] centered above the dynamic dot on Row 1
+            val curPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
+            val curX = lineStartX + curPct * lineWidth
+            val formattedVal = formatValue(currentValue)
+            val labelText = "Current: $formattedVal"
+            val currentTextWidth = ImGui.calcTextSize(labelText).x
+            val minAllowedX = lineStartX
+            val maxAllowedX = lineEndX - currentTextWidth
+            val textX = (curX - currentTextWidth / 2f).coerceIn(minAllowedX, maxAllowedX)
+            
+            ImGui.setCursorScreenPos(textX, startY + 2f)
+            UITheme.caption(labelText)
+        } else {
+            ImGui.setCursorScreenPos(textBoxesStartX, startY + 2f)
+            UITheme.caption("Current")
+        }
+        
+        // ─── ROW 2: Widgets ───
+        val row2Y = startY + 18f
+        
+        if (showControls) {
+            // 1. Checkbox
+            ImGui.setCursorScreenPos(startX + labelColW - combinedWidth, row2Y)
+            val checked = imgui.type.ImBoolean(isRandomizable)
+            if (ImGui.checkbox("##check_$label", checked)) {
+                onRandomizableChanged(checked.get())
+            }
+            
+            // 2. Randomize Button
+            val randBtnX = startX + labelColW - buttonSize
+            ImGui.setCursorScreenPos(randBtnX, row2Y)
+            if (!isRandomizable) {
+                ImGui.beginDisabled()
+            }
+            if (ImGui.button("##rand_$label", buttonSize, buttonSize)) {
+                onRandomizeNow()
+            }
+            val hovered = ImGui.isItemHovered()
+            if (hovered) {
+                ImGui.setTooltip("Randomize $label now")
+            }
+            if (!isRandomizable) {
+                ImGui.endDisabled()
+            }
+            
+            // Circle arrow icon for randomize button
+            val centerX = randBtnX + buttonSize / 2f
+            val centerYBtn = row2Y + buttonSize / 2f
+            val radius = buttonSize * 0.22f
+            val thickness = 1.8f
+            val iconColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
+            } else if (ImGui.isItemActive()) {
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
+            } else if (hovered) {
+                ImGui.colorConvertFloat4ToU32(0.95f, 0.95f, 0.95f, 1.0f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
+            }
+            val numSegments = 16
+            val startAngle = -kotlin.math.PI.toFloat() * 0.5f
+            val sweepAngle = kotlin.math.PI.toFloat() * 1.55f
+            var prevX = centerX + radius * kotlin.math.cos(startAngle)
+            var prevY = centerYBtn + radius * kotlin.math.sin(startAngle)
+            for (i in 1..numSegments) {
+                val angle = startAngle + (sweepAngle * i / numSegments)
+                val nextX = centerX + radius * kotlin.math.cos(angle)
+                val nextY = centerYBtn + radius * kotlin.math.sin(angle)
+                dl.addLine(prevX, prevY, nextX, nextY, iconColor, thickness)
+                prevX = nextX
+                prevY = nextY
+            }
+            val tipX = centerX
+            val tipY = centerYBtn - radius
+            val arrowSize = buttonSize * 0.12f
+            dl.addLine(tipX, tipY, tipX - arrowSize, tipY - arrowSize * 0.7f, iconColor, thickness)
+            dl.addLine(tipX, tipY, tipX - arrowSize * 0.7f, tipY + arrowSize, iconColor, thickness)
+        }
+        
+        // 3. Text inputs
+        if (isRandomizable) {
+            drawTextInput(
+                key = "${idPrefix}_${label}_min",
+                currentValue = currentMin,
+                minLimit = minLimit,
+                maxLimit = maxLimit,
+                posX = textBoxesStartX,
+                posY = row2Y,
+                width = boxWidth,
+                onChanged = { nextMin ->
+                    onRangeChanged(nextMin, currentMax)
+                }
+            )
+            drawTextInput(
+                key = "${idPrefix}_${label}_max",
+                currentValue = currentMax,
+                minLimit = minLimit,
+                maxLimit = maxLimit,
+                posX = textBoxesStartX + boxWidth + boxSpacing,
+                posY = row2Y,
+                width = boxWidth,
+                onChanged = { nextMax ->
+                    onRangeChanged(currentMin, nextMax)
+                }
+            )
+        } else {
+            drawTextInput(
+                key = "${idPrefix}_${label}_value",
+                currentValue = currentValue,
+                minLimit = minLimit,
+                maxLimit = maxLimit,
+                posX = textBoxesStartX,
+                posY = row2Y,
+                width = boxWidth,
+                onChanged = { newVal ->
+                    onValueChanged(newVal)
+                }
+            )
+        }
+        
+        // ─── Dragging & Slider Render ───
         val mousePressed = ImGui.isMouseClicked(0)
         val mouseDown = ImGui.isMouseDown(0)
-
+        
         if (isRandomizable) {
             val minPct = if (rangeSpan > 0f) (currentMin - minLimit) / rangeSpan else 0f
             val maxPct = if (rangeSpan > 0f) (currentMax - minLimit) / rangeSpan else 0f
-            
             val minHandleX = lineStartX + minPct * lineWidth
             val maxHandleX = lineStartX + maxPct * lineWidth
-
+            
             if (mousePressed) {
-                val inRowY = mouseY >= startY && mouseY <= startY + h
+                val inRowY = mouseY >= row2Y && mouseY <= row2Y + buttonSize
                 val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
                 if (inRowY && inRowX) {
                     activeSliderLabel = idPrefix + label
@@ -1232,7 +1337,7 @@ object CellConfigPanel {
                 val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
                 val rawVal = minLimit + pct * rangeSpan
                 if (!draggingMin && !draggingMax) {
-                    val dragThreshold = 2f // pixels
+                    val dragThreshold = 2f
                     if (mouseX > clickMouseX + dragThreshold) {
                         draggingMax = true
                         val nextMax = rawVal.coerceIn(currentMin, maxLimit)
@@ -1254,61 +1359,38 @@ object CellConfigPanel {
                 draggingMax = false
                 activeSliderLabel = null
             }
-
-            // ── Render (Range mode) ──
             
-            // 1. Text Labels (Left side)
-            ImGui.setCursorScreenPos(startX, startY + 2f)
-            UITheme.body(label)
-            
-            ImGui.setCursorScreenPos(startX + 8f, startY + 18f)
-            val valueStr = "${formatValue(currentMin)} - ${formatValue(currentMax)}"
-            UITheme.caption(valueStr)
-            
-            // 2. Thin horizontal line
+            // Draw tracks
             val lineCol = ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1.0f)
             dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
-            
-            // 3. Highlighted range line between handles
             val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
             dl.addLine(minHandleX, centerY, maxHandleX, centerY, activeRangeCol, 3f)
             
-            // 4. Draw Handles (taller than wide rectangles)
+            // Draw handles
             val handleW = 6f
             val handleH = 16f
-            
             val handleBgCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
             val handleBorderCol = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f)
             
-            // Min Handle
-            dl.addRectFilled(
-                minHandleX - handleW / 2f, centerY - handleH / 2f,
-                minHandleX + handleW / 2f, centerY + handleH / 2f,
-                handleBgCol, 1f
-            )
-            dl.addRect(
-                minHandleX - handleW / 2f, centerY - handleH / 2f,
-                minHandleX + handleW / 2f, centerY + handleH / 2f,
-                handleBorderCol, 1f
-            )
-            
-            // Max Handle
-            dl.addRectFilled(
-                maxHandleX - handleW / 2f, centerY - handleH / 2f,
-                maxHandleX + handleW / 2f, centerY + handleH / 2f,
-                handleBgCol, 1f
-            )
-            dl.addRect(
-                maxHandleX - handleW / 2f, centerY - handleH / 2f,
-                maxHandleX + handleW / 2f, centerY + handleH / 2f,
-                handleBorderCol, 1f
-            )
+            dl.addRectFilled(minHandleX - handleW / 2f, centerY - handleH / 2f, minHandleX + handleW / 2f, centerY + handleH / 2f, handleBgCol, 1f)
+            dl.addRect(minHandleX - handleW / 2f, centerY - handleH / 2f, minHandleX + handleW / 2f, centerY + handleH / 2f, handleBorderCol, 1f)
+            dl.addRectFilled(maxHandleX - handleW / 2f, centerY - handleH / 2f, maxHandleX + handleW / 2f, centerY + handleH / 2f, handleBgCol, 1f)
+            dl.addRect(maxHandleX - handleW / 2f, centerY - handleH / 2f, maxHandleX + handleW / 2f, centerY + handleH / 2f, handleBorderCol, 1f)
+
+            // Draw dynamic current value indicator (Amber Gold dot)
+            val curPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
+            val curX = lineStartX + curPct * lineWidth
+            val dotY = centerY
+            val dotR = 4f
+            val curDotCol = ImGui.colorConvertFloat4ToU32(1.0f, 0.75f, 0.15f, 1.0f) // Bright Amber Gold
+            dl.addCircleFilled(curX, dotY, dotR, curDotCol)
+            dl.addCircle(curX, dotY, dotR + 0.5f, ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f), 12, 1.0f) // Dark border
         } else {
             val valPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
             val valHandleX = lineStartX + valPct * lineWidth
-
+            
             if (mousePressed) {
-                val inRowY = mouseY >= startY && mouseY <= startY + h
+                val inRowY = mouseY >= row2Y && mouseY <= row2Y + buttonSize
                 val inRowX = mouseX >= lineStartX - 10f && mouseX <= lineEndX + 10f
                 if (inRowY && inRowX) {
                     activeSliderLabel = idPrefix + label
@@ -1326,47 +1408,24 @@ object CellConfigPanel {
                 draggingMax = false
                 activeSliderLabel = null
             }
-
-            // ── Render (Static mode) ──
             
-            // 1. Text Labels (Left side)
-            ImGui.setCursorScreenPos(startX, startY + 2f)
-            UITheme.body(label)
-            
-            ImGui.setCursorScreenPos(startX + 8f, startY + 18f)
-            val valueStr = "${formatValue(currentValue)} (Static)"
-            UITheme.caption(valueStr)
-            
-            // 2. Thin horizontal line (muted)
+            // Draw tracks
             val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1.0f)
             dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
-            
-            // 3. Highlighted track up to handle (muted)
             val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.4f, 0.45f, 0.5f, 0.5f)
             dl.addLine(lineStartX, centerY, valHandleX, centerY, activeRangeCol, 3f)
             
-            // 4. Draw Single Handle (muted)
+            // Draw single handle
             val handleW = 6f
             val handleH = 16f
-            
             val handleBgCol = ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1.0f)
             val handleBorderCol = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f)
             
-            dl.addRectFilled(
-                valHandleX - handleW / 2f, centerY - handleH / 2f,
-                valHandleX + handleW / 2f, centerY + handleH / 2f,
-                handleBgCol, 1f
-            )
-            dl.addRect(
-                valHandleX - handleW / 2f, centerY - handleH / 2f,
-                valHandleX + handleW / 2f, centerY + handleH / 2f,
-                handleBorderCol, 1f
-            )
+            dl.addRectFilled(valHandleX - handleW / 2f, centerY - handleH / 2f, valHandleX + handleW / 2f, centerY + handleH / 2f, handleBgCol, 1f)
+            dl.addRect(valHandleX - handleW / 2f, centerY - handleH / 2f, valHandleX + handleW / 2f, centerY + handleH / 2f, handleBorderCol, 1f)
         }
-
+        
         ImGui.popID()
-
-        // Reset Cursor Pos to prevent horizontal drift for downstream UI
-        ImGui.setCursorScreenPos(rowStartX, rowStartY + h)
+        ImGui.setCursorScreenPos(rowStartX, startY + h)
     }
 }
