@@ -43,6 +43,42 @@ object CellConfigPanel {
     private val textBuffers = mutableMapOf<String, imgui.type.ImString>()
     private val textWidgetActive = mutableMapOf<String, Boolean>()
 
+    private fun getThemeColor(cvId: String, alpha: Float = 1f): Int {
+        return when (cvId) {
+            "final"          -> ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, alpha)
+            "base"           -> ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, alpha)
+            "midi"           -> ImGui.colorConvertFloat4ToU32(0.3f, 1.0f, 0.4f, alpha)
+            "lfo"            -> ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, alpha)
+            "sampleAndHold"  -> ImGui.colorConvertFloat4ToU32(0.7f, 0.4f, 1.0f, alpha)
+            "beatPhase"      -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 1.0f, alpha)
+            "amp"            -> ImGui.colorConvertFloat4ToU32(0.7f, 0.9f, 0.1f, alpha)
+            "bass"           -> ImGui.colorConvertFloat4ToU32(0.9f, 0.2f, 0.2f, alpha)
+            "mid"            -> ImGui.colorConvertFloat4ToU32(0.9f, 0.5f, 0.1f, alpha)
+            "high"           -> ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.2f, alpha)
+            "onset"          -> ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, alpha)
+            "accent"         -> ImGui.colorConvertFloat4ToU32(0.9f, 0.1f, 0.9f, alpha)
+            else             -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, alpha)
+        }
+    }
+
+    private fun getThemeColorRGB(cvId: String): FloatArray {
+        return when (cvId) {
+            "final"          -> floatArrayOf(0.4f, 1.0f, 0.8f)
+            "base"           -> floatArrayOf(0.8f, 0.6f, 0.2f)
+            "midi"           -> floatArrayOf(0.3f, 1.0f, 0.4f)
+            "lfo"            -> floatArrayOf(0.2f, 0.8f, 1.0f)
+            "sampleAndHold"  -> floatArrayOf(0.7f, 0.4f, 1.0f)
+            "beatPhase"      -> floatArrayOf(0.4f, 0.4f, 1.0f)
+            "amp"            -> floatArrayOf(0.7f, 0.9f, 0.1f)
+            "bass"           -> floatArrayOf(0.9f, 0.2f, 0.2f)
+            "mid"            -> floatArrayOf(0.9f, 0.5f, 0.1f)
+            "high"           -> floatArrayOf(0.9f, 0.9f, 0.2f)
+            "onset"          -> floatArrayOf(1.0f, 0.3f, 0.6f)
+            "accent"         -> floatArrayOf(0.9f, 0.1f, 0.9f)
+            else             -> floatArrayOf(0.5f, 0.5f, 0.5f)
+        }
+    }
+
     private fun initializeVirtualModulators(cvId: String, activeMods: List<CvModulator>, hasAdvanced: Boolean) {
         virtualModulators.clear()
         if (hasAdvanced) {
@@ -73,6 +109,9 @@ object CellConfigPanel {
 
         val cvId = cell.cvSourceId
         val paramKey = cell.paramKey
+
+        val themeRGB = getThemeColorRGB(cvId)
+        val themeColor = getThemeColor(cvId)
 
         val deck = when {
             paramKey.startsWith("Deck A/") -> mixer.deckA
@@ -288,8 +327,7 @@ object CellConfigPanel {
             val cx = ImGui.getCursorScreenPosX()
             val cy = ImGui.getCursorScreenPosY()
             dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-            dl.addRectFilled(cx, cy, cx + barW * param.baseValue, cy + 10f,
-                ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f))
+            dl.addRectFilled(cx, cy, cx + barW * param.baseValue, cy + 10f, themeColor)
             ImGui.dummy(barW, 10f)
             return
         }
@@ -328,7 +366,7 @@ object CellConfigPanel {
             ImGui.spacing()
 
             // Oscilloscope showing final value history
-            drawFinalOscilloscope(param.history, param.minClamp, param.maxClamp)
+            drawFinalOscilloscope(param.history, param.minClamp, param.maxClamp, themeColor)
 
             // Cyan progress bar under the oscilloscope showing the value in the clamp range
             ImGui.spacing()
@@ -339,14 +377,13 @@ object CellConfigPanel {
             val cx = ImGui.getCursorScreenPosX()
             val cy = ImGui.getCursorScreenPosY()
             dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-            dl.addRectFilled(cx, cy, cx + barW * pct, cy + 10f,
-                ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 1f))
+            dl.addRectFilled(cx, cy, cx + barW * pct, cy + 10f, themeColor)
             ImGui.dummy(barW, 10f)
 
             return
         }
 
-        UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey)
+        UITheme.h2Colored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, paramKey)
         ImGui.sameLine()
         if (isMidiMod) {
             val firstMidiMod = activeMods.firstOrNull { it.sourceId.startsWith("midi_cc_") }
@@ -361,9 +398,9 @@ object CellConfigPanel {
             } else {
                 "Unmapped MIDI (Click MIDI Map to bind)"
             }
-            UITheme.caption("  <--  $cvId ($label)")
+            UITheme.captionColored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, "  <--  $cvId ($label)")
         } else {
-            UITheme.caption("  <--  $cvId")
+            UITheme.captionColored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, "  <--  $cvId")
         }
         ImGui.separator()
         ImGui.spacing()
@@ -417,7 +454,7 @@ object CellConfigPanel {
         ImGui.spacing()
 
         // ── Unified Oscilloscope ─────────────────────────────────
-        drawOscilloscope(param)
+        drawOscilloscope(param, themeColor)
 
         ImGui.spacing()
         ImGui.separator()
@@ -426,16 +463,29 @@ object CellConfigPanel {
         // ── Modulators ───────────────────────────────────────────
         for ((idx, existing) in modsToDraw.withIndex()) {
             ImGui.pushID(existing.id)
+            
+            val bypassed = existing.bypassed
+            
+            // Draw background panel for modulator
+            val panelStartX = ImGui.getCursorScreenPosX()
+            val panelStartY = ImGui.getCursorScreenPosY()
+            val dl = ImGui.getWindowDrawList()
+            
+            if (bypassed) {
+                ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
+            }
+            
             if (modsToDraw.size > 1) {
                 val typeLabel = if (hasAdvanced) "Oscillator" else "Modulator"
                 UITheme.h3("$typeLabel ${idx + 1}")
                 ImGui.spacing()
             }
 
-            val bypassed = existing.bypassed
+            ImGui.indent(10f) // Indent controls slightly
+
             val bypassLabel = if (bypassed) "BYPASSED" else "ACTIVE"
             if (bypassed) ImGui.pushStyleColor(0, 0.5f, 0.5f, 0.5f, 1f)
-            else ImGui.pushStyleColor(0, 0.2f, 0.8f, 0.4f, 1f)
+            else ImGui.pushStyleColor(0, themeRGB[0], themeRGB[1], themeRGB[2], 0.8f) // use theme color for active button
             if (ImGui.button(bypassLabel, 125f, 30f)) {
                 replaceModulator(state, param, existing.copy(bypassed = !bypassed))
             }
@@ -489,6 +539,7 @@ object CellConfigPanel {
         drawCustomRangeSlider(
             idPrefix = existing.id,
             label = "Amplitude",
+            themeColor = themeColor,
             currentValue = existing.amplitude,
             currentMin = existing.amplitudeMin,
             currentMax = existing.amplitudeMax,
@@ -543,6 +594,7 @@ object CellConfigPanel {
         drawCustomRangeSlider(
             idPrefix = existing.id,
             label = "DC Offset",
+            themeColor = themeColor,
             currentValue = existing.dcOffset,
             currentMin = existing.dcOffsetMin,
             currentMax = existing.dcOffsetMax,
@@ -614,6 +666,7 @@ object CellConfigPanel {
             drawCustomRangeSlider(
             idPrefix = existing.id,
                 label = "Beat Division",
+                themeColor = themeColor,
                 currentValue = currentActiveIdx.toFloat(),
                 currentMin = currentMinIdx.toFloat(),
                 currentMax = currentMaxIdx.toFloat(),
@@ -700,6 +753,7 @@ object CellConfigPanel {
             drawCustomRangeSlider(
             idPrefix = existing.id,
                 label = "LFO Period",
+                themeColor = themeColor,
                 currentValue = existing.subdivision,
                 currentMin = existing.subdivisionMin,
                 currentMax = existing.subdivisionMax,
@@ -755,6 +809,7 @@ object CellConfigPanel {
         drawCustomRangeSlider(
             idPrefix = existing.id,
             label = "Phase Offset",
+            themeColor = themeColor,
             currentValue = existing.phaseOffset,
             currentMin = existing.phaseOffsetMin,
             currentMax = existing.phaseOffsetMax,
@@ -818,6 +873,7 @@ object CellConfigPanel {
             drawCustomRangeSlider(
             idPrefix = existing.id,
                 label = slopeLabel,
+                themeColor = themeColor,
                 currentValue = existing.slope,
                 currentMin = existing.slopeMin,
                 currentMax = existing.slopeMax,
@@ -869,6 +925,19 @@ object CellConfigPanel {
             ImGui.spacing()
         }
 
+            ImGui.unindent(10f) // Unindent at the end of block
+            
+            if (bypassed) {
+                ImGui.popStyleVar()
+            }
+            
+            val panelEndY = ImGui.getCursorScreenPosY()
+            
+            // Draw margin line for active modulators
+            if (!bypassed) {
+                dl.addLine(panelStartX + 2f, panelStartY, panelStartX + 2f, panelEndY - 10f, themeColor, 4f)
+            }
+
             ImGui.popID()
             if (idx < modsToDraw.size - 1) {
                 ImGui.spacing()
@@ -879,7 +948,7 @@ object CellConfigPanel {
 
     }
 
-    private fun drawFinalOscilloscope(history: CvHistoryBuffer, minVal: Float, maxVal: Float) {
+    private fun drawFinalOscilloscope(history: CvHistoryBuffer, minVal: Float, maxVal: Float, themeColor: Int) {
         val historySize = history.size
         val w = ImGui.getContentRegionAvailX()
         val h = 80f
@@ -908,7 +977,7 @@ object CellConfigPanel {
         
         val stepX = w / (historySize - 1)
         val usableHeight = h - 10f
-        val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.9f, 1.0f)
+        val lineCol = themeColor
         
         val range = maxVal - minVal
         val divisor = if (range == 0f) 1f else range
@@ -964,7 +1033,7 @@ object CellConfigPanel {
         }
     }
 
-    private fun drawOscilloscope(param: llm.slop.spirals.parameters.ModulatableParameter) {
+    private fun drawOscilloscope(param: llm.slop.spirals.parameters.ModulatableParameter, themeColor: Int) {
         val history = activeHistory ?: return
         val historySize = history.size
         val w = ImGui.getContentRegionAvailX()
@@ -1003,7 +1072,7 @@ object CellConfigPanel {
         val stepX = w / (historySize - 1)
         val usableHeight = h - 10f
         
-        val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.9f, 1.0f) // neon cyan
+        val lineCol = themeColor
         
         for (i in 0 until historySize - 1) {
             val raw1 = history.getAt(i).coerceIn(-1f, 1f)
@@ -1091,7 +1160,8 @@ object CellConfigPanel {
         maxLimit: Float,
         formatValue: (Float) -> String,
         onRangeChanged: (Float, Float) -> Unit,
-        idPrefix: String = ""
+        idPrefix: String = "",
+        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
     ) {
         drawCustomRangeSlider(
             label = label,
@@ -1104,7 +1174,8 @@ object CellConfigPanel {
             showControls = false,
             formatValue = formatValue,
             onRangeChanged = onRangeChanged,
-            idPrefix = idPrefix
+            idPrefix = idPrefix,
+            themeColor = themeColor
         )
     }
 
@@ -1122,7 +1193,8 @@ object CellConfigPanel {
         onRandomizeNow: () -> Unit = {},
         onRangeChanged: (Float, Float) -> Unit = { _, _ -> },
         onValueChanged: (Float) -> Unit = {},
-        idPrefix: String = ""
+        idPrefix: String = "",
+        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
     ) {
         val rowStartX = ImGui.getCursorScreenPosX()
         val rowStartY = ImGui.getCursorScreenPosY()
@@ -1166,10 +1238,10 @@ object CellConfigPanel {
         
         if (isRandomizable) {
             ImGui.setCursorScreenPos(textBoxesStartX, startY + 2f)
-            UITheme.caption("Min")
+            UITheme.captionColored(0.6f, 0.6f, 0.6f, 0.7f, "Min")
             
             ImGui.setCursorScreenPos(textBoxesStartX + boxWidth + boxSpacing, startY + 2f)
-            UITheme.caption("Max")
+            UITheme.captionColored(0.6f, 0.6f, 0.6f, 0.7f, "Max")
             
             // Add "Current" label with [value] centered above the dynamic dot on Row 1
             val curPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
@@ -1182,10 +1254,10 @@ object CellConfigPanel {
             val textX = (curX - currentTextWidth / 2f).coerceIn(minAllowedX, maxAllowedX)
             
             ImGui.setCursorScreenPos(textX, startY + 2f)
-            UITheme.caption(labelText)
+            UITheme.captionColored(0.8f, 0.8f, 0.8f, 0.9f, labelText)
         } else {
             ImGui.setCursorScreenPos(textBoxesStartX, startY + 2f)
-            UITheme.caption("Current")
+            UITheme.captionColored(0.6f, 0.6f, 0.6f, 0.7f, "Current")
         }
         
         // ─── ROW 2: Widgets ───
@@ -1361,10 +1433,9 @@ object CellConfigPanel {
             }
             
             // Draw tracks
-            val lineCol = ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1.0f)
-            dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
-            val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
-            dl.addLine(minHandleX, centerY, maxHandleX, centerY, activeRangeCol, 3f)
+            val lineCol = ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1.0f) // Darker inactive track
+            dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 3f)
+            dl.addLine(minHandleX, centerY, maxHandleX, centerY, themeColor, 3f) // Active track is theme color
             
             // Draw handles
             val handleW = 6f
@@ -1410,10 +1481,9 @@ object CellConfigPanel {
             }
             
             // Draw tracks
-            val lineCol = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1.0f)
-            dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 2f)
-            val activeRangeCol = ImGui.colorConvertFloat4ToU32(0.4f, 0.45f, 0.5f, 0.5f)
-            dl.addLine(lineStartX, centerY, valHandleX, centerY, activeRangeCol, 3f)
+            val lineCol = ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1.0f) // Darker inactive track
+            dl.addLine(lineStartX, centerY, lineEndX, centerY, lineCol, 3f)
+            dl.addLine(lineStartX, centerY, valHandleX, centerY, themeColor, 3f) // Active track is theme color
             
             // Draw single handle
             val handleW = 6f
