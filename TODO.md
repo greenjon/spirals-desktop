@@ -3,10 +3,10 @@
 ## Upcoming Tasks
 
 - [ ] **Sound Analysis Panel:**
-  - Remove Bass Flux from the audio monitor.
+ x - Remove Bass Flux from the audio monitor.
   - Center the raw audio in the audio monitor.
-  - Add a beat phase o-scope to the audio monitor.
-  - Allow the audio monitor window to grow up to 90% of the vertical space.
+x  - Add a beat phase o-scope to the audio monitor.
+x  - Allow the audio monitor window to grow up to 90% of the vertical space.
   - Stabilize the Beat phase.
 - [ ] **MIDI Hardware Hotplugging:**
   - Implement MIDI hardware hotplugging with Threaded Polling.
@@ -20,8 +20,6 @@
   - What can go wrong? Because, it will.
 - [ ] **Deck and Parameter Grid Improvements:**
 x  - Make all the deck controls read-only (to avoid confusion).
-  - Add deck buttons to quickly disable/enable effects.
-  - Add deck buttons to quickly mute/solo decks.
   - Fix intermittent bug with bypassing effects.
   - Enable grid cell traversal with arrow keys.
   - Enable using the DELETE key to remove the patch from the cell.
