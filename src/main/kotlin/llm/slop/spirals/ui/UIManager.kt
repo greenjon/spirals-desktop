@@ -546,100 +546,253 @@ class UIManager(private val windowHandle: Long) {
 
         ImGui.image(mixer.masterFBO.texture, availW, masterH, 0f, 1f, 1f, 0f)
 
-        // Save the Y cursor position below the image
-        val nextY = ImGui.getCursorPosY()
-
         // Draw overlay text on top of the master output image
-        ImGui.setCursorScreenPos(imgScreenX + 10f, imgScreenY + 10f)
-        UITheme.h2Colored(1.0f, 1.0f, 1.0f, 0.8f, "Master Output")
+        val dl = ImGui.getWindowDrawList()
+        val overlayStr = "Master Output"
+        val overlayH = ImGui.calcTextSize(overlayStr).y + 10f
+        dl.addRectFilled(imgScreenX, imgScreenY, imgScreenX + availW, imgScreenY + overlayH, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 0.6f))
+        
+        ImGui.setCursorScreenPos(imgScreenX + 10f, imgScreenY + 5f)
+        UITheme.captionColored(0.4f, 1.0f, 0.8f, 1.0f, overlayStr) // Mint green text
 
         // Restore Y cursor position
-        ImGui.setCursorPosY(nextY)
+        ImGui.setCursorScreenPos(imgScreenX, imgScreenY + masterH)
+        ImGui.spacing()
+        ImGui.separator()
         ImGui.spacing()
 
-        val btnW = 40f
-        val subW = (availW - btnW - 8f) * 0.5f
-        val subH = subW * (9f / 16f)
-
-        ImGui.columns(3, "subMonitors", false)
-        ImGui.setColumnWidth(0, (availW - btnW) * 0.5f)
-        ImGui.setColumnWidth(1, btnW)
-        ImGui.setColumnWidth(2, (availW - btnW) * 0.5f)
-
-        // Column 0: Deck A Header + Preview
-        drawDeckHeader("Deck A", mixer.deckA, true)
-        ImGui.image(mixer.deckA.getOutputTexture(), subW, subH, 0f, 1f, 1f, 0f)
-        ImGui.nextColumn()
-
-        // Column 1: Copy Buttons (above the previews, centered horizontally)
-        ImGui.dummy(1f, 5f)
-        if (ImGui.button("<##copyToA", btnW - 4f, 25f)) {
-            val dto = mixer.deckB.toDto("Deck B")
-            mixer.deckA.applyDto(dto)
-        }
-        ImGui.spacing()
-        if (ImGui.button(">##copyToB", btnW - 4f, 25f)) {
-            val dto = mixer.deckA.toDto("Deck A")
-            mixer.deckB.applyDto(dto)
-        }
-        ImGui.nextColumn()
-
-        // Column 2: Deck B Header + Preview
-        drawDeckHeader("Deck B", mixer.deckB, false)
-        ImGui.image(mixer.deckB.getOutputTexture(), subW, subH, 0f, 1f, 1f, 0f)
-        ImGui.nextColumn()
-
-        ImGui.columns(1)
-        ImGui.spacing()
-
+        // --- Master Mixer Controls ---
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ChildBg, ImGui.colorConvertFloat4ToU32(0.05f, 0.1f, 0.08f, 0.4f)) // Faint mint background
+        ImGui.beginChild("MasterControls", availW, 100f, true)
+        
         // Crossfader (mapped display value from -1.0 to 1.0)
-        drawFlatSlider("Crossfader", mixer.crossfade, 0f, 1f, 100f, -1f, 1f) {
+        drawFlatSlider("Crossfader", mixer.crossfade, 0f, 1f, 80f, -1f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)) {
             "A <-- %.2f --> B".format(it)
         }
 
-        // Blend mode inline text readout
-        val modes = arrayOf("ADD", "SCREEN", "MULT", "MAX", "XFADE")
-        val modeIdx = mixer.mode.value.toInt().coerceIn(0, 4)
-        UITheme.body("Blend Mode: ${modes[modeIdx]}")
-        ImGui.spacing()
-
-        // Alpha (renamed from "Master Alpha")
-        drawFlatSlider("Alpha", mixer.masterAlpha, 0f, 1f, 100f)
-        drawFlatSlider("Bloom", mixer.bloom, 0f, 1f, 100f)
-        ImGui.spacing()
-
-        ImGui.columns(2, "deckCtrls", true)
+        ImGui.columns(2, "masterMixerCols", false)
         
-        ImGui.beginChild("DeckA_Child", 0f, 0f, false)
-        UITheme.h3("Deck A")
-        ImGui.separator()
-        drawDeckControls("Deck A", mixer.deckA)
-        ImGui.endChild()
+        // Alpha (renamed from "Master Alpha")
+        drawFlatSlider("Alpha", mixer.masterAlpha, 0f, 1f, 50f, 0f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f))
         ImGui.nextColumn()
         
-        ImGui.beginChild("DeckB_Child", 0f, 0f, false)
-        UITheme.h3("Deck B")
-        ImGui.separator()
-        drawDeckControls("Deck B", mixer.deckB)
-        ImGui.endChild()
+        drawFlatSlider("Bloom", mixer.bloom, 0f, 1f, 50f, 0f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f))
         ImGui.nextColumn()
         
         ImGui.columns(1)
+        
+        // Blend mode inline text readout
+        val modes = arrayOf("ADD", "SCREEN", "MULT", "MAX", "XFADE")
+        val modeIdx = mixer.mode.value.toInt().coerceIn(0, 4)
+        ImGui.spacing()
+        UITheme.captionColored(0.4f, 1.0f, 0.8f, 1.0f, "Blend Mode: ${modes[modeIdx]}")
+        
+        ImGui.endChild()
+        ImGui.popStyleColor()
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+
+        // --- Deck Monitors ---
+        // Completely removed columns logic for the header/presets! We will do absolute positioning.
+        val btnW = 40f
+        val padding = 16f
+        val halfW = (availW - padding) * 0.5f
+        
+        val startX = ImGui.getCursorScreenPosX()
+        val centerY = ImGui.getCursorScreenPosY()
+        
+        // Use an invisible full-width dummy to reserve vertical space for the two rows
+        val headerRowH = ImGui.getTextLineHeightWithSpacing()
+        val presetRowH = ImGui.getFrameHeightWithSpacing()
+        ImGui.dummy(availW, headerRowH + presetRowH)
+        
+        // 1. Deck A Header
+        var twA = 0f
+        var twB = 0f
+        UITheme.withFont(UITheme.FontLevel.H2) {
+            twA = ImGui.calcTextSize("Deck A").x
+            twB = ImGui.calcTextSize("Deck B").x
+        }
+        
+        ImGui.setCursorScreenPos(startX + (halfW - twA) * 0.5f, centerY)
+        UITheme.h2("Deck A")
+        
+        // 2. Centered Copy Buttons (drawn exactly in the middle of availW)
+        val centerOfPanel = startX + availW * 0.5f
+        ImGui.setCursorScreenPos(centerOfPanel - btnW - 5f, centerY + 2f)
+        if (ImGui.button("<##copyToA", btnW, 25f)) {
+            val dto = mixer.deckB.toDto("Deck B")
+            mixer.deckA.applyDto(dto)
+        }
+        
+        ImGui.setCursorScreenPos(centerOfPanel + 5f, centerY + 2f)
+        if (ImGui.button(">##copyToB", btnW, 25f)) {
+            val dto = mixer.deckA.toDto("Deck A")
+            mixer.deckB.applyDto(dto)
+        }
+        
+        // 3. Deck B Header
+        val deckBStartX = startX + halfW + padding
+        ImGui.setCursorScreenPos(deckBStartX + (halfW - twB) * 0.5f, centerY)
+        UITheme.h2("Deck B")
+        
+        // 4. Presets Row
+        val presetY = centerY + headerRowH
+        ImGui.setCursorScreenPos(startX, presetY)
+        drawDeckPresetDropdown("Deck A", mixer.deckA, true, halfW)
+        
+        ImGui.setCursorScreenPos(deckBStartX, presetY)
+        drawDeckPresetDropdown("Deck B", mixer.deckB, false, halfW)
+        
+        ImGui.spacing()
+        
+        // --- Render the exact exact child panels ---
+        val subH = halfW * (9f / 16f)
+        
+        // We will just draw them side by side manually without ImGui.columns to guarantee perfect math.
+        val childY = ImGui.getCursorScreenPosY()
+        
+        ImGui.setCursorScreenPos(startX, childY)
+        drawDeckControls("Deck A", mixer.deckA, halfW, subH, true)
+        
+        ImGui.setCursorScreenPos(deckBStartX, childY)
+        drawDeckControls("Deck B", mixer.deckB, halfW, subH, false)
+        
+        // Advance cursor past the tallest child
+        val endY = ImGui.getCursorScreenPosY()
+        ImGui.setCursorScreenPos(startX, endY)
     }
 
-    private fun drawDeckControls(label: String, deck: Deck) {
+    private fun drawDeckPresetDropdown(label: String, deck: Deck, isDeckA: Boolean, fixedWidth: Float) {
+        ImGui.beginGroup()
+        ImGui.pushID("presetRow_$label")
+        
+        val presets = getAvailableDeckPresets(isDeckA)
+        val activePreset = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA else llm.slop.spirals.patches.PatchManager.activePresetB
+        val isDirty = llm.slop.spirals.patches.PatchManager.isDeckDirty(deck, isDeckA)
+
+        val targetName = if (isDirty && activePreset != null) "$activePreset *" else activePreset
+        val idx = presets.indexOfFirst { it == targetName }.coerceAtLeast(0)
+
+        val selectedIndex = if (isDeckA) deckAPresetIndex else deckBPresetIndex
+        selectedIndex.set(idx)
+
+        val saveBtnW = 45f
+        val comboW = (fixedWidth - saveBtnW - ImGui.getStyle().itemSpacing.x).coerceAtLeast(50f)
+        
+        ImGui.pushItemWidth(comboW)
+        if (ImGui.combo("##preset", selectedIndex, presets)) {
+            val chosen = presets[selectedIndex.get()]
+            val cleanName = chosen.removeSuffix(" *")
+            if (cleanName == "None") {
+                if (isDeckA) {
+                    llm.slop.spirals.patches.PatchManager.activePresetA = null
+                    llm.slop.spirals.patches.PatchManager.cachedDtoA = null
+                } else {
+                    llm.slop.spirals.patches.PatchManager.activePresetB = null
+                    llm.slop.spirals.patches.PatchManager.cachedDtoB = null
+                }
+            } else {
+                loadDeckPreset(cleanName, deck, isDeckA)
+            }
+        }
+        ImGui.popItemWidth()
+
+        ImGui.sameLine()
+        if (ImGui.button("Save", saveBtnW, 0f)) {
+            ImGui.openPopup("save_deck_preset_popup")
+        }
+
+        if (ImGui.beginPopup("save_deck_preset_popup")) {
+            val activeName = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA else llm.slop.spirals.patches.PatchManager.activePresetB
+            val isDeckDirty = llm.slop.spirals.patches.PatchManager.isDeckDirty(deck, isDeckA)
+
+            if (activeName != null) {
+                if (isDeckDirty) {
+                    if (ImGui.button("Overwrite '$activeName'", ImGui.getContentRegionAvailX(), 25f)) {
+                        saveDeckPreset(activeName, deck, isDeckA)
+                        ImGui.closeCurrentPopup()
+                    }
+                    ImGui.separator()
+                } else {
+                    ImGui.textDisabled("Preset is up to date")
+                    ImGui.separator()
+                }
+            }
+
+            ImGui.text("Save As New:")
+            val nameInput = if (isDeckA) deckASaveName else deckBSaveName
+            ImGui.inputText("##nameInput", nameInput)
+            ImGui.sameLine()
+            if (ImGui.button("Save##asNew")) {
+                val newName = nameInput.get().trim()
+                if (newName.isNotEmpty()) {
+                    saveDeckPreset(newName, deck, isDeckA)
+                    ImGui.closeCurrentPopup()
+                }
+            }
+            ImGui.endPopup()
+        }
+        ImGui.popID()
+        ImGui.endGroup()
+    }
+
+    private fun drawDeckControls(label: String, deck: Deck, panelW: Float, previewH: Float, isDeckA: Boolean) {
         ImGui.pushID(label)
 
-        // Recipe inline combo (Lobes and Recipe selection)
+        val themeCol = if (isDeckA) {
+            ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 1f) // Deck A Blue
+        } else {
+            ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 1f) // Deck B Orange
+        }
+        
+        val bgCol = if (isDeckA) {
+            ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 0.15f)
+        } else {
+            ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 0.15f)
+        }
+
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.ChildBg, bgCol)
+        // Ensure no internal padding interferes with drawing
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 0f, 0f)
+        
+        // Explicitly set the Child window width
+        ImGui.beginChild("Child_$label", panelW, 0f, false)
+
+        ImGui.spacing()
+
+        val inset = 3f
+        val imgAvailW = panelW - (inset * 2f)
+        val imgAvailH = imgAvailW * (9f / 16f)
+        
+        ImGui.setCursorPosX(inset)
+        val imgX = ImGui.getCursorScreenPosX()
+        val imgY = ImGui.getCursorScreenPosY()
+        
+        ImGui.image(deck.getOutputTexture(), imgAvailW, imgAvailH, 0f, 1f, 1f, 0f)
+        
+        val dl = ImGui.getWindowDrawList()
+        // Draw border perfectly wrapped around the image
+        dl.addRect(imgX - 1f, imgY - 1f, imgX + imgAvailW + 1f, imgY + imgAvailH + 1f, themeCol, 0f, 0, 2f)
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+        
+        ImGui.indent(8f)
+
+        // Structural Identity Readouts
         val mandala = deck.source as? Mandala
         if (mandala != null) {
             val lobesParam = mandala.parameters["Lobes"]!!
             val currentLobe = lobesParam.value.roundToInt()
             val closestLobe = MandalaLibrary.uniquePetals.minByOrNull { kotlin.math.abs(it - currentLobe) } ?: 3
             
-            UITheme.body("Lobes: $currentLobe")
+            UITheme.captionColored(0.8f, 0.8f, 0.8f, 1.0f, "Geometry:")
+            UITheme.body("  Lobes: $currentLobe")
 
-            // Recipe selection dropdown
             val recipeParam = mandala.parameters["Recipe Select"]!!
             val filtered = MandalaLibrary.recipesByPetals[closestLobe] ?: emptyList()
             val currentSelect = recipeParam.value
@@ -647,58 +800,24 @@ class UIManager(private val windowHandle: Long) {
 
             if (filtered.isNotEmpty() && recipeIdx in filtered.indices) {
                 val recipe = filtered[recipeIdx]
-                UITheme.body("Recipe: ${recipe.a},${recipe.b},${recipe.c},${recipe.d}")
+                UITheme.body("  Recipe: ${recipe.a},${recipe.b},${recipe.c},${recipe.d}")
             } else {
-                UITheme.body("Recipe: None")
+                UITheme.body("  Recipe: None")
             }
-        }
 
-        fun slider(lbl: String, param: ModulatableParameter,
-                   min: Float, max: Float, fmt: String = "%.3f") {
-            drawFlatSlider(lbl, param, min, max, 80f) { fmt.format(it) }
-        }
-
-        slider("Gain",      deck.source.globalAlpha, 0f, 1f)
-        slider("Feedback",  deck.fbDecay,   0f, 1f)
-        slider("FB Gain",   deck.fbGain,    0.9f, 1.1f)
-        slider("FB Zoom",   deck.fbZoom,   -0.1f, 0.1f)
-        slider("FB Rotate", deck.fbRotate, -0.1f, 0.1f)
-        slider("FB Hue",    deck.fbHueShift,-0.1f, 0.1f)
-        slider("FB Blur",   deck.fbBlur,    0f, 0.2f)
-        slider("FB Chroma", deck.fbChroma,  0f, 1f)
-        slider("FB Mode",   deck.fbMode,    0f, 1f)
-
-        if (mandala != null) {
             ImGui.spacing()
-            ImGui.separator()
-            ImGui.spacing()
-            UITheme.h3("Background")
-
             val bgStyleParam = mandala.parameters["Bg Style"]!!
             val bgStyleIdx = bgStyleParam.value.toInt().coerceIn(0, 2)
             val bgStyleLabels = arrayOf("Off", "Solid Color", "Plasma")
             
-            UITheme.body("Bg Style: ${bgStyleLabels[bgStyleIdx]}")
-
-            if (bgStyleIdx > 0) {
-                slider("Bg Feedback", mandala.parameters["Bg Feedback"]!!, 0f, 1f)
-                slider("Bg Hue",      mandala.parameters["Bg Hue"]!!,      0f, 1f)
-                slider("Bg Sat",      mandala.parameters["Bg Sat"]!!,      0f, 1f)
-                slider("Bg Val",      mandala.parameters["Bg Val"]!!,      0f, 1f)
-
-                if (bgStyleIdx == 2) { // Plasma only
-                    slider("Bg Sweep", mandala.parameters["Bg Sweep"]!!, 0f, 1f)
-                    slider("Bg Speed", mandala.parameters["Bg Speed"]!!, 0f, 1f)
-                    slider("Bg Zoom",  mandala.parameters["Bg Zoom"]!!,  0.1f, 10f)
-                }
-            }
+            UITheme.captionColored(0.8f, 0.8f, 0.8f, 1.0f, "Background:")
+            UITheme.body("  Style: ${bgStyleLabels[bgStyleIdx]}")
         }
+        ImGui.unindent(8f)
 
-        ImGui.spacing()
-        if (ImGui.button("Randomize Modulators", ImGui.getContentRegionAvailX(), 30f)) {
-            deck.randomizeModulators()
-        }
-
+        ImGui.endChild()
+        ImGui.popStyleVar()
+        ImGui.popStyleColor()
         ImGui.popID()
     }
 
@@ -710,12 +829,15 @@ class UIManager(private val windowHandle: Long) {
         labelW: Float = 100f,
         displayMin: Float = min,
         displayMax: Float = max,
+        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f),
         formatValue: (Float) -> String = { "%.3f".format(it) }
     ) {
         ImGui.pushID(label)
 
+        var textW = 0f
+        UITheme.withFont(UITheme.FontLevel.BODY) { textW = ImGui.calcTextSize(label).x }
         UITheme.body(label)
-        ImGui.sameLine(labelW)
+        ImGui.sameLine(textW + 15f)
 
         val barStartX = ImGui.getCursorScreenPosX()
         val barScreenY = ImGui.getCursorScreenPosY() + 3f
@@ -747,7 +869,7 @@ class UIManager(private val windowHandle: Long) {
         )
 
         val currentDisplayVal = displayMin + if (valueRange > 0f) ((param.value - min) / valueRange) * displayRange else 0f
-        val fillCol = ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, 1f)
+        val fillCol = themeColor
 
         if (displayMin < 0f && displayMax > 0f) {
             val pctCenter = (0f - displayMin) / displayRange
@@ -800,14 +922,21 @@ class UIManager(private val windowHandle: Long) {
 
         // Value text overlay
         val baseValStr = formatValue(currentDisplayVal)
-        val valStr = if (midiIndicator != null) "$midiIndicator $baseValStr" else baseValStr
-        val textW = ImGui.calcTextSize(valStr).x
-        val valTextH = ImGui.calcTextSize(valStr).y
-        val valTextX = barStartX + barW - textW - 5f
-        val valTextY = barScreenY + (barH - valTextH) * 0.5f
+        val valStr = if (midiIndicator != null) {
+            if (baseValStr.isNotEmpty()) "$midiIndicator $baseValStr" else midiIndicator
+        } else {
+            baseValStr
+        }
+        
+        if (valStr.isNotEmpty()) {
+            val textWidth = ImGui.calcTextSize(valStr).x
+            val valTextH = ImGui.calcTextSize(valStr).y
+            val valTextX = barStartX + barW - textWidth - 5f
+            val valTextY = barScreenY + (barH - valTextH) * 0.5f
 
-        UITheme.withFont(UITheme.FontLevel.CAPTION) {
-            dl.addText(valTextX, valTextY, ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 0.8f), valStr)
+            UITheme.withFont(UITheme.FontLevel.CAPTION) {
+                dl.addText(valTextX, valTextY, ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 0.8f), valStr)
+            }
         }
 
         ImGui.popID()
