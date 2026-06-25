@@ -182,7 +182,9 @@ data class GlobalPatchDto(
     val blendMode: Float,
     val deckA: DeckPatchDto,
     val deckB: DeckPatchDto,
-    val bloom: ParameterDto? = null
+    val bloom: ParameterDto? = null,
+    val setlistNext: ParameterDto? = null,
+    val setlistPrev: ParameterDto? = null
 )
 
 // --- Extension Converters ---
@@ -352,7 +354,9 @@ fun Mixer.toDto(name: String): GlobalPatchDto = GlobalPatchDto(
     blendMode = mode.baseValue,
     deckA = deckA.toDto("Deck A"),
     deckB = deckB.toDto("Deck B"),
-    bloom = bloom.toDto()
+    bloom = bloom.toDto(),
+    setlistNext = setlistNext.toDto(),
+    setlistPrev = setlistPrev.toDto()
 )
 
 fun Mixer.applyDto(dto: GlobalPatchDto) {
@@ -362,4 +366,6 @@ fun Mixer.applyDto(dto: GlobalPatchDto) {
     deckA.applyDto(dto.deckA)
     deckB.applyDto(dto.deckB)
     dto.bloom?.let { bloom.applyDto(it) }
+    dto.setlistNext?.let { setlistNext.applyDto(it) }
+    dto.setlistPrev?.let { setlistPrev.applyDto(it) }
 }

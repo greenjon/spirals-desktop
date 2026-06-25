@@ -87,6 +87,9 @@ class UIManager(private val windowHandle: Long) {
     private var pendingSetlistFile: File? = null
     private var pendingOpenSetlist = false
 
+    private var lastNextMidiCcHigh = false
+    private var lastPrevMidiCcHigh = false
+
     private var currentGlobalPatchFile: File? = null
     private var currentMixer: Mixer? = null
 
@@ -153,6 +156,7 @@ class UIManager(private val windowHandle: Long) {
         }
 
         // Poll received MIDI events from our callback-driven queue
+        var midiCcDelta = 0
         while (true) {
             val event = pendingMidiEvents.poll() ?: break
             val (channel, cc) = event
@@ -186,7 +190,30 @@ class UIManager(private val windowHandle: Long) {
                     }
                 }
                 patchState.midiLearnTarget = null
+            } else {
+                if (UITheme.setlistNextMidiCc != -1 && cc == UITheme.setlistNextMidiCc) {
+                    val valNow = llm.slop.spirals.midi.MidiEngine.getCcValue(channel, cc)
+                    val isHigh = valNow > 0.5f
+                    if (isHigh && !lastNextMidiCcHigh) {
+                        midiCcDelta += 1
+                    }
+                    lastNextMidiCcHigh = isHigh
+                }
+                if (UITheme.setlistPrevMidiCc != -1 && cc == UITheme.setlistPrevMidiCc) {
+                    val valNow = llm.slop.spirals.midi.MidiEngine.getCcValue(channel, cc)
+                    val isHigh = valNow > 0.5f
+                    if (isHigh && !lastPrevMidiCcHigh) {
+                        midiCcDelta -= 1
+                    }
+                    lastPrevMidiCcHigh = isHigh
+                }
             }
+        }
+
+        val cvDelta = mixer.pollSetlistAdvance()
+        val totalDelta = midiCcDelta + cvDelta
+        if (totalDelta != 0) {
+            advanceSetlist(totalDelta)
         }
 
         pendingFontSize?.let { newSize ->
@@ -347,6 +374,49 @@ class UIManager(private val windowHandle: Long) {
     private fun performLoadFromSetlist(file: File) {
         currentGlobalPatchFile = file
         llm.slop.spirals.patches.PatchManager.loadGlobalPatchAsync(file)
+    }
+
+    fun advanceSetlist(delta: Int) {
+        val mixer = currentMixer ?: return
+        val targetFile = SetlistPanel.getFileOffset(currentGlobalPatchFile, delta) ?: return
+        if (targetFile.canonicalPath == currentGlobalPatchFile?.canonicalPath) return
+
+        logger.info { "Advancing setlist by $delta to file: ${targetFile.name}" }
+
+        val isDirty = llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer)
+        if (!isDirty) {
+            performLoadFromSetlist(targetFile)
+            return
+        }
+
+        when (UITheme.setlistTransitionBehavior) {
+            UITheme.SetlistTransitionBehavior.PROMPT -> {
+                pendingSetlistFile = targetFile
+                pendingProjectAction = PendingProjectAction.LOAD_SETLIST
+                pendingOpenConfirmPopup = true
+            }
+            UITheme.SetlistTransitionBehavior.AUTO_DISCARD -> {
+                performLoadFromSetlist(targetFile)
+            }
+            UITheme.SetlistTransitionBehavior.AUTO_SAVE -> {
+                val currentFile = currentGlobalPatchFile
+                if (currentFile == null) {
+                    // Autosave with timestamped filename: New-yyMMdd-HH.mm.ss
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("yyMMdd-HH.mm.ss")
+                    val filename = "New-${java.time.LocalDateTime.now().format(formatter)}.json"
+                    val dir = File("presets/global")
+                    if (!dir.exists()) dir.mkdirs()
+                    val file = File(dir, filename)
+                    logger.info { "Autosaving untitled patch as $filename" }
+                    llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, file.nameWithoutExtension)
+                    currentGlobalPatchFile = file
+                } else {
+                    logger.info { "Autosaving current patch: ${currentFile.name}" }
+                    llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(currentFile, mixer, currentFile.nameWithoutExtension)
+                }
+                performLoadFromSetlist(targetFile)
+            }
+        }
     }
 
     /**

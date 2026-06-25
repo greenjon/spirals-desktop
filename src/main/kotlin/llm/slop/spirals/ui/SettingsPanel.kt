@@ -175,6 +175,47 @@ object SettingsPanel {
         ImGui.separator()
         ImGui.spacing()
 
+        // ─────────────────────────────────────────────────────────────────────
+        // Setlist & Live Mode Settings
+        // ─────────────────────────────────────────────────────────────────────
+        UITheme.h2("Setlist & Live Mode")
+        ImGui.separator()
+        ImGui.spacing()
+
+        val behaviors = UITheme.SetlistTransitionBehavior.values()
+        val behaviorNames = behaviors.map { it.name }.toTypedArray()
+        val currentBehaviorIdx = imgui.type.ImInt(UITheme.setlistTransitionBehavior.ordinal)
+        if (ImGui.combo("Transition Behavior", currentBehaviorIdx, behaviorNames)) {
+            UITheme.setlistTransitionBehavior = behaviors[currentBehaviorIdx.get()]
+            UITheme.saveSettings()
+        }
+        ImGui.spacing()
+
+        val nextCc = imgui.type.ImInt(UITheme.setlistNextMidiCc)
+        if (ImGui.inputInt("Next CC", nextCc)) {
+            val newVal = nextCc.get().coerceIn(-1, 127)
+            if (newVal != UITheme.setlistNextMidiCc) {
+                UITheme.setlistNextMidiCc = newVal
+                UITheme.saveSettings()
+            }
+        }
+        ImGui.spacing()
+
+        val prevCc = imgui.type.ImInt(UITheme.setlistPrevMidiCc)
+        if (ImGui.inputInt("Prev CC", prevCc)) {
+            val newVal = prevCc.get().coerceIn(-1, 127)
+            if (newVal != UITheme.setlistPrevMidiCc) {
+                UITheme.setlistPrevMidiCc = newVal
+                UITheme.saveSettings()
+            }
+        }
+        ImGui.spacing()
+        UITheme.caption("Set to -1 to disable MIDI CC triggers.")
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+
         // Centred Close button
         val closeW = 110f
         ImGui.setCursorPosX((MODAL_W - 32f - closeW) * 0.5f + ImGui.getWindowContentRegionMinX())

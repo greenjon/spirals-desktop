@@ -22,6 +22,12 @@ class Mixer(
     val masterAlpha = ModulatableParameter(1.0f) // Master output gain
     val bloom = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
 
+    val setlistPrev = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+    val setlistNext = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+
+    private var prevSetlistPrevVal = 0.0f
+    private var prevSetlistNextVal = 0.0f
+
     /**
      * Evaluates mixer parameters.
      */
@@ -30,6 +36,29 @@ class Mixer(
         mode.evaluate()
         masterAlpha.evaluate()
         bloom.evaluate()
+        setlistPrev.evaluate()
+        setlistNext.evaluate()
+    }
+
+    /**
+     * Evaluates if either parameter crossed the 0.5 threshold since the last frame.
+     * Returns +1 if setlistNext was triggered, -1 if setlistPrev was triggered, or 0.
+     */
+    fun pollSetlistAdvance(): Int {
+        val nextVal = setlistNext.value
+        val prevVal = setlistPrev.value
+
+        var delta = 0
+        if (prevSetlistNextVal < 0.5f && nextVal >= 0.5f) {
+            delta += 1
+        }
+        if (prevSetlistPrevVal < 0.5f && prevVal >= 0.5f) {
+            delta -= 1
+        }
+
+        prevSetlistNextVal = nextVal
+        prevSetlistPrevVal = prevVal
+        return delta
     }
 
     /**

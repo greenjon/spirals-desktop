@@ -38,6 +38,20 @@ object SetlistPanel {
         pendingOpen = true
     }
 
+    /** Find a file in entries relative to the current file by a delta offset, clamping to list bounds. */
+    fun getFileOffset(current: File?, delta: Int): File? {
+        scan()
+        if (entries.isEmpty()) return null
+        val currentCanonical = current?.canonicalPath
+        val currentIndex = entries.indexOfFirst { it.canonicalPath == currentCanonical }
+        if (currentIndex == -1) {
+            // Start from the first file if the current file is not active or not in the setlist
+            return entries.first()
+        }
+        val targetIndex = (currentIndex + delta).coerceIn(0, entries.lastIndex)
+        return entries[targetIndex]
+    }
+
     /**
      * Draw the setlist modal.  Must be called every frame from the render thread.
      *

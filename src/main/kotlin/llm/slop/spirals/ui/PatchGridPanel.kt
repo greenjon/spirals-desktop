@@ -108,6 +108,8 @@ object PatchGridPanel {
             drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer)
             drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer)
             drawParamRow("bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer)
+            drawParamRow("setlist prev", "Mixer/setlistPrev", mixer.setlistPrev, state, labelColW, mixer)
+            drawParamRow("setlist next", "Mixer/setlistNext", mixer.setlistNext, state, labelColW, mixer)
         }
         ImGui.spacing()
         ImGui.spacing()

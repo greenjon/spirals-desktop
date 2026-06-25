@@ -35,6 +35,8 @@ object UITheme {
 
     enum class FontLevel { H1, H2, H3, BODY, CAPTION, CODE }
 
+    enum class SetlistTransitionBehavior { PROMPT, AUTO_DISCARD, AUTO_SAVE }
+
     // ── Mutable sizing knobs (user-tweakable from Settings later) ─────────────
 
     /** Base pixel size at which BODY text is rendered. All others are derived. */
@@ -51,6 +53,10 @@ object UITheme {
 
     /** True if the main window should hide all UI overlay panels to show full video mix. */
     var cleanModeEnabled: Boolean = false
+
+    var setlistTransitionBehavior: SetlistTransitionBehavior = SetlistTransitionBehavior.PROMPT
+    var setlistNextMidiCc: Int = -1
+    var setlistPrevMidiCc: Int = -1
 
     init {
         loadSettings()
@@ -81,6 +87,19 @@ object UITheme {
                     autocollapseEnabled = savedAutocollapse
                     logger.info { "Loaded autocollapseEnabled from settings file: $autocollapseEnabled" }
                 }
+                val savedTransition = props.getProperty("setlistTransitionBehavior")
+                if (savedTransition != null) {
+                    setlistTransitionBehavior = try { SetlistTransitionBehavior.valueOf(savedTransition) } catch (e: Exception) { SetlistTransitionBehavior.PROMPT }
+                    logger.info { "Loaded setlistTransitionBehavior from settings file: $setlistTransitionBehavior" }
+                }
+                val savedNextMidi = props.getProperty("setlistNextMidiCc")?.toIntOrNull()
+                if (savedNextMidi != null) {
+                    setlistNextMidiCc = savedNextMidi
+                }
+                val savedPrevMidi = props.getProperty("setlistPrevMidiCc")?.toIntOrNull()
+                if (savedPrevMidi != null) {
+                    setlistPrevMidiCc = savedPrevMidi
+                }
             } else {
                 logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, autocollapseEnabled: $autocollapseEnabled" }
             }
@@ -96,8 +115,11 @@ object UITheme {
             props.setProperty("audioEngineEnabled", audioEngineEnabled.toString())
             props.setProperty("backgroundVideoEnabled", backgroundVideoEnabled.toString())
             props.setProperty("autocollapseEnabled", autocollapseEnabled.toString())
+            props.setProperty("setlistTransitionBehavior", setlistTransitionBehavior.name)
+            props.setProperty("setlistNextMidiCc", setlistNextMidiCc.toString())
+            props.setProperty("setlistPrevMidiCc", setlistPrevMidiCc.toString())
             settingsFile.outputStream().use { props.store(it, "Spirals Settings") }
-            logger.info { "Saved baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, autocollapseEnabled: $autocollapseEnabled to settings file" }
+            logger.info { "Saved settings to file" }
         } catch (e: Exception) {
             logger.error(e) { "Failed to save settings" }
         }
