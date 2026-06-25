@@ -64,8 +64,10 @@ object PatchGridPanel {
     }
 
     private var gridStartX = 0f
+    private var rowIndex = 0
 
     fun draw(mixer: Mixer, state: PatchGridState) {
+        rowIndex = 0
         val avail = ImGui.getContentRegionAvailX()
         gridStartX = ImGui.getCursorScreenPosX()
         
@@ -132,11 +134,12 @@ object PatchGridPanel {
 
         }
         
-        val lineCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.5f)
+        val lineCol = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f) // VERY subtle extended grid line
+        val bottomY = startY + ImGui.getWindowHeight() + ImGui.getScrollMaxY() + 1000f // ensure it goes all the way down
 
         // Draw FINAL header
         val finalColX = startX + labelColW + getColumnOffset("final")
-        dl.addLine(finalColX - CELL_PAD * 0.5f, startY, finalColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
+        dl.addLine(finalColX - CELL_PAD * 0.5f, startY, finalColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
         var twFinal = 0f
         val labelFinal = "F\nI\nN\nA\nL"
         UITheme.withFont(UITheme.FontLevel.CAPTION) { twFinal = ImGui.calcTextSize(labelFinal).x }
@@ -146,7 +149,7 @@ object PatchGridPanel {
 
         // Draw BASE header
         val baseColX = startX + labelColW + getColumnOffset("base")
-        dl.addLine(baseColX - CELL_PAD * 0.5f, startY, baseColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
+        dl.addLine(baseColX - CELL_PAD * 0.5f, startY, baseColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
         var twBase = 0f
         val labelBase = "B\nA\nS\nE"
         UITheme.withFont(UITheme.FontLevel.CAPTION) { twBase = ImGui.calcTextSize(labelBase).x }
@@ -156,7 +159,7 @@ object PatchGridPanel {
 
         // Draw MIDI header
         val midiColX = startX + labelColW + getColumnOffset("midi")
-        dl.addLine(midiColX - CELL_PAD * 0.5f, startY, midiColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
+        dl.addLine(midiColX - CELL_PAD * 0.5f, startY, midiColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
         var twMidi = 0f
         val labelMidi = "M\nI\nD\nI"
         UITheme.withFont(UITheme.FontLevel.CAPTION) { twMidi = ImGui.calcTextSize(labelMidi).x }
@@ -169,7 +172,7 @@ object PatchGridPanel {
         for ((idx, label) in cvLabelsVertical.withIndex()) {
             val cvId = cvCols[idx]
             val colX = startX + labelColW + getColumnOffset(cvId)
-            dl.addLine(colX - CELL_PAD * 0.5f, startY, colX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
+            dl.addLine(colX - CELL_PAD * 0.5f, startY, colX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
             
             var tw = 0f
             UITheme.withFont(UITheme.FontLevel.CAPTION) { tw = ImGui.calcTextSize(label).x }
@@ -181,7 +184,7 @@ object PatchGridPanel {
         // Draw final separator line on the right edge
         val lastColId = if (cvCols.isNotEmpty()) cvCols.last() else "midi"
         val rightColX = startX + labelColW + getColumnOffset(lastColId) + CELL + CELL_PAD * 0.5f
-        dl.addLine(rightColX, startY, rightColX, startY + maxH + 5f, lineCol, 1f)
+        dl.addLine(rightColX, startY, rightColX, bottomY, lineCol, 1f)
         
         // Restore cursor to where the dummy left off
         ImGui.setCursorScreenPos(startX, afterHeadersY)
@@ -233,7 +236,9 @@ object PatchGridPanel {
                 syncAndCollapseSubgroups(label, state)
             }
             state.groupOpen[key] = true
+            ImGui.indent()
             block()
+            ImGui.unindent()
             ImGui.treePop()
         } else {
             val wasOpen = open
@@ -329,12 +334,29 @@ object PatchGridPanel {
         labelColW: Float,
         mixer: Mixer
     ) {
+        val isEven = (rowIndex % 2 == 0)
+        rowIndex++
+
+        val mousePos = ImGui.getIO().mousePos
+        val rowScreenY = ImGui.getCursorScreenPosY()
+        val rowWidth = labelColW + getColumnOffset("accent") + CELL + CELL_PAD * 0.5f
+        val isHoveredRow = mousePos.y >= rowScreenY && mousePos.y <= (rowScreenY + CELL) && mousePos.x >= gridStartX && mousePos.x <= (gridStartX + rowWidth)
+
         ImGui.pushID(paramKey)
+
+        if (isEven || isHoveredRow) {
+            val dl = ImGui.getWindowDrawList()
+            val stripeCol = if (isHoveredRow) {
+                ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.06f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.03f)
+            }
+            dl.addRectFilled(gridStartX, rowScreenY, gridStartX + rowWidth, rowScreenY + CELL, stripeCol)
+        }
 
         // Row label
         val rowX = ImGui.getCursorPosX()
         val rowY = ImGui.getCursorPosY()
-        val rowScreenY = ImGui.getCursorScreenPosY()
         
         ImGui.setCursorPosY(rowY + (CELL - ImGui.getTextLineHeight()) * 0.5f)
         val cursorStartX = ImGui.getCursorPosX()
@@ -375,6 +397,7 @@ object PatchGridPanel {
         val finalX = gridStartX + labelColW + getColumnOffset("final")
         val finalY = rowScreenY
         val isFinalSelected = state.selectedCell?.paramKey == paramKey && state.selectedCell?.cvSourceId == "final"
+        val isFinalHoveredCol = mousePos.x >= finalX && mousePos.x <= (finalX + CELL)
         
         ImGui.setCursorScreenPos(finalX, finalY)
         ImGui.invisibleButton("##final_cell", CELL, CELL)
@@ -397,13 +420,15 @@ object PatchGridPanel {
             value = param.value, min = param.minClamp, max = param.maxClamp,
             meterType = param.meterType,
             baseValue = null, baseMin = null, baseMax = null,
-            color = finalColor, bgCol = finalBgCol, borderCol = finalBorderCol
+            color = finalColor, bgCol = finalBgCol, borderCol = finalBorderCol,
+            isHoveredRow = isHoveredRow, isHoveredCol = isFinalHoveredCol
         )
 
         // 2. BASE Cell
         val baseX = gridStartX + labelColW + getColumnOffset("base")
         val baseY = rowScreenY
         val isBaseSelected = state.selectedCell?.paramKey == paramKey && state.selectedCell?.cvSourceId == "base"
+        val isBaseHoveredCol = mousePos.x >= baseX && mousePos.x <= (baseX + CELL)
         
         ImGui.setCursorScreenPos(baseX, baseY)
         ImGui.invisibleButton("##base_cell", CELL, CELL)
@@ -426,7 +451,8 @@ object PatchGridPanel {
             value = param.baseValue, min = param.minClamp, max = param.maxClamp,
             meterType = param.meterType,
             baseValue = param.baseValue, baseMin = param.baseMin, baseMax = param.baseMax,
-            color = baseColor, bgCol = baseBgCol, borderCol = baseBorderCol
+            color = baseColor, bgCol = baseBgCol, borderCol = baseBorderCol,
+            isHoveredRow = isHoveredRow, isHoveredCol = isBaseHoveredCol
         )
 
         // 2.5 MIDI Cell
@@ -434,6 +460,8 @@ object PatchGridPanel {
         val midiY = rowScreenY
         val midiCellId = PatchCellId(paramKey, "midi")
         val isMidiSelected = state.selectedCell == midiCellId
+        val isMidiHoveredCol = mousePos.x >= midiX && mousePos.x <= (midiX + CELL)
+        val isMidiCrosshair = isHoveredRow && isMidiHoveredCol
         
         // Find any MIDI modulator for this parameter
         val midiMods = param.modulators.filter { it.sourceId.startsWith("midi_cc_") }
@@ -504,12 +532,19 @@ object PatchGridPanel {
                 baseValue = null, baseMin = null, baseMax = null,
                 color = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f),
                 bgCol = midiBgCol, borderCol = midiBorderCol,
-                isBypassed = isMidiBypassed
+                isBypassed = isMidiBypassed,
+                isHoveredRow = isHoveredRow, isHoveredCol = isMidiHoveredCol
             )
         } else {
             // Draw empty cell
             dl.addRectFilled(midiX, midiY, midiX + CELL, midiY + CELL, midiBgCol, 3f)
-            dl.addRect(midiX, midiY, midiX + CELL, midiY + CELL, midiBorderCol, 3f)
+            if (isMidiCrosshair) {
+                dl.addRectFilled(midiX, midiY, midiX + CELL, midiY + CELL, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.15f), 3f)
+            } else if (isMidiHoveredCol) {
+                dl.addRectFilled(midiX, midiY, midiX + CELL, midiY + CELL, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f), 3f)
+            }
+            val border = if (isMidiCrosshair) ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.6f) else midiBorderCol
+            dl.addRect(midiX, midiY, midiX + CELL, midiY + CELL, border, 3f)
         }
 
         // 3. CV cells
@@ -525,6 +560,9 @@ object PatchGridPanel {
 
             val x = gridStartX + labelColW + getColumnOffset(cvId)
             val y = rowScreenY
+
+            val isHoveredCol = mousePos.x >= x && mousePos.x <= (x + CELL)
+            val isCrosshair = isHoveredRow && isHoveredCol
 
             val isTarget = state.midiLearnTarget?.let {
                 it is MidiLearnTarget.GridCell && it.cellId == cellId
@@ -594,11 +632,18 @@ object PatchGridPanel {
                     baseValue = null, baseMin = null, baseMax = null,
                     color = ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f),
                     bgCol = bgCol, borderCol = borderCol,
-                    isBypassed = isBypassed
+                    isBypassed = isBypassed,
+                    isHoveredRow = isHoveredRow, isHoveredCol = isHoveredCol
                 )
             } else {
                 dl.addRectFilled(x, y, x + CELL, y + CELL, bgCol, 3f)
-                dl.addRect(x, y, x + CELL, y + CELL, borderCol, 3f)
+                if (isCrosshair) {
+                    dl.addRectFilled(x, y, x + CELL, y + CELL, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.15f), 3f)
+                } else if (isHoveredCol) {
+                    dl.addRectFilled(x, y, x + CELL, y + CELL, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f), 3f)
+                }
+                val border = if (isCrosshair) ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.6f) else borderCol
+                dl.addRect(x, y, x + CELL, y + CELL, border, 3f)
             }
         }
 
@@ -618,13 +663,23 @@ object PatchGridPanel {
         color: Int,
         bgCol: Int,
         borderCol: Int,
-        isBypassed: Boolean = false
+        isBypassed: Boolean = false,
+        isHoveredRow: Boolean = false,
+        isHoveredCol: Boolean = false
     ) {
         val cx = x + r
         val cy = y + r
 
         dl.addRectFilled(x, y, x + r * 2f, y + r * 2f, bgCol, 3f)
-        dl.addRect(x, y, x + r * 2f, y + r * 2f, borderCol, 3f)
+        
+        if (isHoveredRow && isHoveredCol) {
+            dl.addRectFilled(x, y, x + r * 2f, y + r * 2f, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.15f), 3f)
+        } else if (isHoveredCol) {
+            dl.addRectFilled(x, y, x + r * 2f, y + r * 2f, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f), 3f)
+        }
+
+        val border = if (isHoveredRow && isHoveredCol) ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.6f) else borderCol
+        dl.addRect(x, y, x + r * 2f, y + r * 2f, border, 3f)
 
         val trackRadius = r - 5f
         val trackCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, if (isBypassed) 0.2f else 0.4f)
