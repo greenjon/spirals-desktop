@@ -156,6 +156,7 @@ data class ParameterDto(
 data class DeckPatchDto(
     val version: Int = 1,
     val name: String,
+    val tags: List<String> = emptyList(), // Phase 2 — tag list; defaults to empty for backward compat
     val visualSourceType: String, // e.g., "Mandala"
     val recipe: MandalaRecipeDto, // For restoring recipe structure
     val parameters: Map<String, ParameterDto>, // Visual source params
@@ -269,7 +270,7 @@ fun ModulatableParameter.applyDto(dto: ParameterDto) {
 
 fun MandalaRatio.toDto(): MandalaRecipeDto = MandalaRecipeDto(a, b, c, d)
 
-fun Deck.toDto(name: String): DeckPatchDto {
+fun Deck.toDto(name: String, tags: List<String> = emptyList()): DeckPatchDto {
     val mandala = source as Mandala
     val recipeDto = mandala.recipe.toDto()
     
@@ -288,6 +289,7 @@ fun Deck.toDto(name: String): DeckPatchDto {
     
     return DeckPatchDto(
         name = name,
+        tags = tags,
         visualSourceType = "Mandala",
         recipe = recipeDto,
         parameters = paramsMap,

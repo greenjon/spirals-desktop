@@ -106,9 +106,9 @@ object PatchManager {
         }
     }
 
-    fun saveDeckPresetAsync(file: File, deck: Deck, name: String) {
-        // Capture deck state on the main thread
-        val dto = deck.toDto(name)
+    fun saveDeckPresetAsync(file: File, deck: Deck, name: String, tags: List<String> = emptyList()) {
+        // Capture deck state on the main thread (Phase 2c: include tags)
+        val dto = deck.toDto(name, tags)
         CompletableFuture.runAsync {
             try {
                 logger.info { "Saving deck preset to ${file.absolutePath} in background..." }

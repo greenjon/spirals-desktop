@@ -73,17 +73,27 @@ class UIManager(private val windowHandle: Long) {
     // Patch grid state shared between PatchGridPanel and CellConfigPanel
     private val patchState = PatchGridState()
 
-    private val deckAPresetIndex = ImInt(0)
-    private val deckBPresetIndex = ImInt(0)
-    private val deckASaveName = ImString(32)
-    private val deckBSaveName = ImString(32)
+    // Phase 1 — ImGui-native file browser (replaces java.awt.FileDialog)
+    private val fileBrowser = ImGuiFileBrowser("globalFileBrowser")
+    /** Last directory the user navigated to in the Load browser. */
+    private var lastLoadDir: File = File("presets/global").canonicalFile
+
+    // Phase 2 — Deck preset browsers (replaces flat ImGui.combo)
+    private val deckABrowser = DeckPresetBrowser("A")
+    private val deckBBrowser = DeckPresetBrowser("B")
+
+    // Phase 3b — Setlist panel
+    /** Pending file chosen from the setlist while isDirty — resolved via confirm popup. */
+    private var pendingSetlistFile: File? = null
+    private var pendingOpenSetlist = false
+
     private var currentGlobalPatchFile: File? = null
     private var currentMixer: Mixer? = null
 
     private var lastWindowTitle: String? = null
 
     private enum class PendingProjectAction {
-        NONE, NEW, LOAD
+        NONE, NEW, LOAD, LOAD_SETLIST
     }
     private var pendingProjectAction = PendingProjectAction.NONE
     private var pendingOpenConfirmPopup = false
@@ -208,6 +218,11 @@ class UIManager(private val windowHandle: Long) {
                 ImGui.openPopup("Save Changes?##confirm")
                 pendingOpenConfirmPopup = false
             }
+            // Phase 3b — open setlist panel
+            if (pendingOpenSetlist) {
+                SetlistPanel.open()
+                pendingOpenSetlist = false
+            }
             drawLayout(mixer, displayWidth, displayHeight)
 
             // Settings modal — drawn outside any docked window so it floats freely.
@@ -222,6 +237,57 @@ class UIManager(private val windowHandle: Long) {
 
             drawConfirmPopup(mixer, displayWidth, displayHeight)
             drawDeckConfirmPopups(mixer.deckA, mixer.deckB)
+
+            // Phase 1 — Global project file browser modal
+            drawGlobalFileBrowser(mixer)
+
+            // Phase 2 — Deck preset browsers (search + tags + save-as)
+            deckABrowser.draw(
+                activePresetName = llm.slop.spirals.patches.PatchManager.activePresetA,
+                isDirty          = llm.slop.spirals.patches.PatchManager.isDeckDirty(mixer.deckA, true),
+                onSelect         = { name ->
+                    if (name == null) {
+                        llm.slop.spirals.patches.PatchManager.activePresetA = null
+                        llm.slop.spirals.patches.PatchManager.cachedDtoA = null
+                    } else {
+                        loadDeckPreset(name, mixer.deckA, true)
+                    }
+                },
+                onSaveAs = { name, tags -> saveDeckPreset(name, mixer.deckA, true, tags) }
+            )
+            deckBBrowser.draw(
+                activePresetName = llm.slop.spirals.patches.PatchManager.activePresetB,
+                isDirty          = llm.slop.spirals.patches.PatchManager.isDeckDirty(mixer.deckB, false),
+                onSelect         = { name ->
+                    if (name == null) {
+                        llm.slop.spirals.patches.PatchManager.activePresetB = null
+                        llm.slop.spirals.patches.PatchManager.cachedDtoB = null
+                    } else {
+                        loadDeckPreset(name, mixer.deckB, false)
+                    }
+                },
+                onSaveAs = { name, tags -> saveDeckPreset(name, mixer.deckB, false, tags) }
+            )
+
+            // Phase 2 — Deck file-load browsers (for "Load File…" menu item)
+            deckAFileBrowser.draw { file ->
+                llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, true)
+            }
+            deckBFileBrowser.draw { file ->
+                llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, false)
+            }
+
+            // Phase 3b — Setlist panel modal
+            SetlistPanel.draw(
+                currentFile  = currentGlobalPatchFile,
+                isDirty      = llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer),
+                onLoad       = { file -> performLoadFromSetlist(file) },
+                onLoadDirty  = { file ->
+                    pendingSetlistFile = file
+                    pendingProjectAction = PendingProjectAction.LOAD_SETLIST
+                    pendingOpenConfirmPopup = true
+                }
+            )
         }
 
         ImGui.render()
@@ -244,35 +310,28 @@ class UIManager(private val windowHandle: Long) {
     }
 
     private fun loadGlobalPatchWithDialog() {
-        val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Load Project", java.awt.FileDialog.LOAD)
-        dialog.file = "*.json"
-        dialog.isVisible = true
-        if (dialog.directory != null && dialog.file != null) {
-            val file = File(dialog.directory, dialog.file)
-            currentGlobalPatchFile = file
-            llm.slop.spirals.patches.PatchManager.loadGlobalPatchAsync(file)
-        }
+        // Phase 1: open the ImGui file browser instead of java.awt.FileDialog
+        val lastDir = currentGlobalPatchFile?.parentFile
+            ?: File("presets/global").canonicalFile
+        fileBrowser.open(ImGuiFileBrowser.Mode.LOAD, startDir = lastDir)
     }
 
     private fun saveGlobalPatch(mixer: Mixer, forceAs: Boolean): Boolean {
-        val file = if (forceAs || currentGlobalPatchFile == null) {
-            val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Save Project", java.awt.FileDialog.SAVE)
-            dialog.file = "project.json"
-            dialog.isVisible = true
-            if (dialog.directory != null && dialog.file != null) {
-                File(dialog.directory, dialog.file)
-            } else null
-        } else {
-            currentGlobalPatchFile
+        if (!forceAs && currentGlobalPatchFile != null) {
+            // Fast-save: no dialog needed
+            val file = currentGlobalPatchFile!!
+            llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, file.nameWithoutExtension)
+            return true
         }
-        return if (file != null) {
-            currentGlobalPatchFile = file
-            val name = file.nameWithoutExtension
-            llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
-            true
-        } else {
-            false
-        }
+        // Phase 1: open the ImGui file browser for Save / Save As
+        val initialName = currentGlobalPatchFile?.nameWithoutExtension ?: "project"
+        fileBrowser.open(
+            ImGuiFileBrowser.Mode.SAVE,
+            startDir = File("presets/global").canonicalFile,
+            initialName = initialName
+        )
+        // Return false here — the actual save happens in the browser's onConfirm callback
+        return false
     }
 
     private fun performNewProject(mixer: Mixer) {
@@ -282,6 +341,57 @@ class UIManager(private val windowHandle: Long) {
 
     private fun performLoadProject() {
         loadGlobalPatchWithDialog()
+    }
+
+    /** Called when the setlist panel fires onLoad directly (no dirty guard needed). */
+    private fun performLoadFromSetlist(file: File) {
+        currentGlobalPatchFile = file
+        llm.slop.spirals.patches.PatchManager.loadGlobalPatchAsync(file)
+    }
+
+    /**
+     * Phase 1 — draws the global project file browser modal every frame.
+     * Must be called at root ID-stack level (outside any child window).
+     *
+     * The browser's onConfirm callback determines whether this was a LOAD or
+     * SAVE by inspecting [pendingProjectAction]:
+     * - LOAD / NONE  → load the chosen file
+     * - NEW          → save to the chosen file, then reset the project
+     *
+     * For a plain Save-As (no pending action), [pendingProjectAction] is NONE
+     * and the browser was opened in SAVE mode, so we just save.
+     */
+    private fun drawGlobalFileBrowser(mixer: Mixer) {
+        fileBrowser.draw { file ->
+            val name = file.nameWithoutExtension
+            when (pendingProjectAction) {
+                PendingProjectAction.LOAD -> {
+                    lastLoadDir = file.parentFile?.canonicalFile ?: lastLoadDir
+                    currentGlobalPatchFile = file
+                    llm.slop.spirals.patches.PatchManager.loadGlobalPatchAsync(file)
+                    pendingProjectAction = PendingProjectAction.NONE
+                }
+                PendingProjectAction.NEW -> {
+                    // Save-then-new: save first, then reset
+                    currentGlobalPatchFile = file
+                    llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
+                    performNewProject(mixer)
+                    pendingProjectAction = PendingProjectAction.NONE
+                }
+                PendingProjectAction.LOAD_SETLIST -> {
+                    // Save-then-load-setlist: save first, then load the setlist file
+                    currentGlobalPatchFile = file
+                    llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
+                    pendingSetlistFile?.let { performLoadFromSetlist(it) }
+                    pendingProjectAction = PendingProjectAction.NONE
+                }
+                PendingProjectAction.NONE -> {
+                    // Plain Save / Save As — browser was opened in SAVE mode
+                    currentGlobalPatchFile = file
+                    llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
+                }
+            }
+        }
     }
 
     private fun drawConfirmPopup(mixer: Mixer, displayW: Float, displayH: Float) {
@@ -303,13 +413,17 @@ class UIManager(private val windowHandle: Long) {
             if (ImGui.button("Save", 80f, 0f)) {
                 val saved = saveGlobalPatch(mixer, false)
                 if (saved) {
+                    // Fast-save completed synchronously — execute the pending action now.
                     when (pendingProjectAction) {
-                        PendingProjectAction.NEW -> performNewProject(mixer)
+                        PendingProjectAction.NEW  -> performNewProject(mixer)
                         PendingProjectAction.LOAD -> performLoadProject()
+                        PendingProjectAction.LOAD_SETLIST -> pendingSetlistFile?.let { performLoadFromSetlist(it) }
                         else -> {}
                     }
+                    pendingProjectAction = PendingProjectAction.NONE
                 }
-                pendingProjectAction = PendingProjectAction.NONE
+                // If saved == false the file browser was opened; pendingProjectAction
+                // stays set so drawGlobalFileBrowser can execute it on confirm.
                 ImGui.closeCurrentPopup()
             }
             ImGui.sameLine()
@@ -317,6 +431,7 @@ class UIManager(private val windowHandle: Long) {
                 when (pendingProjectAction) {
                     PendingProjectAction.NEW -> performNewProject(mixer)
                     PendingProjectAction.LOAD -> performLoadProject()
+                    PendingProjectAction.LOAD_SETLIST -> pendingSetlistFile?.let { performLoadFromSetlist(it) }
                     else -> {}
                 }
                 pendingProjectAction = PendingProjectAction.NONE
@@ -440,21 +555,22 @@ class UIManager(private val windowHandle: Long) {
         }
     }
 
+    /**
+     * Phase 2: deck preset "Load File…" now opens the ImGui file browser
+     * pointed at `presets/decks/` instead of `java.awt.FileDialog`.
+     *
+     * The browser is shared with the global project browser but uses a
+     * separate instance per deck so both decks can have independent state.
+     */
+    private val deckAFileBrowser = ImGuiFileBrowser("deckAFileBrowser")
+    private val deckBFileBrowser = ImGuiFileBrowser("deckBFileBrowser")
+
     private fun performLoadDeckPreset(isDeckA: Boolean) {
-        val dialog = java.awt.FileDialog(null as java.awt.Frame?, "Load Deck Preset", java.awt.FileDialog.LOAD)
-        dialog.file = "*.json"
-        dialog.isVisible = true
-        if (dialog.directory != null && dialog.file != null) {
-            val sourceFile = java.io.File(dialog.directory, dialog.file)
-            val presetsDir = java.io.File("presets/decks")
-            if (!presetsDir.exists()) presetsDir.mkdirs()
-            
-            val targetFile = java.io.File(presetsDir, sourceFile.name)
-            if (sourceFile.absolutePath != targetFile.absolutePath) {
-                sourceFile.copyTo(targetFile, overwrite = true)
-            }
-            llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(targetFile, isDeckA)
-        }
+        val browser = if (isDeckA) deckAFileBrowser else deckBFileBrowser
+        browser.open(
+            ImGuiFileBrowser.Mode.LOAD,
+            startDir = File("presets/decks").canonicalFile
+        )
     }
 
     private fun drawMenuBar(mixer: Mixer) {
@@ -512,6 +628,11 @@ class UIManager(private val windowHandle: Long) {
                 pendingOpenAudioEngineMonitor = true
             }
 
+            // Phase 3b — Setlist quick-load panel
+            if (ImGui.menuItem("Setlist")) {
+                pendingOpenSetlist = true
+            }
+
             if (ImGui.beginMenu("Help")) {
                 if (ImGui.menuItem("Documentation")) {
                     DocManager.openDocumentation()
@@ -522,28 +643,6 @@ class UIManager(private val windowHandle: Long) {
         }
     }
 
-    private fun getAvailableDeckPresets(isDeckA: Boolean): Array<String> {
-        val dir = File("presets/decks")
-        if (!dir.exists()) dir.mkdirs()
-        val files = dir.listFiles { _, name -> name.endsWith(".json") } ?: emptyArray()
-        val list = mutableListOf<String>()
-        list.add("None")
-
-        val activePreset = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA else llm.slop.spirals.patches.PatchManager.activePresetB
-        val deck = if (isDeckA) currentMixer?.deckA else currentMixer?.deckB
-        val isDirty = if (deck != null) llm.slop.spirals.patches.PatchManager.isDeckDirty(deck, isDeckA) else false
-
-        val presetNames = files.map { it.nameWithoutExtension }
-        for (pName in presetNames) {
-            if (pName == activePreset && isDirty) {
-                list.add("$pName *")
-            } else {
-                list.add(pName)
-            }
-        }
-        return list.toTypedArray()
-    }
-
     private fun loadDeckPreset(presetName: String, deck: Deck, isDeckA: Boolean) {
         if (presetName == "None") return
         val file = File("presets/decks/$presetName.json")
@@ -552,9 +651,22 @@ class UIManager(private val windowHandle: Long) {
         }
     }
 
-    private fun saveDeckPreset(name: String, deck: Deck, isDeckA: Boolean) {
+    /**
+     * Save a deck preset.  [tags] are stored in `DeckPatchDto.tags` (Phase 2c).
+     * Existing callers that don't supply tags preserve the current tag list by
+     * reading it from the cached DTO, so an overwrite never silently strips tags.
+     */
+    private fun saveDeckPreset(name: String, deck: Deck, isDeckA: Boolean, tags: List<String>? = null) {
         if (name.isBlank()) return
-        val dto = deck.toDto(name)
+
+        // Preserve existing tags when overwriting unless the caller explicitly supplies new ones
+        val resolvedTags = tags ?: run {
+            val cached = if (isDeckA) llm.slop.spirals.patches.PatchManager.cachedDtoA
+                         else        llm.slop.spirals.patches.PatchManager.cachedDtoB
+            cached?.tags ?: emptyList()
+        }
+
+        val dto = deck.toDto(name, resolvedTags)
         if (isDeckA) {
             llm.slop.spirals.patches.PatchManager.activePresetA = name
             llm.slop.spirals.patches.PatchManager.cachedDtoA = dto
@@ -563,78 +675,7 @@ class UIManager(private val windowHandle: Long) {
             llm.slop.spirals.patches.PatchManager.cachedDtoB = dto
         }
         val file = File("presets/decks/$name.json")
-        llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name)
-    }
-
-    private fun drawDeckHeader(label: String, deck: Deck, isDeckA: Boolean) {
-        ImGui.pushID(label)
-        UITheme.h3(label)
-        ImGui.sameLine(80f)
-
-        val presets = getAvailableDeckPresets(isDeckA)
-        val activePreset = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA else llm.slop.spirals.patches.PatchManager.activePresetB
-        val isDirty = llm.slop.spirals.patches.PatchManager.isDeckDirty(deck, isDeckA)
-
-        val targetName = if (isDirty && activePreset != null) "$activePreset *" else activePreset
-        val idx = presets.indexOfFirst { it == targetName }.coerceAtLeast(0)
-
-        val selectedIndex = if (isDeckA) deckAPresetIndex else deckBPresetIndex
-        selectedIndex.set(idx)
-
-        ImGui.pushItemWidth(120f)
-        if (ImGui.combo("##preset_$label", selectedIndex, presets)) {
-            val chosen = presets[selectedIndex.get()]
-            val cleanName = chosen.removeSuffix(" *")
-            if (cleanName == "None") {
-                if (isDeckA) {
-                    llm.slop.spirals.patches.PatchManager.activePresetA = null
-                    llm.slop.spirals.patches.PatchManager.cachedDtoA = null
-                } else {
-                    llm.slop.spirals.patches.PatchManager.activePresetB = null
-                    llm.slop.spirals.patches.PatchManager.cachedDtoB = null
-                }
-            } else {
-                loadDeckPreset(cleanName, deck, isDeckA)
-            }
-        }
-        ImGui.popItemWidth()
-
-        ImGui.sameLine()
-        if (ImGui.button("Save##save_$label")) {
-            ImGui.openPopup("save_deck_preset_popup_$label")
-        }
-
-        if (ImGui.beginPopup("save_deck_preset_popup_$label")) {
-            val activeName = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA else llm.slop.spirals.patches.PatchManager.activePresetB
-            val isDeckDirty = llm.slop.spirals.patches.PatchManager.isDeckDirty(deck, isDeckA)
-
-            if (activeName != null) {
-                if (isDeckDirty) {
-                    if (ImGui.button("Overwrite '$activeName'", ImGui.getContentRegionAvailX(), 25f)) {
-                        saveDeckPreset(activeName, deck, isDeckA)
-                        ImGui.closeCurrentPopup()
-                    }
-                    ImGui.separator()
-                } else {
-                    ImGui.textDisabled("Preset is up to date")
-                    ImGui.separator()
-                }
-            }
-
-            ImGui.text("Save As New:")
-            val nameInput = if (isDeckA) deckASaveName else deckBSaveName
-            ImGui.inputText("##nameInput_$label", nameInput)
-            ImGui.sameLine()
-            if (ImGui.button("Save##asNew_$label")) {
-                val newName = nameInput.get().trim()
-                if (newName.isNotEmpty()) {
-                    saveDeckPreset(newName, deck, isDeckA)
-                    ImGui.closeCurrentPopup()
-                }
-            }
-            ImGui.endPopup()
-        }
-        ImGui.popID()
+        llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name, resolvedTags)
     }
 
     private fun drawLayout(mixer: Mixer, displayWidth: Float, displayHeight: Float) {
@@ -801,57 +842,46 @@ class UIManager(private val windowHandle: Long) {
         ImGui.setCursorScreenPos(startX, endY)
     }
 
+    /**
+     * Phase 2 — deck preset row.
+     *
+     * The old `ImGui.combo` is replaced by a button that shows the active
+     * preset name (with dirty `*`) and opens [DeckPresetBrowser] on click.
+     * The browser modal is drawn at root level in [render] — NOT here.
+     *
+     * The "Menu" button retains New / Load File / Save / Delete actions.
+     * "Save As…" now delegates to the browser's built-in Save As modal
+     * (which includes the Tags input from Phase 2c).
+     */
     private fun drawDeckPresetDropdown(label: String, deck: Deck, isDeckA: Boolean, fixedWidth: Float) {
         ImGui.beginGroup()
         ImGui.pushID("presetRow_$label")
-        
-        val presets = getAvailableDeckPresets(isDeckA)
-        val activePreset = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA else llm.slop.spirals.patches.PatchManager.activePresetB
+
+        val activePreset = if (isDeckA) llm.slop.spirals.patches.PatchManager.activePresetA
+                           else        llm.slop.spirals.patches.PatchManager.activePresetB
         val isDirty = llm.slop.spirals.patches.PatchManager.isDeckDirty(deck, isDeckA)
 
-        val targetName = if (isDirty && activePreset != null) "$activePreset *" else activePreset
-        val idx = presets.indexOfFirst { it == targetName }.coerceAtLeast(0)
-
-        val selectedIndex = if (isDeckA) deckAPresetIndex else deckBPresetIndex
-        selectedIndex.set(idx)
-
-        val saveBtnW = 45f
-        val comboW = (fixedWidth - saveBtnW - ImGui.getStyle().itemSpacing.x).coerceAtLeast(50f)
-        
-        ImGui.pushItemWidth(comboW)
-        if (ImGui.combo("##preset", selectedIndex, presets)) {
-            val chosen = presets[selectedIndex.get()]
-            val cleanName = chosen.removeSuffix(" *")
-            
-            if (isDirty) {
-                if (isDeckA) {
-                    pendingDeckActionA = PendingDeckAction.LOAD_PRESET
-                    pendingDeckTargetPresetA = cleanName
-                } else {
-                    pendingDeckActionB = PendingDeckAction.LOAD_PRESET
-                    pendingDeckTargetPresetB = cleanName
-                }
-            } else {
-                if (cleanName == "None") {
-                    if (isDeckA) {
-                        llm.slop.spirals.patches.PatchManager.activePresetA = null
-                        llm.slop.spirals.patches.PatchManager.cachedDtoA = null
-                    } else {
-                        llm.slop.spirals.patches.PatchManager.activePresetB = null
-                        llm.slop.spirals.patches.PatchManager.cachedDtoB = null
-                    }
-                } else {
-                    loadDeckPreset(cleanName, deck, isDeckA)
-                }
-            }
+        val displayName = when {
+            activePreset == null -> "None"
+            isDirty              -> "$activePreset *"
+            else                 -> activePreset
         }
-        ImGui.popItemWidth()
 
-        var openSaveAs = false
+        val browser = if (isDeckA) deckABrowser else deckBBrowser
+
+        val menuBtnW = 50f
+        val browserBtnW = (fixedWidth - menuBtnW - ImGui.getStyle().itemSpacing.x).coerceAtLeast(50f)
+
+        // ── Preset browser trigger button ─────────────────────────────────────
+        if (ImGui.button("$displayName##presetBtn_$label", browserBtnW, 0f)) {
+            browser.open()
+        }
+
+        // ── Menu button ───────────────────────────────────────────────────────
         var openDeleteConfirm = false
-        
+
         ImGui.sameLine()
-        if (ImGui.button("Menu", saveBtnW, 0f)) {
+        if (ImGui.button("Menu##menu_$label", menuBtnW, 0f)) {
             ImGui.openPopup("deck_preset_menu_$label")
         }
 
@@ -859,7 +889,7 @@ class UIManager(private val windowHandle: Long) {
             if (ImGui.menuItem("New (Reset Deck)")) {
                 if (isDirty) {
                     if (isDeckA) pendingDeckActionA = PendingDeckAction.NEW
-                    else pendingDeckActionB = PendingDeckAction.NEW
+                    else         pendingDeckActionB = PendingDeckAction.NEW
                 } else {
                     deck.reset()
                     if (isDeckA) {
@@ -874,24 +904,23 @@ class UIManager(private val windowHandle: Long) {
             if (ImGui.menuItem("Load File...")) {
                 if (isDirty) {
                     if (isDeckA) pendingDeckActionA = PendingDeckAction.LOAD_FILE
-                    else pendingDeckActionB = PendingDeckAction.LOAD_FILE
+                    else         pendingDeckActionB = PendingDeckAction.LOAD_FILE
                 } else {
                     performLoadDeckPreset(isDeckA)
                 }
             }
-            
+
             ImGui.separator()
-            
+
             if (ImGui.menuItem("Save")) {
                 if (activePreset != null) saveDeckPreset(activePreset, deck, isDeckA)
-                else openSaveAs = true
+                else browser.open()   // no active preset → open browser to save as new
             }
             if (ImGui.menuItem("Save As...")) {
-                openSaveAs = true
+                browser.open()        // browser's built-in Save As modal handles tags
             }
-            
-            // Delete option - only show if there is an active loaded preset
-            if (activePreset != null && activePreset != "None") {
+
+            if (activePreset != null) {
                 ImGui.separator()
                 if (ImGui.menuItem("Delete '$activePreset'")) {
                     openDeleteConfirm = true
@@ -900,33 +929,15 @@ class UIManager(private val windowHandle: Long) {
             ImGui.endPopup()
         }
 
-        if (openSaveAs) ImGui.openPopup("save_as_deck_preset_popup_$label")
         if (openDeleteConfirm) ImGui.openPopup("delete_deck_preset_popup_$label")
 
-        if (ImGui.beginPopup("save_as_deck_preset_popup_$label")) {
-            ImGui.text("Save As New:")
-            val nameInput = if (isDeckA) deckASaveName else deckBSaveName
-            ImGui.inputText("##nameInput_$label", nameInput)
-            ImGui.sameLine()
-            if (ImGui.button("Save##asNew")) {
-                val newName = nameInput.get().trim()
-                if (newName.isNotEmpty()) {
-                    saveDeckPreset(newName, deck, isDeckA)
-                    ImGui.closeCurrentPopup()
-                }
-            }
-            ImGui.endPopup()
-        }
-
-        // Delete confirmation popup
+        // ── Delete confirmation modal ─────────────────────────────────────────
         if (ImGui.beginPopupModal("delete_deck_preset_popup_$label", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text("Are you sure you want to permanently delete '$activePreset'?")
+            ImGui.text("Permanently delete '$activePreset'?")
             ImGui.spacing()
             if (ImGui.button("Delete", 80f, 0f)) {
-                val file = java.io.File("presets/decks/$activePreset.json")
+                val file = File("presets/decks/$activePreset.json")
                 if (file.exists()) file.delete()
-                
-                // Clear active preset state
                 if (isDeckA) {
                     llm.slop.spirals.patches.PatchManager.activePresetA = null
                     llm.slop.spirals.patches.PatchManager.cachedDtoA = null
@@ -942,6 +953,7 @@ class UIManager(private val windowHandle: Long) {
             }
             ImGui.endPopup()
         }
+
         ImGui.popID()
         ImGui.endGroup()
     }
