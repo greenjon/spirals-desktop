@@ -159,7 +159,6 @@ object AudioEngine {
         CVRegistry.updatePushedValue("bass", (bass / 0.1f).coerceIn(0f, 2f))
         CVRegistry.updatePushedValue("mid", (mid / 0.1f).coerceIn(0f, 2f))
         CVRegistry.updatePushedValue("high", (high / 0.1f).coerceIn(0f, 2f))
-        CVRegistry.updatePushedValue("bassFlux", (bassFlux / 0.05f).coerceIn(0f, 2f))
         CVRegistry.updatePushedValue("onset", onsetNormalized)
         CVRegistry.updatePushedValue("accent", accentLevel)
     }

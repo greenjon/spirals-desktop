@@ -19,7 +19,7 @@
 - [ ] **Consider edge cases for storing MIDI data in patches:**
   - What can go wrong? Because, it will.
 - [ ] **Deck and Parameter Grid Improvements:**
-  - Make all the deck controls read-only (to avoid confusion).
+x  - Make all the deck controls read-only (to avoid confusion).
   - Add deck buttons to quickly disable/enable effects.
   - Add deck buttons to quickly mute/solo decks.
   - Fix intermittent bug with bypassing effects.
@@ -29,11 +29,7 @@
   - Make LFO times more intuitive.
   
   Unorganized thoughts:
-  - parameters should mostly either be 0 to 1 or -1 to 1 in their final value. SOme might be 0-3, or other things.
-  - all the CV should follow the final value.
-  - we need knobs that are only positive, and ones that are +/-, and knobs that are 360 degrees.
-  - where we have a slider to set a value, add a number box that is a display and also allows typing into it.
-  - beside the number box, have a pair of buttons to increment/decrement the value
+    - beside the number box, have a pair of buttons to increment/decrement the value
   - make the entire area of the double buttons also change the cursor to a double dong, and have click-draging increment/decrement the value
   - in final, we should be able to set the base value, 
   - and also offset (DC, basically) the value of the CVs

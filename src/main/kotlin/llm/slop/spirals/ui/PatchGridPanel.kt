@@ -25,7 +25,7 @@ object PatchGridPanel {
 
     private fun getCvColumns(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("lfo", "sampleAndHold", "amp", "bass", "mid", "high", "bassFlux", "onset", "accent", "beatPhase")
+            listOf("lfo", "sampleAndHold", "beatPhase", "amp", "bass", "mid", "high", "onset", "accent")
         } else {
             listOf("lfo", "sampleAndHold")
         }
@@ -33,7 +33,7 @@ object PatchGridPanel {
 
     private fun getCvLabels(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("LFO", "RAND", "AMP", "BASS", "MID", "HIGH", "FLUX", "ONSET", "ACCENT", "BEAT")
+            listOf("LFO", "RAND", "BEAT", "AMP", "BASS", "MID", "HIGH", "ONSET", "ACCENT")
         } else {
             listOf("LFO", "RAND")
         }
@@ -43,19 +43,36 @@ object PatchGridPanel {
     // Size of each cell square (px)
     private const val CELL = 35f
     private const val CELL_PAD = 5f
+    private const val GROUP_GAP = 10f
+
+    private fun getColumnOffset(colId: String): Float {
+        return when (colId) {
+            "final"          -> 0 * (CELL + CELL_PAD)
+            "base"           -> 1 * (CELL + CELL_PAD) + GROUP_GAP
+            "midi"           -> 2 * (CELL + CELL_PAD) + 2 * GROUP_GAP
+            "lfo"            -> 3 * (CELL + CELL_PAD) + 2 * GROUP_GAP
+            "sampleAndHold"  -> 4 * (CELL + CELL_PAD) + 2 * GROUP_GAP
+            "beatPhase"      -> 5 * (CELL + CELL_PAD) + 2 * GROUP_GAP
+            "amp"            -> 6 * (CELL + CELL_PAD) + 3 * GROUP_GAP
+            "bass"           -> 7 * (CELL + CELL_PAD) + 3 * GROUP_GAP
+            "mid"            -> 8 * (CELL + CELL_PAD) + 3 * GROUP_GAP
+            "high"           -> 9 * (CELL + CELL_PAD) + 3 * GROUP_GAP
+            "onset"          -> 10 * (CELL + CELL_PAD) + 4 * GROUP_GAP
+            "accent"         -> 11 * (CELL + CELL_PAD) + 4 * GROUP_GAP
+            else             -> 0f
+        }
+    }
 
     private var gridStartX = 0f
 
     fun draw(mixer: Mixer, state: PatchGridState) {
         val avail = ImGui.getContentRegionAvailX()
         gridStartX = ImGui.getCursorScreenPosX()
-        val extraColsW = 3 * (CELL + CELL_PAD)
-        val cvCols = getCvColumns()
         
-        // Calculate label column width based on the maximum possible columns (10 audio/CV)
+        // Calculate label column width based on the maximum possible columns (12 columns in total)
         // so that the grid stays left-aligned instead of expanding when columns are hidden.
-        val maxCvCols = 10
-        val labelColW = (avail - maxCvCols * (CELL + CELL_PAD) - extraColsW).coerceAtLeast(120f)
+        val maxGridW = getColumnOffset("accent") + CELL + CELL_PAD * 0.5f
+        val labelColW = (avail - maxGridW).coerceAtLeast(120f)
 
         handleKeyboardShortcuts(state, mixer)
 
@@ -118,7 +135,7 @@ object PatchGridPanel {
         val lineCol = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.5f)
 
         // Draw FINAL header
-        val finalColX = startX + labelColW
+        val finalColX = startX + labelColW + getColumnOffset("final")
         dl.addLine(finalColX - CELL_PAD * 0.5f, startY, finalColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
         var twFinal = 0f
         val labelFinal = "F\nI\nN\nA\nL"
@@ -128,7 +145,7 @@ object PatchGridPanel {
         UITheme.caption(labelFinal)
 
         // Draw BASE header
-        val baseColX = startX + labelColW + (CELL + CELL_PAD)
+        val baseColX = startX + labelColW + getColumnOffset("base")
         dl.addLine(baseColX - CELL_PAD * 0.5f, startY, baseColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
         var twBase = 0f
         val labelBase = "B\nA\nS\nE"
@@ -138,7 +155,7 @@ object PatchGridPanel {
         UITheme.caption(labelBase)
 
         // Draw MIDI header
-        val midiColX = startX + labelColW + 2 * (CELL + CELL_PAD)
+        val midiColX = startX + labelColW + getColumnOffset("midi")
         dl.addLine(midiColX - CELL_PAD * 0.5f, startY, midiColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
         var twMidi = 0f
         val labelMidi = "M\nI\nD\nI"
@@ -148,8 +165,10 @@ object PatchGridPanel {
         UITheme.caption(labelMidi)
 
         // Draw each column header vertically
+        val cvCols = getCvColumns()
         for ((idx, label) in cvLabelsVertical.withIndex()) {
-            val colX = startX + labelColW + 3 * (CELL + CELL_PAD) + idx * (CELL + CELL_PAD)
+            val cvId = cvCols[idx]
+            val colX = startX + labelColW + getColumnOffset(cvId)
             dl.addLine(colX - CELL_PAD * 0.5f, startY, colX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
             
             var tw = 0f
@@ -160,8 +179,9 @@ object PatchGridPanel {
         }
         
         // Draw final separator line on the right edge
-        val rightColX = startX + labelColW + (cvLabelsVertical.size + 3) * (CELL + CELL_PAD)
-        dl.addLine(rightColX - CELL_PAD * 0.5f, startY, rightColX - CELL_PAD * 0.5f, startY + maxH + 5f, lineCol, 1f)
+        val lastColId = if (cvCols.isNotEmpty()) cvCols.last() else "midi"
+        val rightColX = startX + labelColW + getColumnOffset(lastColId) + CELL + CELL_PAD * 0.5f
+        dl.addLine(rightColX, startY, rightColX, startY + maxH + 5f, lineCol, 1f)
         
         // Restore cursor to where the dummy left off
         ImGui.setCursorScreenPos(startX, afterHeadersY)
@@ -352,7 +372,7 @@ object PatchGridPanel {
         val r = CELL * 0.5f
 
         // 1. FINAL Cell
-        val finalX = gridStartX + labelColW
+        val finalX = gridStartX + labelColW + getColumnOffset("final")
         val finalY = rowScreenY
         val isFinalSelected = state.selectedCell?.paramKey == paramKey && state.selectedCell?.cvSourceId == "final"
         
@@ -381,7 +401,7 @@ object PatchGridPanel {
         )
 
         // 2. BASE Cell
-        val baseX = gridStartX + labelColW + CELL + CELL_PAD
+        val baseX = gridStartX + labelColW + getColumnOffset("base")
         val baseY = rowScreenY
         val isBaseSelected = state.selectedCell?.paramKey == paramKey && state.selectedCell?.cvSourceId == "base"
         
@@ -410,7 +430,7 @@ object PatchGridPanel {
         )
 
         // 2.5 MIDI Cell
-        val midiX = gridStartX + labelColW + 2 * (CELL + CELL_PAD)
+        val midiX = gridStartX + labelColW + getColumnOffset("midi")
         val midiY = rowScreenY
         val midiCellId = PatchCellId(paramKey, "midi")
         val isMidiSelected = state.selectedCell == midiCellId
@@ -494,7 +514,7 @@ object PatchGridPanel {
 
         // 3. CV cells
         val cvCols = getCvColumns()
-        for ((colIdx, cvId) in cvCols.withIndex()) {
+        for (cvId in cvCols) {
             val cellId = PatchCellId(paramKey, cvId)
             val isSelected = state.selectedCell == cellId
             val activeMods = param.modulators.filter {
@@ -503,7 +523,7 @@ object PatchGridPanel {
             val hasModulator = activeMods.any { !it.bypassed }
             val isBypassed = activeMods.isNotEmpty() && activeMods.all { it.bypassed }
 
-            val x = gridStartX + labelColW + 3 * (CELL + CELL_PAD) + colIdx * (CELL + CELL_PAD)
+            val x = gridStartX + labelColW + getColumnOffset(cvId)
             val y = rowScreenY
 
             val isTarget = state.midiLearnTarget?.let {

@@ -16,7 +16,6 @@ object AudioEnginePanel {
 
     private const val POPUP_ID = "Audio Engine##modal"
     private const val MODAL_W  = 540f  // width of the overlay
-    private const val MODAL_H  = 720f  // height of the overlay
 
     // Pre-allocated arrays to avoid runtime allocations
     private val rawSamples = FloatArray(1024)
@@ -25,12 +24,14 @@ object AudioEnginePanel {
     fun open() = ImGui.openPopup(POPUP_ID)
 
     fun draw(displayWidth: Float, displayHeight: Float) {
+        val modalH = displayHeight * 0.9f
+
         // Center the modal
         ImGui.setNextWindowPos(
             displayWidth * 0.5f, displayHeight * 0.5f,
-            ImGuiCond.Appearing, 0.5f, 0.5f
+            ImGuiCond.Always, 0.5f, 0.5f
         )
-        ImGui.setNextWindowSize(MODAL_W, MODAL_H, ImGuiCond.Appearing)
+        ImGui.setNextWindowSize(MODAL_W, modalH, ImGuiCond.Always)
 
         val flags = ImGuiWindowFlags.NoCollapse or
                     ImGuiWindowFlags.NoResize or
@@ -92,9 +93,9 @@ object AudioEnginePanel {
         // ─────────────────────────────────────────────────────────────────────
         // Scrollable Oscilloscopes Area
         // ─────────────────────────────────────────────────────────────────────
-        // Reserve space for header (~80px) and footer (~50px)
-        val scrollAreaHeight = MODAL_H - 150f
-        if (ImGui.beginChild("##oscopes_scroll", 0f, scrollAreaHeight, true)) {
+        // Use a negative height to tell ImGui to auto-size the child to fill all remaining
+        // vertical space except for the 50px needed for the footer.
+        if (ImGui.beginChild("##oscopes_scroll", 0f, -50f, true)) {
 
             // 1. Raw Audio Oscilloscope
             UITheme.h3("Raw Audio Input")
@@ -115,7 +116,7 @@ object AudioEnginePanel {
                 Triple("bass", "Bass Band (Low-pass)", ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, 1.0f)), // Neon Pink
                 Triple("mid", "Mid Band (Band-pass)", ImGui.colorConvertFloat4ToU32(1.0f, 0.6f, 0.1f, 1.0f)), // Neon Orange
                 Triple("high", "High Band (High-pass)", ImGui.colorConvertFloat4ToU32(0.1f, 0.9f, 0.8f, 1.0f)), // Neon Teal
-                Triple("bassFlux", "Bass Flux (Transient)", ImGui.colorConvertFloat4ToU32(0.6f, 0.4f, 1.0f, 1.0f)), // Neon Purple
+                Triple("beatSine", "Beat Sine (Oscillator)", ImGui.colorConvertFloat4ToU32(0.6f, 0.4f, 1.0f, 1.0f)), // Neon Purple
                 Triple("onset", "Onset Signal", ImGui.colorConvertFloat4ToU32(0.9f, 0.8f, 0.1f, 1.0f)), // Neon Yellow
                 Triple("accent", "Accent Level (Decay)", ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.3f, 1.0f)) // Neon Red
             )
@@ -124,9 +125,8 @@ object AudioEnginePanel {
                 val history = CVRegistry.getHistory(id)
                 if (history != null) {
                     history.copyTo(cvSamples)
-                    val currentValue = CVRegistry.get(id)
                     drawCustomOscilloscope(
-                        "%s: %.3f".format(title, currentValue),
+                        title,
                         cvSamples,
                         0.0f,
                         2.0f,
@@ -237,10 +237,9 @@ object AudioEnginePanel {
         ImGui.setCursorScreenPos(startX + 6f, startY + height - 15f)
         UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "%.1f".format(minVal))
 
-        // Right-aligned chart title
-        val textWidth = ImGui.calcTextSize(title).x
-        ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 3f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, title)
+        // Left-aligned chart title, offset slightly to not overlap with upper boundary label
+        ImGui.setCursorScreenPos(startX + 45f, startY + 3f)
+        UITheme.captionColored(0.85f, 0.85f, 0.85f, 0.9f, title)
 
         // Reset cursor location
         ImGui.setCursorScreenPos(startX, startY + height)

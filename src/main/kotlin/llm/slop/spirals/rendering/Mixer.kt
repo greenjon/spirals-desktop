@@ -1,6 +1,7 @@
 package llm.slop.spirals.rendering
 
 import llm.slop.spirals.parameters.ModulatableParameter
+import llm.slop.spirals.parameters.MeterType
 
 /**
  * Manages the blending of two Decks (Deck A and Deck B) into a master output FBO.
@@ -16,7 +17,7 @@ class Mixer(
     val masterFBO = FBO(width, height)
 
     // Blend parameters
-    val crossfade = ModulatableParameter(0.0f) // 0.0 = Deck A, 1.0 = Deck B
+    val crossfade = ModulatableParameter(0.0f, meterType = MeterType.BIPOLAR) // 0.0 = Deck A, 1.0 = Deck B
     val mode = ModulatableParameter(4.0f) // 0 = ADD, 1 = SCREEN, 2 = MULT, 3 = MAX, 4 = XFADE
     val masterAlpha = ModulatableParameter(1.0f) // Master output gain
     val bloom = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)

@@ -23,13 +23,13 @@ object CVRegistry {
         register(MutableCVSource("bass"))
         register(MutableCVSource("mid"))
         register(MutableCVSource("high"))
-        register(MutableCVSource("bassFlux"))
         register(MutableCVSource("onset"))
         register(MutableCVSource("accent"))
         register(MutableCVSource("bpm", 120f))
 
         // Register default generator CV signals
         register(BeatClock())
+        register(BeatSine())
         register(LFO())
         register(SampleAndHold())
     }
