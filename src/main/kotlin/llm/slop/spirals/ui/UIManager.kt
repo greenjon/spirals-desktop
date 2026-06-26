@@ -776,8 +776,8 @@ class UIManager(private val windowHandle: Long) {
                          ImGuiWindowFlags.NoMove or
                          ImGuiWindowFlags.NoCollapse
 
-        // Left: Patch Grid (40% width, full content height)
-        val leftW = displayWidth * 0.4f
+        // Left: Patch Grid (30% width, full content height)
+        val leftW = displayWidth * 0.3f
         ImGui.setNextWindowPos(0f, menuBarH)
         ImGui.setNextWindowSize(leftW, contentH)
         if (ImGui.begin("Patch Grid", noDecorate)) {
@@ -794,7 +794,7 @@ class UIManager(private val windowHandle: Long) {
         }
         ImGui.end()
 
-        // Right: Mixer / Monitor (30% width, full content height)
+        // Right: Mixer / Monitor (40% width, full content height)
         val rightW = displayWidth - leftW - middleW
         ImGui.setNextWindowPos(leftW + middleW, menuBarH)
         ImGui.setNextWindowSize(rightW, contentH)

@@ -25,17 +25,17 @@ object PatchGridPanel {
 
     private fun getCvColumns(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("gen1", "gen2", "lfo", "sampleAndHold", "beatPhase", "audio", "amp", "bass", "mid", "high", "trigger", "onset", "accent")
+            listOf("gen1", "gen2", "audio", "trigger")
         } else {
-            listOf("gen1", "gen2", "lfo", "sampleAndHold")
+            listOf("gen1", "gen2")
         }
     }
 
     private fun getCvLabels(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("GEN 1", "GEN 2", "LFO", "RAND", "BEAT", "AUDIO", "AMP", "BASS", "MID", "HIGH", "TRIGGER", "ONSET", "ACCENT")
+            listOf("GEN 1", "GEN 2", "AUDIO", "TRIGGER")
         } else {
-            listOf("GEN 1", "GEN 2", "LFO", "RAND")
+            listOf("GEN 1", "GEN 2")
         }
     }
 
@@ -46,25 +46,18 @@ object PatchGridPanel {
     private const val GROUP_GAP = 10f
 
     private fun getColumnOffset(colId: String): Float {
-        return when (colId) {
-            "final"          -> 0 * (CELL + CELL_PAD)
-            "base"           -> 1 * (CELL + CELL_PAD) + GROUP_GAP
-            "midi"           -> 2 * (CELL + CELL_PAD) + 2 * GROUP_GAP
-            "gen1"           -> 3 * (CELL + CELL_PAD) + 2 * GROUP_GAP
-            "gen2"           -> 4 * (CELL + CELL_PAD) + 2 * GROUP_GAP
-            "lfo"            -> 5 * (CELL + CELL_PAD) + 2 * GROUP_GAP
-            "sampleAndHold"  -> 6 * (CELL + CELL_PAD) + 2 * GROUP_GAP
-            "beatPhase"      -> 7 * (CELL + CELL_PAD) + 2 * GROUP_GAP
-            "audio"          -> 8 * (CELL + CELL_PAD) + 3 * GROUP_GAP
-            "amp"            -> 9 * (CELL + CELL_PAD) + 3 * GROUP_GAP
-            "bass"           -> 10 * (CELL + CELL_PAD) + 3 * GROUP_GAP
-            "mid"            -> 11 * (CELL + CELL_PAD) + 3 * GROUP_GAP
-            "high"           -> 12 * (CELL + CELL_PAD) + 3 * GROUP_GAP
-            "trigger"        -> 13 * (CELL + CELL_PAD) + 4 * GROUP_GAP
-            "onset"          -> 14 * (CELL + CELL_PAD) + 4 * GROUP_GAP
-            "accent"         -> 15 * (CELL + CELL_PAD) + 4 * GROUP_GAP
-            else             -> 0f
-        }
+        // Build the visible column list dynamically
+        val visibleCols = mutableListOf("final", "base", "midi")
+        visibleCols.addAll(getCvColumns())
+        
+        // Find the index of this column in the visible list
+        val index = visibleCols.indexOf(colId)
+        if (index < 0) return 0f
+        
+        // Calculate offset based on position in visible columns
+        // Add GROUP_GAP after "midi" (between special columns and CV columns)
+        val gapAfterMidi = if (index > 2) GROUP_GAP else 0f
+        return index * (CELL + CELL_PAD) + gapAfterMidi
     }
 
     private fun getCvColor(colId: String, alpha: Float = 1f): Int {
@@ -101,9 +94,9 @@ object PatchGridPanel {
         val avail = ImGui.getContentRegionAvailX()
         gridStartX = ImGui.getCursorScreenPosX()
         
-        // Calculate label column width based on the maximum possible columns (12 columns in total)
-        // so that the grid stays left-aligned instead of expanding when columns are hidden.
-        val maxGridW = getColumnOffset("accent") + CELL + CELL_PAD * 0.5f
+        // Calculate label column width based on the visible columns
+        val lastVisibleCol = getCvColumns().lastOrNull() ?: "midi"
+        val maxGridW = getColumnOffset(lastVisibleCol) + CELL + CELL_PAD * 0.5f
         val labelColW = (avail - maxGridW).coerceAtLeast(120f)
 
         handleKeyboardShortcuts(state, mixer)
@@ -433,7 +426,8 @@ object PatchGridPanel {
 
         val mousePos = ImGui.getIO().mousePos
         val rowScreenY = ImGui.getCursorScreenPosY()
-        val rowWidth = labelColW + getColumnOffset("accent") + CELL + CELL_PAD * 0.5f
+        val lastVisibleCol = getCvColumns().lastOrNull() ?: "midi"
+        val rowWidth = labelColW + getColumnOffset(lastVisibleCol) + CELL + CELL_PAD * 0.5f
         val isHoveredRow = mousePos.y >= rowScreenY && mousePos.y <= (rowScreenY + CELL) && mousePos.x >= gridStartX && mousePos.x <= (gridStartX + rowWidth)
 
         ImGui.pushID(paramKey)

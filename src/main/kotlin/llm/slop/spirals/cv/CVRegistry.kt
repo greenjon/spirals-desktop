@@ -19,19 +19,19 @@ object CVRegistry {
 
     init {
         // Register default audio-derived CV signals
-        register(MutableCVSource("amp"))
-        register(MutableCVSource("bass"))
-        register(MutableCVSource("mid"))
-        register(MutableCVSource("high"))
-        register(MutableCVSource("onset"))
-        register(MutableCVSource("accent"))
+        // register(MutableCVSource("amp"))
+        // register(MutableCVSource("bass"))
+        // register(MutableCVSource("mid"))
+        // register(MutableCVSource("high"))
+        // register(MutableCVSource("onset"))
+        // register(MutableCVSource("accent"))
         register(MutableCVSource("bpm", 120f))
 
         // Register default generator CV signals
-        register(BeatClock())
+        // register(BeatClock())
         register(BeatSine())
-        register(LFO())
-        register(SampleAndHold())
+        // register(LFO())
+        // register(SampleAndHold())
 
         // Register new unified modulators
         register(GenCVSource("gen1"))
@@ -129,7 +129,10 @@ object CVRegistry {
     /**
      * Returns all registered CV source IDs.
      */
-    fun getSourceIds(): List<String> = sources.keys().toList().sorted()
+    fun getSourceIds(): List<String> {
+        val hiddenCvs = setOf("lfo", "rand", "beat", "amp", "bass", "mid", "high", "onset", "accent")
+        return sources.keys().toList().filter { it.lowercase() !in hiddenCvs }.sorted()
+    }
 
     /**
      * Updates all active CV sources and writes their values to their histories.
