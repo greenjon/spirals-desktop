@@ -47,7 +47,7 @@ object PatchGridPanel {
 
     private fun getColumnOffset(colId: String): Float {
         // Build the visible column list dynamically
-        val visibleCols = mutableListOf("final", "base", "midi")
+        val visibleCols = mutableListOf("final", "midi")
         visibleCols.addAll(getCvColumns())
         
         // Find the index of this column in the visible list
@@ -56,7 +56,7 @@ object PatchGridPanel {
         
         // Calculate offset based on position in visible columns
         // Add GROUP_GAP after "midi" (between special columns and CV columns)
-        val gapAfterMidi = if (index > 2) GROUP_GAP else 0f
+        val gapAfterMidi = if (index > 1) GROUP_GAP else 0f
         return index * (CELL + CELL_PAD) + gapAfterMidi
     }
 
@@ -138,10 +138,8 @@ object PatchGridPanel {
                 if (h > maxH) maxH = h
             }
             val hFinal = ImGui.calcTextSize("F\nI\nN\nA\nL").y
-            val hBase = ImGui.calcTextSize("B\nA\nS\nE").y
             val hMidi = ImGui.calcTextSize("M\nI\nD\nI").y
             if (hFinal > maxH) maxH = hFinal
-            if (hBase > maxH) maxH = hBase
             if (hMidi > maxH) maxH = hMidi
         }
         
@@ -177,18 +175,6 @@ object PatchGridPanel {
         ImGui.setCursorScreenPos(finalColX + offsetX, startY)
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("final"))
         UITheme.caption(labelFinal)
-        ImGui.popStyleColor()
-
-        // Draw BASE header
-        val baseColX = startX + labelColW + getColumnOffset("base")
-        dl.addLine(baseColX - CELL_PAD * 0.5f, startY, baseColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
-        var twBase = 0f
-        val labelBase = "B\nA\nS\nE"
-        UITheme.withFont(UITheme.FontLevel.CAPTION) { twBase = ImGui.calcTextSize(labelBase).x }
-        offsetX = ((CELL - twBase) * 0.5f).coerceAtLeast(0f)
-        ImGui.setCursorScreenPos(baseColX + offsetX, startY)
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("base"))
-        UITheme.caption(labelBase)
         ImGui.popStyleColor()
 
         // Draw MIDI header
@@ -506,40 +492,9 @@ object PatchGridPanel {
             dl = dl, x = finalX, y = finalY, r = r,
             value = param.value, min = param.minClamp, max = param.maxClamp,
             meterType = param.meterType,
-            baseValue = null, baseMin = null, baseMax = null,
+            baseValue = param.baseValue, baseMin = param.baseMin, baseMax = param.baseMax,
             color = finalColor, bgCol = finalBgCol, borderCol = finalBorderCol,
             isHoveredRow = isHoveredRow, isHoveredCol = isFinalHoveredCol
-        )
-
-        // 2. BASE Cell
-        val baseX = gridStartX + labelColW + getColumnOffset("base")
-        val baseY = rowScreenY
-        val isBaseSelected = state.selectedCell?.paramKey == paramKey && state.selectedCell?.cvSourceId == "base"
-        val isBaseHoveredCol = mousePos.x >= baseX && mousePos.x <= (baseX + CELL)
-        
-        ImGui.setCursorScreenPos(baseX, baseY)
-        ImGui.invisibleButton("##base_cell", CELL, CELL)
-        if (ImGui.isItemClicked()) {
-            state.select(PatchCellId(paramKey, "base"), param)
-        }
-        
-        val baseBgCol = when {
-            isBaseSelected -> ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.6f, 1f)
-            else           -> getCvColor("base", 0.05f)
-        }
-        val baseBorderCol = when {
-            isBaseSelected -> ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 1f)
-            else           -> ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f)
-        }
-        val baseColor = getCvColor("base")
-        
-        drawKnobMeter(
-            dl = dl, x = baseX, y = baseY, r = r,
-            value = param.baseValue, min = param.minClamp, max = param.maxClamp,
-            meterType = param.meterType,
-            baseValue = param.baseValue, baseMin = param.baseMin, baseMax = param.baseMax,
-            color = baseColor, bgCol = baseBgCol, borderCol = baseBorderCol,
-            isHoveredRow = isHoveredRow, isHoveredCol = isBaseHoveredCol
         )
 
         // 2.5 MIDI Cell

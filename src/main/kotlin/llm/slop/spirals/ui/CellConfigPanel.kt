@@ -164,14 +164,61 @@ object CellConfigPanel {
         val isTrigger = cvId == "trigger"
         val hasAdvanced = isBeat || isLfo || isSnh || isGen
 
-        if (cvId == "base") {
+        if (cvId == "final") {
             UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey)
             ImGui.sameLine()
-            UITheme.caption("  <--  BASE RANGE")
+            UITheme.caption("  <--  FINAL & INITIAL VALUE")
             ImGui.separator()
             ImGui.spacing()
 
+            // Live value text readout
+            val isBgStyle = paramKey.endsWith("/Background/Style")
             val isHueSweep = paramKey.endsWith("/HueSweep") || paramKey.endsWith("/Color/HueSweep")
+            val isLobes = paramKey.endsWith("/Geometry/Lobes")
+            val liveVal = param.value
+            val liveLabel = when {
+                isHueSweep && mandala != null -> {
+                    val petals = mandala.recipe.petals
+                    val options = mandala.getSymmetricHueCycles(petals)
+                    val idx = if (options.size > 1) (liveVal * (options.size - 1)).roundToInt().coerceIn(0, options.size - 1) else 0
+                    "${options[idx]} cycles"
+                }
+                isBgStyle -> {
+                    when (liveVal.roundToInt()) {
+                        0 -> "Off"
+                        1 -> "Solid Color"
+                        2 -> "Plasma"
+                        else -> "Off"
+                    }
+                }
+                isLobes -> "${liveVal.roundToInt()} lobes"
+                else -> "%.3f".format(liveVal)
+            }
+            UITheme.h3("Live Modulated Value: $liveLabel")
+            ImGui.spacing()
+
+            // Oscilloscope showing final value history
+            drawFinalOscilloscope(param.history, param.minClamp, param.maxClamp, themeColor)
+
+            // Cyan progress bar under the oscilloscope showing the value in the clamp range
+            ImGui.spacing()
+            val range = param.maxClamp - param.minClamp
+            val pct = if (range == 0f) 0.5f else ((param.value - param.minClamp) / range).coerceIn(0f, 1f)
+            val barW = ImGui.getContentRegionAvailX()
+            val dl = ImGui.getWindowDrawList()
+            var cx = ImGui.getCursorScreenPosX()
+            var cy = ImGui.getCursorScreenPosY()
+            dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
+            dl.addRectFilled(cx, cy, cx + barW * pct, cy + 10f, themeColor)
+            ImGui.dummy(barW, 10f)
+
+            ImGui.spacing()
+            ImGui.separator()
+            ImGui.spacing()
+
+            // --- INITIAL VALUE CONTROLS ---
+            UITheme.h3("Initial Value Configuration")
+            ImGui.spacing()
 
             if (isHueSweep && mandala != null) {
                 val petals = mandala.recipe.petals
@@ -250,12 +297,10 @@ object CellConfigPanel {
                     }
                 )
             } else {
-                val isLobes = paramKey.endsWith("/Geometry/Lobes")
                 val isRecipeSelect = paramKey.endsWith("/Geometry/Recipe")
-                val isBgStyle = paramKey.endsWith("/Background/Style")
 
                 drawCustomRangeSlider(
-                    label = "Base Range",
+                    label = "Initial Range",
                     currentValue = param.baseValue,
                     currentMin = param.baseMin,
                     currentMax = param.baseMax,
@@ -329,7 +374,7 @@ object CellConfigPanel {
             if (!randomizeBaseActive) {
                 ImGui.beginDisabled()
             }
-            if (ImGui.button("🎲 Randomize Base Value", ImGui.getContentRegionAvailX(), 30f)) {
+            if (ImGui.button("🎲 Randomize Initial Value", ImGui.getContentRegionAvailX(), 30f)) {
                 param.randomizeBaseValue()
             }
             if (!randomizeBaseActive) {
@@ -337,12 +382,11 @@ object CellConfigPanel {
             }
 
             ImGui.spacing()
-            val isBgStyle = paramKey.endsWith("/Background/Style")
             if (isHueSweep && mandala != null) {
                 val petals = mandala.recipe.petals
                 val options = mandala.getSymmetricHueCycles(petals)
                 val idx = if (options.size > 1) (param.baseValue * (options.size - 1)).roundToInt().coerceIn(0, options.size - 1) else 0
-                UITheme.caption("Static Base Value: ${options[idx]} cycles")
+                UITheme.caption("Static Initial Value: ${options[idx]} cycles")
             } else if (isBgStyle) {
                 val label = when (param.baseValue.roundToInt()) {
                     0 -> "Off"
@@ -350,67 +394,17 @@ object CellConfigPanel {
                     2 -> "Plasma"
                     else -> "Off"
                 }
-                UITheme.caption("Static Base Value: $label")
+                UITheme.caption("Static Initial Value: $label")
             } else {
-                UITheme.caption("Static Base Value: %.3f".format(param.baseValue))
+                UITheme.caption("Static Initial Value: %.3f".format(param.baseValue))
             }
-            val barW = ImGui.getContentRegionAvailX()
-            val dl = ImGui.getWindowDrawList()
-            val cx = ImGui.getCursorScreenPosX()
-            val cy = ImGui.getCursorScreenPosY()
-            dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-            dl.addRectFilled(cx, cy, cx + barW * param.baseValue, cy + 10f, themeColor)
-            ImGui.dummy(barW, 10f)
-            return
-        }
-
-        if (cvId == "final") {
-            UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey)
-            ImGui.sameLine()
-            UITheme.caption("  <--  FINAL VALUE")
-            ImGui.separator()
-            ImGui.spacing()
-
-            // Live value text readout
-            val isBgStyle = paramKey.endsWith("/Background/Style")
-            val isHueSweep = paramKey.endsWith("/HueSweep") || paramKey.endsWith("/Color/HueSweep")
-            val isLobes = paramKey.endsWith("/Geometry/Lobes")
-            val liveVal = param.value
-            val liveLabel = when {
-                isHueSweep && mandala != null -> {
-                    val petals = mandala.recipe.petals
-                    val options = mandala.getSymmetricHueCycles(petals)
-                    val idx = if (options.size > 1) (liveVal * (options.size - 1)).roundToInt().coerceIn(0, options.size - 1) else 0
-                    "${options[idx]} cycles"
-                }
-                isBgStyle -> {
-                    when (liveVal.roundToInt()) {
-                        0 -> "Off"
-                        1 -> "Solid Color"
-                        2 -> "Plasma"
-                        else -> "Off"
-                    }
-                }
-                isLobes -> "${liveVal.roundToInt()} lobes"
-                else -> "%.3f".format(liveVal)
-            }
-            UITheme.h3("Live Modulated Value: $liveLabel")
-            ImGui.spacing()
-
-            // Oscilloscope showing final value history
-            drawFinalOscilloscope(param.history, param.minClamp, param.maxClamp, themeColor)
-
-            // Cyan progress bar under the oscilloscope showing the value in the clamp range
-            ImGui.spacing()
-            val range = param.maxClamp - param.minClamp
-            val pct = if (range == 0f) 0.5f else ((param.value - param.minClamp) / range).coerceIn(0f, 1f)
-            val barW = ImGui.getContentRegionAvailX()
-            val dl = ImGui.getWindowDrawList()
-            val cx = ImGui.getCursorScreenPosX()
-            val cy = ImGui.getCursorScreenPosY()
-            dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-            dl.addRectFilled(cx, cy, cx + barW * pct, cy + 10f, themeColor)
-            ImGui.dummy(barW, 10f)
+            val baseBarW = ImGui.getContentRegionAvailX()
+            val baseDl = ImGui.getWindowDrawList()
+            cx = ImGui.getCursorScreenPosX()
+            cy = ImGui.getCursorScreenPosY()
+            baseDl.addRectFilled(cx, cy, cx + baseBarW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
+            baseDl.addRectFilled(cx, cy, cx + baseBarW * param.baseValue, cy + 10f, getThemeColor("base"))
+            ImGui.dummy(baseBarW, 10f)
 
             return
         }
