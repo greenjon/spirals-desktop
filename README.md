@@ -3,7 +3,8 @@
 Open source audio-reactive visual performance software for VJs.
 
 ## Status
-🚧 Early development - Project structure established
+🚧 Well developed beta. Most features work, the GUI is probably nearing its final form. 
+Bugs will exist and bug reports are very welcome! Development is rapid and reported bugs will be fixed promptly.
 
 ## Tech Stack
 - Kotlin/JVM
