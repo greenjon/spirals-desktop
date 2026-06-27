@@ -62,6 +62,11 @@ fun main() {
     // Initialize UI Manager
     val uiManager = UIManager(window)
 
+    glfwSetWindowCloseCallback(window) { win ->
+        glfwSetWindowShouldClose(win, false)
+        uiManager.triggerExitFlow()
+    }
+
     logger.info { "Initialization complete" }
 
     // Initialize rendering components

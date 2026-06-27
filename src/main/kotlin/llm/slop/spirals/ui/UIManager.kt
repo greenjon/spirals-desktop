@@ -96,10 +96,11 @@ class UIManager(private val windowHandle: Long) {
     private var lastWindowTitle: String? = null
 
     private enum class PendingProjectAction {
-        NONE, NEW, LOAD, LOAD_SETLIST
+        NONE, NEW, LOAD, LOAD_SETLIST, EXIT
     }
     private var pendingProjectAction = PendingProjectAction.NONE
     private var pendingOpenConfirmPopup = false
+    private var pendingOpenExitPopup = false
 
     private enum class PendingDeckAction {
         NONE, NEW, LOAD_FILE, LOAD_PRESET
@@ -266,6 +267,10 @@ class UIManager(private val windowHandle: Long) {
                 ImGui.openPopup("Save Changes?##confirm")
                 pendingOpenConfirmPopup = false
             }
+            if (pendingOpenExitPopup) {
+                ImGui.openPopup("Exit Spirals?##confirm")
+                pendingOpenExitPopup = false
+            }
             // Phase 3b — open setlist panel
             if (pendingOpenSetlist) {
                 SetlistPanel.open()
@@ -284,6 +289,7 @@ class UIManager(private val windowHandle: Long) {
             AudioEnginePanel.draw(displayWidth, displayHeight)
 
             drawConfirmPopup(mixer, displayWidth, displayHeight)
+            drawExitPopup(mixer, displayWidth, displayHeight)
             drawDeckConfirmPopups(mixer.deckA, mixer.deckB)
 
             // Phase 1 — Global project file browser modal
@@ -355,6 +361,11 @@ class UIManager(private val windowHandle: Long) {
         val targetSize = currentSize + delta
         val constrainedSize = targetSize.coerceIn(10f, 28f)
         applyFontSize(constrainedSize)
+    }
+
+    fun triggerExitFlow() {
+        UITheme.cleanModeEnabled = false
+        pendingOpenExitPopup = true
     }
 
     private fun loadGlobalPatchWithDialog() {
@@ -481,6 +492,12 @@ class UIManager(private val windowHandle: Long) {
                     currentGlobalPatchFile = file
                     llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
                 }
+                PendingProjectAction.EXIT -> {
+                    currentGlobalPatchFile = file
+                    llm.slop.spirals.patches.PatchManager.saveGlobalPatchAsync(file, mixer, name)
+                    pendingProjectAction = PendingProjectAction.NONE
+                    org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose(windowHandle, true)
+                }
             }
         }
     }
@@ -532,6 +549,66 @@ class UIManager(private val windowHandle: Long) {
             if (ImGui.button("Cancel", 80f, 0f)) {
                 pendingProjectAction = PendingProjectAction.NONE
                 ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawExitPopup(mixer: Mixer, displayW: Float, displayH: Float) {
+        ImGui.setNextWindowPos(
+            displayW * 0.5f, displayH * 0.5f,
+            imgui.flag.ImGuiCond.Appearing, 0.5f, 0.5f
+        )
+        
+        val flags = imgui.flag.ImGuiWindowFlags.AlwaysAutoResize or
+                    imgui.flag.ImGuiWindowFlags.NoMove            or
+                    imgui.flag.ImGuiWindowFlags.NoCollapse
+
+        val isDirty = llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer)
+
+        if (ImGui.beginPopupModal("Exit Spirals?##confirm", flags)) {
+            if (isDirty) {
+                ImGui.text("You have unsaved changes. Do you want to save them before exiting?")
+                ImGui.spacing()
+                ImGui.separator()
+                ImGui.spacing()
+                
+                if (ImGui.button("Save & Exit", 120f, 0f)) {
+                    pendingProjectAction = PendingProjectAction.EXIT
+                    val saved = saveGlobalPatch(mixer, false)
+                    if (saved) {
+                        // Fast-save completed synchronously — exit now!
+                        pendingProjectAction = PendingProjectAction.NONE
+                        org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose(windowHandle, true)
+                    }
+                    ImGui.closeCurrentPopup()
+                }
+                ImGui.sameLine()
+                if (ImGui.button("Discard & Exit", 120f, 0f)) {
+                    pendingProjectAction = PendingProjectAction.NONE
+                    org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose(windowHandle, true)
+                    ImGui.closeCurrentPopup()
+                }
+                ImGui.sameLine()
+                if (ImGui.button("Cancel", 120f, 0f)) {
+                    pendingProjectAction = PendingProjectAction.NONE
+                    ImGui.closeCurrentPopup()
+                }
+            } else {
+                ImGui.text("Are you sure you want to exit?")
+                ImGui.text("Accidentally exiting during a show would be bad!")
+                ImGui.spacing()
+                ImGui.separator()
+                ImGui.spacing()
+
+                if (ImGui.button("Exit", 120f, 0f)) {
+                    org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose(windowHandle, true)
+                    ImGui.closeCurrentPopup()
+                }
+                ImGui.sameLine()
+                if (ImGui.button("Cancel", 120f, 0f)) {
+                    ImGui.closeCurrentPopup()
+                }
             }
             ImGui.endPopup()
         }
@@ -690,7 +767,10 @@ class UIManager(private val windowHandle: Long) {
                     saveGlobalPatch(mixer, true)
                 }
                 ImGui.separator()
-                if (ImGui.menuItem("Exit")) { logger.info { "Exit clicked" } }
+                if (ImGui.menuItem("Exit")) {
+                    logger.info { "Exit clicked" }
+                    triggerExitFlow()
+                }
                 ImGui.endMenu()
             }
 
