@@ -26,17 +26,17 @@ object PatchGridPanel {
 
     private fun getCvColumns(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("gen1", "gen2", "audio", "trigger")
+            listOf("gen1", /*"gen2",*/ "audio", "trigger")
         } else {
-            listOf("gen1", "gen2")
+            listOf("gen1" /*, "gen2"*/)
         }
     }
 
     private fun getCvLabels(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("GEN 1", "GEN 2", "AUDIO", "TRIGGER")
+            listOf("LFO", /*"GEN 2",*/ "AUDIO", "TRIGGER")
         } else {
-            listOf("GEN 1", "GEN 2")
+            listOf("LFO" /*, "GEN 2"*/)
         }
     }
 

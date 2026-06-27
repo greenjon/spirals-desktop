@@ -113,9 +113,9 @@ object CellConfigPanel {
             val activeCount = activeMods.size
             if (activeCount == 0) {
                 virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
-                virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
+                // virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
             } else if (activeCount == 1) {
-                virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
+                // virtualModulators.add(CvModulator(sourceId = cvId, bypassed = true))
             }
         } else {
             if (activeMods.isEmpty()) {
@@ -437,7 +437,7 @@ object CellConfigPanel {
             UITheme.captionColored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, "  <--  $cvId ($label)")
         } else {
             val label = when (cvId) {
-                "gen1" -> "Generator 1"
+                "gen1" -> "LFO"
                 "gen2" -> "Generator 2"
                 "lfo" -> "LFO Modulator"
                 "sampleAndHold" -> "Sample & Hold Modulator"
@@ -569,7 +569,7 @@ object CellConfigPanel {
         val showWaveform = hasAdvanced && (!isSnh || isGen)
         if (showWaveform) {
             ImGui.beginGroup()
-            UITheme.body("Waveform")
+            UITheme.body(if (isGen) "LFO 1" else "Waveform")
             
             val currentLabels = if (isGen) {
                 arrayOf("Sine", "Triangle", "Square", "Random")
@@ -587,7 +587,7 @@ object CellConfigPanel {
             if (isGen) {
                 ImGui.sameLine(0f, 10f)
                 ImGui.beginGroup()
-                UITheme.body("Unit")
+                UITheme.body("LFO 1 Unit")
                 val unitIdx = ImInt(existing.genUnit.ordinal)
                 val unitLabels = arrayOf("Time", "Beat")
                 ImGui.pushItemWidth(125f)
@@ -755,7 +755,7 @@ object CellConfigPanel {
             
             drawBeatDivisionSlider(
                 idPrefix = existing.id,
-                label = "Beat Div",
+                label = if (isGen) "LFO 1 Beat Div" else "Beat Div",
                 themeColor = currentThemeColor,
                 currentValue = currentActiveIdx.toFloat(),
                 currentMin = currentMinIdx.toFloat(),
@@ -821,7 +821,7 @@ object CellConfigPanel {
 
             drawCustomRangeSlider(
                 idPrefix = existing.id,
-                label = "LFO Period",
+                label = if (isGen) "LFO 1 Period" else "LFO Period",
                 themeColor = currentThemeColor,
                 currentValue = existing.subdivision,
                 currentMin = existing.subdivisionMin,
@@ -883,7 +883,7 @@ object CellConfigPanel {
         // ── Phase Offset ─────────────────────────────────────────
         drawCustomRangeSlider(
             idPrefix = existing.id,
-            label = "Phase Offset",
+            label = if (isGen) "LFO 1 Phase" else "Phase Offset",
             themeColor = currentThemeColor,
             currentValue = existing.phaseOffset,
             currentMin = existing.phaseOffsetMin,
@@ -1001,7 +1001,357 @@ object CellConfigPanel {
             ImGui.spacing()
         }
 
-            ImGui.unindent(10f) // Unindent at the end of block
+        if (isGen) {
+            ImGui.spacing()
+            ImGui.separator()
+            ImGui.spacing()
+            UITheme.h3("Modulation Mode")
+            val currentMode = existing.generatorModMode
+            val modeLabels = arrayOf("None", "AM (Amplitude)", "PM (Phase)", "ADD (Additive)")
+            val modeIdx = ImInt(currentMode.ordinal)
+            ImGui.pushItemWidth(200f)
+            if (ImGui.combo("##gen_mod_mode", modeIdx, modeLabels)) {
+                val nextMode = llm.slop.spirals.parameters.GeneratorModMode.entries[modeIdx.get()]
+                replaceModulator(state, param, existing.copy(generatorModMode = nextMode))
+            }
+            ImGui.popItemWidth()
+
+            if (currentMode != llm.slop.spirals.parameters.GeneratorModMode.NONE) {
+                ImGui.spacing()
+                
+                // Modulation Depth range slider
+                drawCustomRangeSlider(
+                    idPrefix = existing.id + "_mod_depth",
+                    label = "Mod Depth",
+                    themeColor = currentThemeColor,
+                    currentValue = existing.generatorModDepth,
+                    currentMin = existing.generatorModDepthMin,
+                    currentMax = existing.generatorModDepthMax,
+                    minLimit = 0f,
+                    maxLimit = 1f,
+                    isRandomizable = existing.randomizeGeneratorModDepth,
+                    formatValue = { "%.3f".format(it) },
+                    onRandomizableChanged = { checked ->
+                        if (checked) {
+                            val rMin = existing.generatorModDepthMin
+                            val rMax = existing.generatorModDepthMax
+                            val (nextMin, nextMax) = if (rMin == rMax) {
+                                Pair((existing.generatorModDepth - 0.1f).coerceAtLeast(0f), (existing.generatorModDepth + 0.1f).coerceAtMost(1f))
+                            } else {
+                                Pair(rMin, rMax)
+                            }
+                            replaceModulator(state, param, existing.copy(
+                                randomizeGeneratorModDepth = true,
+                                generatorModDepthMin = nextMin,
+                                generatorModDepthMax = nextMax
+                            ))
+                        } else {
+                            replaceModulator(state, param, existing.copy(
+                                randomizeGeneratorModDepth = false,
+                                generatorModDepthMin = existing.generatorModDepth,
+                                generatorModDepthMax = existing.generatorModDepth
+                            ))
+                        }
+                    },
+                    onRandomizeNow = {
+                        replaceModulator(state, param, existing.randomizeGeneratorModDepth())
+                    },
+                    onRangeChanged = { nextMin, nextMax ->
+                        val nextActive = existing.generatorModDepth.coerceIn(nextMin, nextMax)
+                        replaceModulator(state, param, existing.copy(
+                            generatorModDepthMin = nextMin,
+                            generatorModDepthMax = nextMax,
+                            generatorModDepth = nextActive
+                        ))
+                    },
+                    onValueChanged = { newVal ->
+                        replaceModulator(state, param, existing.copy(
+                            generatorModDepth = newVal,
+                            generatorModDepthMin = newVal,
+                            generatorModDepthMax = newVal
+                        ))
+                    }
+                )
+
+                ImGui.spacing()
+                UITheme.h3("Generator Modulator (LFO 2)")
+
+                // LFO 2 Waveform
+                ImGui.beginGroup()
+                UITheme.body("LFO 2")
+                val modWfLabels = arrayOf("Sine", "Triangle", "Square", "Random")
+                val modWfIdx = ImInt(existing.modWaveform.ordinal)
+                ImGui.pushItemWidth(125f)
+                if (ImGui.combo("##mod_waveform", modWfIdx, modWfLabels)) {
+                    replaceModulator(state, param, existing.copy(modWaveform = Waveform.entries[modWfIdx.get()]))
+                }
+                ImGui.popItemWidth()
+                ImGui.endGroup()
+
+                ImGui.sameLine(0f, 10f)
+                // LFO 2 Unit
+                ImGui.beginGroup()
+                UITheme.body("LFO 2 Unit")
+                val modUnitIdx = ImInt(existing.modGenUnit.ordinal)
+                val modUnitLabels = arrayOf("Time", "Beat")
+                ImGui.pushItemWidth(125f)
+                if (ImGui.combo("##mod_unit", modUnitIdx, modUnitLabels)) {
+                    replaceModulator(state, param, existing.copy(modGenUnit = GenUnit.entries[modUnitIdx.get()]))
+                }
+                ImGui.popItemWidth()
+                ImGui.endGroup()
+
+                ImGui.spacing()
+
+                // LFO 2 Speed (Subdivision or Period)
+                if (existing.modGenUnit == GenUnit.BEAT) {
+                    val currentMinIdx = subdivisionOptions.indexOfFirst { it == existing.modSubdivisionMin }.coerceAtLeast(0)
+                    val currentMaxIdx = subdivisionOptions.indexOfFirst { it == existing.modSubdivisionMax }.coerceAtLeast(0)
+                    val currentActiveIdx = subdivisionOptions.indexOfFirst { it == existing.modSubdivision }.coerceAtLeast(0)
+
+                    drawBeatDivisionSlider(
+                        idPrefix = existing.id + "_mod",
+                        label = "LFO 2 Beat Div",
+                        themeColor = currentThemeColor,
+                        currentValue = currentActiveIdx.toFloat(),
+                        currentMin = currentMinIdx.toFloat(),
+                        currentMax = currentMaxIdx.toFloat(),
+                        minLimit = 0f,
+                        maxLimit = (subdivisionOptions.size - 1).toFloat(),
+                        isRandomizable = existing.randomizeModSubdivision,
+                        formatValue = { idx -> subdivisionLabels[idx.toInt().coerceIn(0, subdivisionOptions.size - 1)] },
+                        onRandomizableChanged = { checked ->
+                            if (checked) {
+                                val rMin = existing.modSubdivisionMin
+                                val rMax = existing.modSubdivisionMax
+                                val (nextMin, nextMax) = if (rMin == rMax) {
+                                    val idx = subdivisionOptions.indexOfFirst { it == rMin }.coerceIn(0, subdivisionOptions.size - 1)
+                                    val minIdx = (idx - 1).coerceAtLeast(0)
+                                    val maxIdx = (idx + 1).coerceAtMost(subdivisionOptions.size - 1)
+                                    Pair(subdivisionOptions[minIdx], subdivisionOptions[maxIdx])
+                                } else {
+                                    Pair(rMin, rMax)
+                                }
+                                replaceModulator(state, param, existing.copy(
+                                    randomizeModSubdivision = true,
+                                    modSubdivisionMin = nextMin,
+                                    modSubdivisionMax = nextMax
+                                ))
+                            } else {
+                                replaceModulator(state, param, existing.copy(
+                                    randomizeModSubdivision = false,
+                                    modSubdivisionMin = existing.modSubdivision,
+                                    modSubdivisionMax = existing.modSubdivision
+                                ))
+                            }
+                        },
+                        onRandomizeNow = {
+                            replaceModulator(state, param, existing.randomizeModSubdivision())
+                        },
+                        onRangeChanged = { nextMinIdx, nextMaxIdx ->
+                            val nextMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                            val nextMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                            val nextActive = existing.modSubdivision.coerceIn(nextMinVal, nextMaxVal)
+                            replaceModulator(state, param, existing.copy(
+                                modSubdivisionMin = nextMinVal,
+                                modSubdivisionMax = nextMaxVal,
+                                modSubdivision = nextActive
+                            ))
+                        },
+                        onValueChanged = { newValIdx ->
+                            val newVal = subdivisionOptions[newValIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                            replaceModulator(state, param, existing.copy(
+                                modSubdivision = newVal,
+                                modSubdivisionMin = newVal,
+                                modSubdivisionMax = newVal
+                            ))
+                        }
+                    )
+                    ImGui.spacing()
+                } else {
+                    val formatFunc: (Float) -> String = { v -> TimeUtils.formatPeriod(v) }
+                    val parseFunc: (String) -> Float? = { s -> TimeUtils.parsePeriod(s) }
+
+                    drawCustomRangeSlider(
+                        idPrefix = existing.id + "_mod",
+                        label = "LFO 2 Period",
+                        themeColor = currentThemeColor,
+                        currentValue = existing.modSubdivision,
+                        currentMin = existing.modSubdivisionMin,
+                        currentMax = existing.modSubdivisionMax,
+                        minLimit = 0.01f,
+                        maxLimit = 86400f,
+                        isRandomizable = existing.randomizeModSubdivision,
+                        formatValue = formatFunc,
+                        isLogarithmic = true,
+                        parseValue = parseFunc,
+                        onRandomizableChanged = { checked ->
+                            if (checked) {
+                                val rMin = existing.modSubdivisionMin
+                                val rMax = existing.modSubdivisionMax
+                                val (nextMin, nextMax) = if (rMin == rMax) {
+                                    Pair((existing.modSubdivision * 0.5f).coerceIn(0.01f, 86400f), (existing.modSubdivision * 2f).coerceIn(0.01f, 86400f))
+                                } else {
+                                    Pair(rMin, rMax)
+                                }
+                                replaceModulator(state, param, existing.copy(
+                                    randomizeModSubdivision = true,
+                                    modSubdivisionMin = nextMin,
+                                    modSubdivisionMax = nextMax
+                                ))
+                            } else {
+                                replaceModulator(state, param, existing.copy(
+                                    randomizeModSubdivision = false,
+                                    modSubdivisionMin = existing.modSubdivision,
+                                    modSubdivisionMax = existing.modSubdivision
+                                ))
+                            }
+                        },
+                        onRandomizeNow = {
+                            replaceModulator(state, param, existing.randomizeModSubdivision())
+                        },
+                        onRangeChanged = { nextMin, nextMax ->
+                            val nextActive = existing.modSubdivision.coerceIn(nextMin, nextMax)
+                            replaceModulator(state, param, existing.copy(
+                                modSubdivisionMin = nextMin,
+                                modSubdivisionMax = nextMax,
+                                modSubdivision = nextActive
+                            ))
+                        },
+                        onValueChanged = { newVal ->
+                            replaceModulator(state, param, existing.copy(
+                                modSubdivision = newVal,
+                                modSubdivisionMin = newVal,
+                                modSubdivisionMax = newVal
+                            ))
+                        }
+                    )
+                    ImGui.spacing()
+                }
+
+                // LFO 2 Phase Offset
+                drawCustomRangeSlider(
+                    idPrefix = existing.id + "_mod_phase",
+                    label = "LFO 2 Phase",
+                    themeColor = currentThemeColor,
+                    currentValue = existing.modPhaseOffset,
+                    currentMin = existing.modPhaseOffsetMin,
+                    currentMax = existing.modPhaseOffsetMax,
+                    minLimit = 0f,
+                    maxLimit = 1f,
+                    isRandomizable = existing.randomizeModPhaseOffset,
+                    formatValue = { "%.3f".format(it) },
+                    onRandomizableChanged = { checked ->
+                        if (checked) {
+                            val rMin = existing.modPhaseOffsetMin
+                            val rMax = existing.modPhaseOffsetMax
+                            val (nextMin, nextMax) = if (rMin == rMax) {
+                                Pair((existing.modPhaseOffset - 0.1f).coerceAtLeast(0f), (existing.modPhaseOffset + 0.1f).coerceAtMost(1f))
+                            } else {
+                                Pair(rMin, rMax)
+                            }
+                            replaceModulator(state, param, existing.copy(
+                                randomizeModPhaseOffset = true,
+                                modPhaseOffsetMin = nextMin,
+                                modPhaseOffsetMax = nextMax
+                            ))
+                        } else {
+                            replaceModulator(state, param, existing.copy(
+                                randomizeModPhaseOffset = false,
+                                modPhaseOffsetMin = existing.modPhaseOffset,
+                                modPhaseOffsetMax = existing.modPhaseOffset
+                            ))
+                        }
+                    },
+                    onRandomizeNow = {
+                        replaceModulator(state, param, existing.randomizeModPhaseOffset())
+                    },
+                    onRangeChanged = { nextMin, nextMax ->
+                        val nextActive = existing.modPhaseOffset.coerceIn(nextMin, nextMax)
+                        replaceModulator(state, param, existing.copy(
+                            modPhaseOffsetMin = nextMin,
+                            modPhaseOffsetMax = nextMax,
+                            modPhaseOffset = nextActive
+                        ))
+                    },
+                    onValueChanged = { newVal ->
+                        replaceModulator(state, param, existing.copy(
+                            modPhaseOffset = newVal,
+                            modPhaseOffsetMin = newVal,
+                            modPhaseOffsetMax = newVal
+                        ))
+                    }
+                )
+                ImGui.spacing()
+
+                // LFO 2 Slope
+                val modNeedsSlope = existing.modWaveform == Waveform.TRIANGLE ||
+                        existing.modWaveform == Waveform.SQUARE ||
+                        existing.modWaveform == Waveform.RANDOM
+                if (modNeedsSlope) {
+                    val modSlopeLabel = when (existing.modWaveform) {
+                        Waveform.RANDOM -> "LFO 2 Glide"
+                        Waveform.TRIANGLE -> "LFO 2 Slope"
+                        else -> "LFO 2 Duty Cycle"
+                    }
+                    drawCustomRangeSlider(
+                        idPrefix = existing.id + "_mod_slope",
+                        label = modSlopeLabel,
+                        themeColor = currentThemeColor,
+                        currentValue = existing.modSlope,
+                        currentMin = existing.modSlopeMin,
+                        currentMax = existing.modSlopeMax,
+                        minLimit = 0f,
+                        maxLimit = 1f,
+                        isRandomizable = existing.randomizeModSlope,
+                        formatValue = { "%.3f".format(it) },
+                        onRandomizableChanged = { checked ->
+                            if (checked) {
+                                val rMin = existing.modSlopeMin
+                                val rMax = existing.modSlopeMax
+                                val (nextMin, nextMax) = if (rMin == rMax) {
+                                    Pair((existing.modSlope - 0.1f).coerceAtLeast(0f), (existing.modSlope + 0.1f).coerceAtMost(1f))
+                                } else {
+                                    Pair(rMin, rMax)
+                                }
+                                replaceModulator(state, param, existing.copy(
+                                    randomizeModSlope = true,
+                                    modSlopeMin = nextMin,
+                                    modSlopeMax = nextMax
+                                ))
+                            } else {
+                                replaceModulator(state, param, existing.copy(
+                                    randomizeModSlope = false,
+                                    modSlopeMin = existing.modSlope,
+                                    modSlopeMax = existing.modSlope
+                                ))
+                            }
+                        },
+                        onRandomizeNow = {
+                            replaceModulator(state, param, existing.randomizeModSlope())
+                        },
+                        onRangeChanged = { nextMin, nextMax ->
+                            val nextActive = existing.modSlope.coerceIn(nextMin, nextMax)
+                            replaceModulator(state, param, existing.copy(
+                                modSlopeMin = nextMin,
+                                modSlopeMax = nextMax,
+                                modSlope = nextActive
+                            ))
+                        },
+                        onValueChanged = { newVal ->
+                            replaceModulator(state, param, existing.copy(
+                                modSlope = newVal,
+                                modSlopeMin = newVal,
+                                modSlopeMax = newVal
+                            ))
+                        }
+                    )
+                    ImGui.spacing()
+                }
+            }
+        }
+
+        ImGui.unindent(10f) // Unindent at the end of block
             
             if (bypassed) {
                 ImGui.popStyleVar()
@@ -1395,7 +1745,7 @@ object CellConfigPanel {
             val labelText = "Current: $formattedVal"
             val currentTextWidth = ImGui.calcTextSize(labelText).x
             val minAllowedX = lineStartX
-            val maxAllowedX = lineEndX - currentTextWidth
+            val maxAllowedX = (lineEndX - currentTextWidth).coerceAtLeast(minAllowedX)
             val textX = (curX - currentTextWidth / 2f).coerceIn(minAllowedX, maxAllowedX)
             
             ImGui.setCursorScreenPos(textX, startY + 2f)
@@ -1792,7 +2142,7 @@ object CellConfigPanel {
             val labelText = "Current: $formattedVal"
             val currentTextWidth = ImGui.calcTextSize(labelText).x
             val minAllowedX = lineStartX
-            val maxAllowedX = lineEndX - currentTextWidth
+            val maxAllowedX = (lineEndX - currentTextWidth).coerceAtLeast(minAllowedX)
             val textX = (curX - currentTextWidth / 2f).coerceIn(minAllowedX, maxAllowedX)
 
             ImGui.setCursorScreenPos(textX, startY + 2f)

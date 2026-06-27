@@ -35,7 +35,7 @@ object CVRegistry {
 
         // Register new unified modulators
         register(GenCVSource("gen1"))
-        register(GenCVSource("gen2"))
+        // register(GenCVSource("gen2"))
 
         register(MutableCVSource("audio_amp"))
         register(MutableCVSource("audio_bass"))

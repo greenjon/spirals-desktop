@@ -22,3 +22,9 @@ enum class GenUnit {
     TIME, BEAT
 }
 
+@Serializable
+enum class GeneratorModMode {
+    NONE, AM, PM, ADD
+}
+
+
