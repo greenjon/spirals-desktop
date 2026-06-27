@@ -117,6 +117,21 @@ class Renderer {
         mandalaShader.setUniform("uC", mandala.recipe.c.toFloat())
         mandalaShader.setUniform("uD", mandala.recipe.d.toFloat())
 
+        // Set Z-axis harmonograph parameters
+        mandalaShader.setUniform("uZAmp1", p["Z Amp 1"]?.value ?: 0f)
+        mandalaShader.setUniform("uZAmp2", p["Z Amp 2"]?.value ?: 0f)
+        mandalaShader.setUniform("uZFreq1", p["Z Freq 1"]?.value ?: 2f)
+        mandalaShader.setUniform("uZFreq2", p["Z Freq 2"]?.value ?: 3f)
+        mandalaShader.setUniform("uZDamp1", p["Z Damp 1"]?.value ?: 0f)
+        mandalaShader.setUniform("uZDamp2", p["Z Damp 2"]?.value ?: 0f)
+        mandalaShader.setUniform("uZPhase1", p["Z Phase 1"]?.value ?: 0f)
+        mandalaShader.setUniform("uZPhase2", p["Z Phase 2"]?.value ?: 0f)
+
+        // Set 3D rotations & perspective projection
+        mandalaShader.setUniform("uYaw", p["3D Yaw"]?.value ?: 0f)
+        mandalaShader.setUniform("uPitch", p["3D Pitch"]?.value ?: 0f)
+        mandalaShader.setUniform("uPersp", p["3D Persp"]?.value ?: 0.5f)
+
         // Calculate and set global transformation uniforms
         val scale = (p["Scale"]?.value ?: 0.125f) * 8.0f
         val rotation = (p["Rotation"]?.value ?: 0f) * 2.0f * Math.PI.toFloat()

@@ -89,7 +89,18 @@ class Mandala(
         "Bg Val" to ModulatableParameter(0.5f, minClamp = 0.0f, maxClamp = 1.0f),
         "Bg Sweep" to ModulatableParameter(0.2f, minClamp = 0.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
         "Bg Speed" to ModulatableParameter(0.2f, minClamp = 0.0f, maxClamp = 1.0f),
-        "Bg Zoom" to ModulatableParameter(1.0f, minClamp = 0.1f, maxClamp = 10.0f)
+        "Bg Zoom" to ModulatableParameter(1.0f, minClamp = 0.1f, maxClamp = 10.0f),
+        "Z Amp 1" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Z Amp 2" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f),
+        "Z Freq 1" to ModulatableParameter(2.0f, minClamp = 0.0f, maxClamp = 20.0f),
+        "Z Freq 2" to ModulatableParameter(3.0f, minClamp = 0.0f, maxClamp = 20.0f),
+        "Z Damp 1" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 2.0f),
+        "Z Damp 2" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 2.0f),
+        "Z Phase 1" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "Z Phase 2" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "3D Yaw" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "3D Pitch" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "3D Persp" to ModulatableParameter(0.5f, minClamp = 0.0f, maxClamp = 1.0f)
     )
 
     init {

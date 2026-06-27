@@ -10,6 +10,21 @@ uniform float uB;
 uniform float uC;
 uniform float uD;
 
+// Z-axis harmonograph uniforms
+uniform float uZAmp1;
+uniform float uZAmp2;
+uniform float uZFreq1;
+uniform float uZFreq2;
+uniform float uZDamp1;
+uniform float uZDamp2;
+uniform float uZPhase1;
+uniform float uZPhase2;
+
+// 3D rotations & perspective
+uniform float uYaw;
+uniform float uPitch;
+uniform float uPersp;
+
 uniform float uThickness;
 uniform float uGlobalScale;
 uniform float uGlobalRotation;
@@ -27,18 +42,20 @@ void main() {
 
     float t = phase * 2.0 * PI;
 
-    // 1. Calculate position on the curve (x, y)
+    // 1. Calculate 2D position on the curve (x, y)
     float x = uL1 * cos(t * uA) + uL2 * cos(t * uB) + uL3 * cos(t * uC) + uL4 * cos(t * uD);
     float y = uL1 * sin(t * uA) + uL2 * sin(t * uB) + uL3 * sin(t * uC) + uL4 * sin(t * uD);
-    vec2 pos = vec2(x, y);
-    vCurvePos = pos; // Pass unscaled position to fragment shader for depth evaluation
+    vCurvePos = vec2(x, y); // Pass unscaled 2D local position to fragment shader for depth sweep
 
-    // 2. Calculate the derivative (tangent) analytically to find the normal vector
+    // 2. Calculate Z-axis value using the 2-component damped sine equation
+    float z = uZAmp1 * sin(t * uZFreq1 + uZPhase1 * 2.0 * PI) * exp(-uZDamp1 * t)
+            + uZAmp2 * sin(t * uZFreq2 + uZPhase2 * 2.0 * PI) * exp(-uZDamp2 * t);
+
+    // 3. Calculate derivative (tangent in XY plane) to find the 2D normal vector
     float dx = -uA * uL1 * sin(t * uA) - uB * uL2 * sin(t * uB) - uC * uL3 * sin(t * uC) - uD * uL4 * sin(t * uD);
     float dy =  uA * uL1 * cos(t * uA) + uB * uL2 * cos(t * uB) + uC * uL3 * cos(t * uC) + uD * uL4 * cos(t * uD);
     vec2 tangent = vec2(dx, dy);
 
-    // Normal is perpendicular to the tangent
     vec2 normal = vec2(-tangent.y, tangent.x);
     if (length(normal) > 0.0001) {
         normal = normalize(normal);
@@ -46,22 +63,48 @@ void main() {
         normal = vec2(0.0);
     }
 
-    // Offset position by side and thickness to construct ribbon geometry
-    pos += normal * (side * uThickness * 0.5);
-
-    // 3. Apply global rotation
-    float cosRot = cos(uGlobalRotation);
-    float sinRot = sin(uGlobalRotation);
-    vec2 rotatedPos = vec2(
-        pos.x * cosRot - pos.y * sinRot,
-        pos.x * sinRot + pos.y * cosRot
+    // Offset position along local normal to construct ribbon geometry
+    vec3 pos = vec3(
+        x + normal.x * (side * uThickness * 0.5),
+        y + normal.y * (side * uThickness * 0.5),
+        z
     );
 
-    // 4. Apply scale
-    rotatedPos *= uGlobalScale;
+    // 4. Apply Roll (rotate around local Z-axis by uGlobalRotation)
+    float cosRoll = cos(uGlobalRotation);
+    float sinRoll = sin(uGlobalRotation);
+    vec3 rPos = vec3(
+        pos.x * cosRoll - pos.y * sinRoll,
+        pos.x * sinRoll + pos.y * cosRoll,
+        pos.z
+    );
 
-    // 5. Correct for screen aspect ratio to maintain a perfect square aspect ratio
-    rotatedPos.x /= uAspectRatio;
+    // 5. Apply Pitch (rotate around X-axis by uPitch * PI)
+    float cosPitch = cos(uPitch * PI);
+    float sinPitch = sin(uPitch * PI);
+    rPos = vec3(
+        rPos.x,
+        rPos.y * cosPitch - rPos.z * sinPitch,
+        rPos.y * sinPitch + rPos.z * cosPitch
+    );
 
-    gl_Position = vec4(rotatedPos, 0.0, 1.0);
+    // 6. Apply Yaw (rotate around Y-axis by uYaw * PI)
+    float cosYaw = cos(uYaw * PI);
+    float sinYaw = sin(uYaw * PI);
+    rPos = vec3(
+        rPos.x * cosYaw + rPos.z * sinYaw,
+        rPos.y,
+        -rPos.x * sinYaw + rPos.z * cosYaw
+    );
+
+    // 7. Apply Perspective Projection
+    // Interpolate between flat/orthographic (uPersp = 0.0) and full perspective (uPersp = 1.0)
+    float cameraDistance = 2.0;
+    float perspScale = 1.0 / (cameraDistance - rPos.z * uPersp);
+    vec2 finalPos = rPos.xy * (perspScale * uGlobalScale);
+
+    // 8. Aspect ratio correction
+    finalPos.x /= uAspectRatio;
+
+    gl_Position = vec4(finalPos, rPos.z * 0.1, 1.0);
 }

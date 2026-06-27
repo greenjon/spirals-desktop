@@ -291,6 +291,7 @@ object PatchGridPanel {
             val dlBg = ImGui.getWindowDrawList()
             val bgCol = when(label) {
                 "Geometry" -> ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.5f, 0.04f)
+                "3D Geometry" -> ImGui.colorConvertFloat4ToU32(0.6f, 0.4f, 0.8f, 0.04f)
                 "Color" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.6f, 0.04f)
                 "Background" -> ImGui.colorConvertFloat4ToU32(0.4f, 0.5f, 0.8f, 0.04f)
                 "Feedback" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.7f, 0.3f, 0.04f)
@@ -326,6 +327,7 @@ object PatchGridPanel {
             // Choose color based on subgroup
             val lineCol = when(label) {
                 "Geometry" -> ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.5f, 0.6f) // Greenish
+                "3D Geometry" -> ImGui.colorConvertFloat4ToU32(0.6f, 0.4f, 0.8f, 0.6f) // Purplish
                 "Color" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.6f, 0.6f)    // Pinkish
                 "Background" -> ImGui.colorConvertFloat4ToU32(0.4f, 0.5f, 0.8f, 0.6f) // Blueish
                 "Feedback" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.7f, 0.3f, 0.6f)   // Yellowish
@@ -350,7 +352,7 @@ object PatchGridPanel {
 
     private fun syncAndCollapseSubgroups(activeSubgroupLabel: String, state: PatchGridState) {
         val decks = listOf("Deck A", "Deck B")
-        val subgroups = listOf("Geometry", "Color", "Background", "Feedback")
+        val subgroups = listOf("Geometry", "3D Geometry", "Color", "Background", "Feedback")
 
         for (deck in decks) {
             for (sub in subgroups) {
@@ -389,6 +391,19 @@ object PatchGridPanel {
                     drawParamRow("L4",       "$deckLabel/Geometry/L4",       mandala.parameters["L4"]!!,       state, labelColW, mixer)
                     drawParamRow("Scale",    "$deckLabel/Geometry/Scale",    mandala.parameters["Scale"]!!,    state, labelColW, mixer)
                     drawParamRow("Rotation", "$deckLabel/Geometry/Rotation", mandala.parameters["Rotation"]!!, state, labelColW, mixer)
+                }
+                drawSubGroup(deckLabel, "3D Geometry", state) {
+                    drawParamRow("Z Amp 1",   "$deckLabel/3D/ZAmp1",   mandala.parameters["Z Amp 1"]!!,   state, labelColW, mixer)
+                    drawParamRow("Z Amp 2",   "$deckLabel/3D/ZAmp2",   mandala.parameters["Z Amp 2"]!!,   state, labelColW, mixer)
+                    drawParamRow("Z Freq 1",  "$deckLabel/3D/ZFreq1",  mandala.parameters["Z Freq 1"]!!,  state, labelColW, mixer)
+                    drawParamRow("Z Freq 2",  "$deckLabel/3D/ZFreq2",  mandala.parameters["Z Freq 2"]!!,  state, labelColW, mixer)
+                    drawParamRow("Z Damp 1",  "$deckLabel/3D/ZDamp1",  mandala.parameters["Z Damp 1"]!!,  state, labelColW, mixer)
+                    drawParamRow("Z Damp 2",  "$deckLabel/3D/ZDamp2",  mandala.parameters["Z Damp 2"]!!,  state, labelColW, mixer)
+                    drawParamRow("Z Phase 1", "$deckLabel/3D/ZPhase1", mandala.parameters["Z Phase 1"]!!, state, labelColW, mixer)
+                    drawParamRow("Z Phase 2", "$deckLabel/3D/ZPhase2", mandala.parameters["Z Phase 2"]!!, state, labelColW, mixer)
+                    drawParamRow("3D Yaw",    "$deckLabel/3D/Yaw",     mandala.parameters["3D Yaw"]!!,    state, labelColW, mixer)
+                    drawParamRow("3D Pitch",  "$deckLabel/3D/Pitch",   mandala.parameters["3D Pitch"]!!,  state, labelColW, mixer)
+                    drawParamRow("3D Persp",  "$deckLabel/3D/Persp",   mandala.parameters["3D Persp"]!!,  state, labelColW, mixer)
                 }
                 drawSubGroup(deckLabel, "Color", state) {
                     drawParamRow("Thickness",  "$deckLabel/Color/Thickness",  mandala.parameters["Thickness"]!!,  state, labelColW, mixer)
