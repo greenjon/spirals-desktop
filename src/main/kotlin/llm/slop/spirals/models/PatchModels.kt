@@ -16,6 +16,7 @@ data class ModulatorDto(
     val phaseOffset: Float = 0.0f,
     val slope: Float = 0.5f,
     val lfoSpeedMode: String = "FAST",
+    val genUnit: String = "TIME",
     
     // Randomization bounds
     @SerialName("weightMin") val amplitudeMin: Float,
@@ -199,6 +200,7 @@ fun CvModulator.toDto(): ModulatorDto = ModulatorDto(
     phaseOffset = phaseOffset,
     slope = slope,
     lfoSpeedMode = lfoSpeedMode.name,
+    genUnit = genUnit.name,
     amplitudeMin = amplitudeMin,
     amplitudeMax = amplitudeMax,
     subdivisionMin = subdivisionMin,
@@ -227,6 +229,7 @@ fun ModulatorDto.toDomain(): CvModulator = CvModulator(
     phaseOffset = phaseOffset,
     slope = slope,
     lfoSpeedMode = LfoSpeedMode.valueOf(lfoSpeedMode),
+    genUnit = GenUnit.valueOf(genUnit),
     amplitudeMin = amplitudeMin,
     amplitudeMax = amplitudeMax,
     subdivisionMin = subdivisionMin,
