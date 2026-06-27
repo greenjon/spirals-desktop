@@ -57,7 +57,7 @@ java -XX:+UseZGC -XX:MaxGCPauseMillis=2 -jar build/libs/spirals-desktop-1.0-SNAP
 
 1. **Start the Audio Server**: Launch PipeWire/JACK (e.g., using `qjackctl` or starting the system audio service).
 2. **Launch Spirals**: Run `./gradlew run`.
-3. **Verify Window initialization**: A window with the title **Spirals** should open, showing a live generative mandala and a three-column ImGui setup:
+3. **Verify Window initialization**: A window with the title **Spirals Desktop - VJ Software** should open, showing a live generative mandala and a three-column ImGui setup:
    - **Left Panel**: Patch Grid (modulation matrix).
    - **Middle Panel**: Cell Config (parameters editor & oscilloscope).
    - **Right Panel**: Mixer / Output Monitor.

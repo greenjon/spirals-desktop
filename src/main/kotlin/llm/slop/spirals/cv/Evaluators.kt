@@ -40,11 +40,7 @@ fun evaluateModulator(modulator: CvModulator): Float {
         }
         "lfo" -> {
             val seconds = CVRegistry.getElapsedRealtimeSec()
-            val period = when (modulator.lfoSpeedMode) {
-                LfoSpeedMode.FAST -> modulator.subdivision * 10.0
-                LfoSpeedMode.MEDIUM -> modulator.subdivision * 900.0
-                LfoSpeedMode.SLOW -> modulator.subdivision * 86400.0
-            }.coerceAtLeast(0.001)
+            val period = modulator.subdivision.toDouble().coerceAtLeast(0.001)
 
             val localPhase = ((seconds / period) + modulator.phaseOffset) % 1.0
             val positivePhase = if (localPhase < 0.0) localPhase + 1.0 else localPhase
@@ -54,11 +50,7 @@ fun evaluateModulator(modulator: CvModulator): Float {
             if (modulator.genUnit == GenUnit.TIME) {
                 // Time-based (LFO)
                 val seconds = CVRegistry.getElapsedRealtimeSec()
-                val period = when (modulator.lfoSpeedMode) {
-                    LfoSpeedMode.FAST -> modulator.subdivision * 10.0
-                    LfoSpeedMode.MEDIUM -> modulator.subdivision * 900.0
-                    LfoSpeedMode.SLOW -> modulator.subdivision * 86400.0
-                }.coerceAtLeast(0.001)
+                val period = modulator.subdivision.toDouble().coerceAtLeast(0.001)
 
                 val cyclePosition = (seconds / period) + modulator.phaseOffset
                 if (modulator.waveform == Waveform.RANDOM) {

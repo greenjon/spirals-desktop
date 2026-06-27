@@ -15,6 +15,7 @@ import llm.slop.spirals.parameters.GenUnit
 import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.rendering.Mandala
 import llm.slop.spirals.rendering.MandalaLibrary
+import llm.slop.spirals.utils.TimeUtils
 import kotlin.math.roundToInt
 
 /**
@@ -815,47 +816,28 @@ object CellConfigPanel {
 
         // ── LFO Period / Speed ───────────────────────────────────
         if (isLfo || (isGen && existing.genUnit == GenUnit.TIME)) {
-            UITheme.body("Speed Range")
-            val speedIdx = ImInt(existing.lfoSpeedMode.ordinal)
-            ImGui.pushItemWidth(125f)
-            if (ImGui.combo("##speed", speedIdx, speedLabels)) {
-                replaceModulator(state, param, existing.copy(lfoSpeedMode = LfoSpeedMode.entries[speedIdx.get()]))
-            }
-            ImGui.popItemWidth()
-            ImGui.spacing()
-
-            // Format labels based on speed mode
-            val formatFunc: (Float) -> String = { v ->
-                when (existing.lfoSpeedMode) {
-                    LfoSpeedMode.FAST -> "%.2fs".format(v * 10.0)
-                    LfoSpeedMode.MEDIUM -> {
-                        val s = (v * 900).toInt()
-                        "%02dm:%02ds".format(s / 60, s % 60)
-                    }
-                    LfoSpeedMode.SLOW -> {
-                        val m = (v * 1440).toInt()
-                        "%02dh:%02dm".format(m / 60, m % 60)
-                    }
-                }
-            }
+            val formatFunc: (Float) -> String = { v -> TimeUtils.formatPeriod(v) }
+            val parseFunc: (String) -> Float? = { s -> TimeUtils.parsePeriod(s) }
 
             drawCustomRangeSlider(
-            idPrefix = existing.id,
+                idPrefix = existing.id,
                 label = "LFO Period",
                 themeColor = currentThemeColor,
                 currentValue = existing.subdivision,
                 currentMin = existing.subdivisionMin,
                 currentMax = existing.subdivisionMax,
-                minLimit = 0.001f,
-                maxLimit = 1f,
+                minLimit = 0.01f,
+                maxLimit = 86400f,
                 isRandomizable = existing.randomizeSubdivision,
                 formatValue = formatFunc,
+                isLogarithmic = true,
+                parseValue = parseFunc,
                 onRandomizableChanged = { checked ->
                     if (checked) {
                         val rMin = existing.subdivisionMin
                         val rMax = existing.subdivisionMax
                         val (nextMin, nextMax) = if (rMin == rMax) {
-                            Pair((existing.subdivision - 0.05f).coerceAtLeast(0.001f), (existing.subdivision + 0.05f).coerceAtMost(1f))
+                            Pair((existing.subdivision * 0.5f).coerceIn(0.01f, 86400f), (existing.subdivision * 2f).coerceIn(0.01f, 86400f))
                         } else {
                             Pair(rMin, rMax)
                         }
@@ -876,18 +858,22 @@ object CellConfigPanel {
                     replaceModulator(state, param, existing.randomizeSubdivision())
                 },
                 onRangeChanged = { nextMin, nextMax ->
-                    val nextActive = existing.subdivision.coerceIn(nextMin, nextMax)
+                    val roundedMin = if (nextMin >= 3600f) nextMin.toInt().toFloat() else nextMin
+                    val roundedMax = if (nextMax >= 3600f) nextMax.toInt().toFloat() else nextMax
+                    val nextActive = existing.subdivision.coerceIn(roundedMin, roundedMax)
+                    val roundedActive = if (nextActive >= 3600f) nextActive.toInt().toFloat() else nextActive
                     replaceModulator(state, param, existing.copy(
-                        subdivisionMin = nextMin,
-                        subdivisionMax = nextMax,
-                        subdivision = nextActive
+                        subdivisionMin = roundedMin,
+                        subdivisionMax = roundedMax,
+                        subdivision = roundedActive
                     ))
                 },
                 onValueChanged = { newVal ->
+                    val roundedVal = if (newVal >= 3600f) newVal.toInt().toFloat() else newVal
                     replaceModulator(state, param, existing.copy(
-                        subdivision = newVal,
-                        subdivisionMin = newVal,
-                        subdivisionMax = newVal
+                        subdivision = roundedVal,
+                        subdivisionMin = roundedVal,
+                        subdivisionMax = roundedVal
                     ))
                 }
             )
@@ -1253,17 +1239,19 @@ object CellConfigPanel {
         posX: Float,
         posY: Float,
         width: Float,
-        onChanged: (Float) -> Unit
+        onChanged: (Float) -> Unit,
+        formatValue: (Float) -> String = { "%.3f".format(it) },
+        parseValue: (String) -> Float? = { it.toFloatOrNull() }
     ) {
-        val buffer = textBuffers.getOrPut(key) { imgui.type.ImString("%.3f".format(currentValue), 16) }
+        val buffer = textBuffers.getOrPut(key) { imgui.type.ImString(formatValue(currentValue), 32) }
         val active = textWidgetActive.getOrDefault(key, false)
         if (!active) {
-            buffer.set("%.3f".format(currentValue))
+            buffer.set(formatValue(currentValue))
         }
         ImGui.setCursorScreenPos(posX, posY)
         ImGui.pushItemWidth(width)
         if (ImGui.inputText("##input_$key", buffer)) {
-            val parsed = buffer.get().toFloatOrNull()
+            val parsed = parseValue(buffer.get())
             if (parsed != null) {
                 onChanged(parsed.coerceIn(minLimit, maxLimit))
             }
@@ -1281,7 +1269,9 @@ object CellConfigPanel {
         formatValue: (Float) -> String,
         onRangeChanged: (Float, Float) -> Unit,
         idPrefix: String = "",
-        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
+        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f),
+        isLogarithmic: Boolean = false,
+        parseValue: (String) -> Float? = { it.toFloatOrNull() }
     ) {
         drawCustomRangeSlider(
             label = label,
@@ -1295,7 +1285,9 @@ object CellConfigPanel {
             formatValue = formatValue,
             onRangeChanged = onRangeChanged,
             idPrefix = idPrefix,
-            themeColor = themeColor
+            themeColor = themeColor,
+            isLogarithmic = isLogarithmic,
+            parseValue = parseValue
         )
     }
 
@@ -1314,7 +1306,9 @@ object CellConfigPanel {
         onRangeChanged: (Float, Float) -> Unit = { _, _ -> },
         onValueChanged: (Float) -> Unit = {},
         idPrefix: String = "",
-        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f)
+        themeColor: Int = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 0.8f, 0.6f),
+        isLogarithmic: Boolean = false,
+        parseValue: (String) -> Float? = { it.toFloatOrNull() }
     ) {
         val rowStartX = ImGui.getCursorScreenPosX()
         val rowStartY = ImGui.getCursorScreenPosY()
@@ -1341,7 +1335,7 @@ object CellConfigPanel {
         val labelColW = 125f
         val textBoxesStartX = startX + labelColW + 20f
         
-        val boxWidth = 65f
+        val boxWidth = 115f
         val boxSpacing = 8f
         
         val sliderStartX = textBoxesStartX + (if (isRandomizable) (boxWidth * 2f + boxSpacing) else boxWidth) + 15f
@@ -1351,6 +1345,28 @@ object CellConfigPanel {
         val centerY = startY + 28f
         
         val rangeSpan = maxLimit - minLimit
+
+        val toPct: (Float) -> Float = { v ->
+            if (isLogarithmic) {
+                val logMin = java.lang.Math.log10(minLimit.toDouble())
+                val logMax = java.lang.Math.log10(maxLimit.toDouble())
+                val logVal = java.lang.Math.log10(v.toDouble().coerceAtLeast(minLimit.toDouble()))
+                ((logVal - logMin) / (logMax - logMin)).toFloat().coerceIn(0f, 1f)
+            } else {
+                if (rangeSpan > 0f) (v - minLimit) / rangeSpan else 0f
+            }
+        }
+
+        val toVal: (Float) -> Float = { p ->
+            if (isLogarithmic) {
+                val logMin = java.lang.Math.log10(minLimit.toDouble())
+                val logMax = java.lang.Math.log10(maxLimit.toDouble())
+                val logVal = logMin + p.toDouble() * (logMax - logMin)
+                java.lang.Math.pow(10.0, logVal).toFloat().coerceIn(minLimit, maxLimit)
+            } else {
+                minLimit + p * rangeSpan
+            }
+        }
 
         // ─── ROW 1: Labels ───
         ImGui.setCursorScreenPos(startX, startY + 2f)
@@ -1364,7 +1380,7 @@ object CellConfigPanel {
             UITheme.captionColored(0.6f, 0.6f, 0.6f, 0.7f, "Max")
             
             // Add "Current" label with [value] centered above the dynamic dot on Row 1
-            val curPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
+            val curPct = toPct(currentValue)
             val curX = lineStartX + curPct * lineWidth
             val formattedVal = formatValue(currentValue)
             val labelText = "Current: $formattedVal"
@@ -1454,7 +1470,9 @@ object CellConfigPanel {
                 width = boxWidth,
                 onChanged = { nextMin ->
                     onRangeChanged(nextMin, currentMax)
-                }
+                },
+                formatValue = formatValue,
+                parseValue = parseValue
             )
             drawTextInput(
                 key = "${idPrefix}_${label}_max",
@@ -1466,7 +1484,9 @@ object CellConfigPanel {
                 width = boxWidth,
                 onChanged = { nextMax ->
                     onRangeChanged(currentMin, nextMax)
-                }
+                },
+                formatValue = formatValue,
+                parseValue = parseValue
             )
         } else {
             drawTextInput(
@@ -1479,7 +1499,9 @@ object CellConfigPanel {
                 width = boxWidth,
                 onChanged = { newVal ->
                     onValueChanged(newVal)
-                }
+                },
+                formatValue = formatValue,
+                parseValue = parseValue
             )
         }
         
@@ -1488,8 +1510,8 @@ object CellConfigPanel {
         val mouseDown = ImGui.isMouseDown(0)
         
         if (isRandomizable) {
-            val minPct = if (rangeSpan > 0f) (currentMin - minLimit) / rangeSpan else 0f
-            val maxPct = if (rangeSpan > 0f) (currentMax - minLimit) / rangeSpan else 0f
+            val minPct = toPct(currentMin)
+            val maxPct = toPct(currentMax)
             val minHandleX = lineStartX + minPct * lineWidth
             val maxHandleX = lineStartX + maxPct * lineWidth
             
@@ -1527,7 +1549,7 @@ object CellConfigPanel {
             
             if (mouseDown && activeSliderLabel == (idPrefix + label)) {
                 val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
-                val rawVal = minLimit + pct * rangeSpan
+                val rawVal = toVal(pct)
                 if (!draggingMin && !draggingMax) {
                     val dragThreshold = 2f
                     if (mouseX > clickMouseX + dragThreshold) {
@@ -1569,7 +1591,7 @@ object CellConfigPanel {
             dl.addRect(maxHandleX - handleW / 2f, centerY - handleH / 2f, maxHandleX + handleW / 2f, centerY + handleH / 2f, handleBorderCol, 1f)
 
             // Draw dynamic current value indicator (Amber Gold dot)
-            val curPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
+            val curPct = toPct(currentValue)
             val curX = lineStartX + curPct * lineWidth
             val dotY = centerY
             val dotR = 4f
@@ -1577,7 +1599,7 @@ object CellConfigPanel {
             dl.addCircleFilled(curX, dotY, dotR, curDotCol)
             dl.addCircle(curX, dotY, dotR + 0.5f, ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1.0f), 12, 1.0f) // Dark border
         } else {
-            val valPct = if (rangeSpan > 0f) (currentValue - minLimit) / rangeSpan else 0f
+            val valPct = toPct(currentValue)
             val valHandleX = lineStartX + valPct * lineWidth
             
             if (mousePressed) {
@@ -1592,7 +1614,7 @@ object CellConfigPanel {
             
             if (mouseDown && activeSliderLabel == (idPrefix + label)) {
                 val pct = ((mouseX - lineStartX) / lineWidth).coerceIn(0f, 1f)
-                val rawVal = minLimit + pct * rangeSpan
+                val rawVal = toVal(pct)
                 onValueChanged(rawVal)
             } else if (!mouseDown && activeSliderLabel == (idPrefix + label)) {
                 draggingMin = false
@@ -1693,7 +1715,7 @@ object CellConfigPanel {
         val textBoxesStartX = startX + labelColW + 20f
 
         // Combo dropdowns are slightly wider than plain text boxes so they can display labels
-        val comboWidth = 72f
+        val comboWidth = 125f
         val comboSpacing = 8f
 
         val sliderStartX = textBoxesStartX + (if (isRandomizable) (comboWidth * 2f + comboSpacing) else comboWidth) + 15f

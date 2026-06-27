@@ -8,8 +8,10 @@ Patches store the complete state of the workstation, including all parameter val
 
 ### Serialization Format
 - Patches are saved as JSON files (`.json`) using the `kotlinx.serialization` library.
-- By default, presets are saved in the `presets/` folder in the project root.
-- The default patch file `default.json` is loaded automatically on startup.
+- Presets are saved in subfolders inside the `presets/` folder in the project root:
+  - `presets/decks/`: Settings for individual Deck A or Deck B patches.
+  - `presets/global/`: Full-workstation project patches containing mixer settings and both decks.
+  - `presets/midi/`: Standalone MIDI mapping profiles.
 
 ### Copy & Paste (Base Column)
 - You can copy the base parameter settings of one deck and paste them onto the other.
@@ -27,8 +29,6 @@ You can control parameter base values and grid cell modulations using external h
 3. **Map Confirmation**: The system will detect the MIDI Control Change (CC) message, read the channel and CC ID, and bind it to the target automatically.
 
 ### Where MIDI Assignments are Saved
-- **Direct Integration**: MIDI mapping configurations are stored directly inside the visual patch file.
-  - When you map a MIDI CC to a parameter's base value, the `mappedMidiId` field (e.g., `midi_cc_0_42`) is stored inside the `ParameterDto` structure.
-  - When you map a MIDI CC to modulate a cell, the mapping is saved as a `CvModulator` with its `sourceId` set to the midi ID.
-- **Portability**: Because the MIDI map is stored within the patch, saving the patch automatically preserves your MIDI mappings. Loading the patch restores the MIDI assignments.
-- *Note: A dedicated, standalone MIDI map preset manager (to swap MIDI mappings independent of the visual patches) is planned for a future update.*
+- **Base Parameters (MIDI Profiles)**: MIDI mapping configurations for parameter sliders (e.g. base values) are stored in the active MIDI profile located at `presets/midi/<profile_name>.json` (usually `default.json`). This separates your physical hardware maps from visual patches, allowing you to use different MIDI controllers without modifying visual presets.
+- **Grid Cell Modulators (Visual Patches)**: When you map a MIDI CC to modulate a cell directly in the Patch Grid (the **MIDI** column), it is stored as a `CvModulator` with its `sourceId` set to the midi ID (e.g. `midi_cc_0_42`) directly inside the visual patch file.
+- **Portability**: Visual patch files preserve their grid cell MIDI modulations, while base parameter controls remain mapped to your current hardware mapping profile. The active MIDI mapping profile can be selected in the UI.

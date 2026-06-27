@@ -30,7 +30,7 @@ Spirals follows a traditional DJ/VJ layout, featuring two independent decks that
 - Decks possess individual settings for feedback parameters (Decay, Gain, Zoom, Rotate, Hue Shift, Blur, Chroma Offset, and Feedback Mode).
 
 ### Blending Modes
-- The central Mixer blends the outputs of Deck A and Deck B using select blending equations (e.g., standard crossfade, additive blend, screen, multiply, or difference modes).
+- The central Mixer blends the outputs of Deck A and Deck B using select blending equations: Additive blend (`ADD`), Screen blend (`SCREEN`), Multiply blend (`MULT`), Maximum/Lighten (`MAX`), or standard crossfade (`XFADE`).
 
 ### Crossfader Controls
 - The crossfader (`crossfade`) slider controls the interpolation weight between Deck A and Deck B.
