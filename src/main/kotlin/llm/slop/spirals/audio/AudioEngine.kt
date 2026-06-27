@@ -34,6 +34,7 @@ object AudioEngine {
     private var lastCallbackTime = System.nanoTime()
     private var totalBeats = 0.0
     @Volatile private var estimatedBpm = 120f
+    @Volatile var inputGain = 1.0f
 
     fun getEstimatedBpm(): Float = estimatedBpm
     fun isActive(): Boolean = jackClient?.isConnected == true
@@ -100,8 +101,9 @@ object AudioEngine {
 
         // 3. Process samples through the filter banks and update raw history
         val startPos = buffer.position()
+        val gain = inputGain
         for (i in 0 until nframes) {
-            val sample = buffer.get(startPos + i)
+            val sample = buffer.get(startPos + i) * gain
             rawHistory.add(sample)
             lowBuffer[i] = lowPass.process(sample)
             midBuffer[i] = midPass.process(sample)
@@ -109,7 +111,7 @@ object AudioEngine {
         }
 
         // 4. Calculate RMS amplitudes
-        val amp = extractor.calculateRms(buffer, nframes)
+        val amp = extractor.calculateRms(buffer, nframes) * gain
         val bass = extractor.calculateRms(lowBuffer, nframes)
         val mid = extractor.calculateRms(midBuffer, nframes)
         val high = extractor.calculateRms(highBuffer, nframes)

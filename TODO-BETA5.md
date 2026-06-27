@@ -28,3 +28,4 @@ This file consolidates all remaining tasks from previous `TODO.md`, `TODO-PATCH.
 - [ ] **Build Documentation & MkDocs**: Complete any remaining sections in the MkDocs documentation structure under `docs/`.
 - [ ] **Inline Documentation**: Add comprehensive inline code comments across core Kotlin rendering and CV modules.
 - [x] **Linux Distribution Preparation**: Package and prepare the workstation application for standard Linux distribution (packaging dependencies, launch scripts, etc.).
+- [ ] **Add more tooltips**: Cellconfig has some, no other panel does.

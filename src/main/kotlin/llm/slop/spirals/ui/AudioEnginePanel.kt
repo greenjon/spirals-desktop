@@ -4,6 +4,7 @@ import imgui.ImGui
 import imgui.flag.ImGuiCond
 import imgui.flag.ImGuiWindowFlags
 import llm.slop.spirals.audio.AudioEngine
+import llm.slop.spirals.audio.SystemAudioVolume
 import llm.slop.spirals.cv.CVRegistry
 
 /**
@@ -118,6 +119,47 @@ object AudioEnginePanel {
 
             // 1. Raw Audio Oscilloscope
             UITheme.h3("Raw Audio Input")
+
+            val gainArr = floatArrayOf(AudioEngine.inputGain)
+            ImGui.alignTextToFramePadding()
+            UITheme.body("Input Level Gain:")
+            ImGui.sameLine()
+            ImGui.setNextItemWidth(180f)
+            if (ImGui.sliderFloat("##input_gain", gainArr, 0.0f, 10.0f, "%.2fx")) {
+                AudioEngine.inputGain = gainArr[0]
+                UITheme.saveSettings()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Reset##gain")) {
+                AudioEngine.inputGain = 1.0f
+                UITheme.saveSettings()
+            }
+            ImGui.spacing()
+
+            // System input volume slider
+            if (SystemAudioVolume.isSupported) {
+                SystemAudioVolume.queryAsync()
+                val sysVolArr = floatArrayOf(SystemAudioVolume.systemInputVolume)
+                ImGui.alignTextToFramePadding()
+                UITheme.body("System Input Volume:")
+                ImGui.sameLine()
+                ImGui.setNextItemWidth(180f)
+                if (ImGui.sliderFloat("##system_gain", sysVolArr, 0.0f, 1.0f, "%.2f")) {
+                    SystemAudioVolume.updateSystemVolume(sysVolArr[0])
+                }
+                if (SystemAudioVolume.isMuted) {
+                    ImGui.sameLine()
+                    UITheme.bodyColored(1f, 0.3f, 0.3f, 1f, "[MUTED]")
+                }
+                ImGui.spacing()
+            } else {
+                ImGui.alignTextToFramePadding()
+                UITheme.body("System Input Volume:")
+                ImGui.sameLine()
+                UITheme.caption("(System control not supported on this OS)")
+                ImGui.spacing()
+            }
+
             AudioEngine.rawHistory.copyTo(rawSamples)
             val rawColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.9f, 0.4f, 1.0f) // Neon Green
             drawCustomOscilloscope("Raw Buffer", rawSamples, -1.0f, 1.0f, rawColor, 90f)
@@ -131,13 +173,13 @@ object AudioEnginePanel {
             ImGui.spacing()
 
             val cvSignals = listOf(
-                Triple("amp", "Amplitude (RMS)", ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, 1.0f)), // Neon Cyan
-                Triple("bass", "Bass Band (Low-pass)", ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, 1.0f)), // Neon Pink
-                Triple("mid", "Mid Band (Band-pass)", ImGui.colorConvertFloat4ToU32(1.0f, 0.6f, 0.1f, 1.0f)), // Neon Orange
-                Triple("high", "High Band (High-pass)", ImGui.colorConvertFloat4ToU32(0.1f, 0.9f, 0.8f, 1.0f)), // Neon Teal
+                Triple("audio_amp", "Amplitude (RMS)", ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, 1.0f)), // Neon Cyan
+                Triple("audio_bass", "Bass Band (Low-pass)", ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, 1.0f)), // Neon Pink
+                Triple("audio_mid", "Mid Band (Band-pass)", ImGui.colorConvertFloat4ToU32(1.0f, 0.6f, 0.1f, 1.0f)), // Neon Orange
+                Triple("audio_high", "High Band (High-pass)", ImGui.colorConvertFloat4ToU32(0.1f, 0.9f, 0.8f, 1.0f)), // Neon Teal
                 Triple("beatSine", "Beat Sine (Oscillator)", ImGui.colorConvertFloat4ToU32(0.6f, 0.4f, 1.0f, 1.0f)), // Neon Purple
-                Triple("onset", "Onset Signal", ImGui.colorConvertFloat4ToU32(0.9f, 0.8f, 0.1f, 1.0f)), // Neon Yellow
-                Triple("accent", "Accent Level (Decay)", ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.3f, 1.0f)) // Neon Red
+                Triple("trigger_onset", "Onset Signal", ImGui.colorConvertFloat4ToU32(0.9f, 0.8f, 0.1f, 1.0f)), // Neon Yellow
+                Triple("trigger_accent", "Accent Level (Decay)", ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.3f, 1.0f)) // Neon Red
             )
 
             for ((id, title, color) in cvSignals) {

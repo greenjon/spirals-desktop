@@ -4,6 +4,7 @@ import imgui.ImFont
 import imgui.ImFontConfig
 import imgui.ImGui
 import imgui.ImGuiIO
+import llm.slop.spirals.audio.AudioEngine
 import mu.KotlinLogging
 import java.io.File
 import java.util.Properties
@@ -80,6 +81,11 @@ object UITheme {
                     audioEngineEnabled = savedAudio
                     logger.info { "Loaded audioEngineEnabled from settings file: $audioEngineEnabled" }
                 }
+                val savedGain = props.getProperty("audioInputGain")?.toFloatOrNull()
+                if (savedGain != null) {
+                    AudioEngine.inputGain = savedGain
+                    logger.info { "Loaded audioInputGain from settings file: $savedGain" }
+                }
                 val savedBgVideo = props.getProperty("backgroundVideoEnabled")?.toBooleanStrictOrNull()
                 if (savedBgVideo != null) {
                     backgroundVideoEnabled = savedBgVideo
@@ -121,6 +127,7 @@ object UITheme {
             val props = Properties()
             props.setProperty("baseSize", baseSize.toString())
             props.setProperty("audioEngineEnabled", audioEngineEnabled.toString())
+            props.setProperty("audioInputGain", AudioEngine.inputGain.toString())
             props.setProperty("backgroundVideoEnabled", backgroundVideoEnabled.toString())
             props.setProperty("autocollapseEnabled", autocollapseEnabled.toString())
             props.setProperty("tooltipsEnabled", tooltipsEnabled.toString())
