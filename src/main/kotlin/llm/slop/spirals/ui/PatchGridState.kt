@@ -25,6 +25,24 @@ class PatchGridState {
     /** The parameter object that backs the selected cell. */
     var selectedParam: ModulatableParameter? = null
 
+    /** Tracks the height of subgroup panels for background drawing. */
+    val subgroupHeight = mutableMapOf<String, Float>()
+
+    /** History stack for undo support. */
+    private val undoStack = mutableListOf<PatchGridUndoSnapshot>()
+    private val maxUndoDepth = 30
+
+    fun pushUndoState(snapshot: PatchGridUndoSnapshot) {
+        undoStack.add(snapshot)
+        if (undoStack.size > maxUndoDepth) {
+            undoStack.removeAt(0)
+        }
+    }
+
+    fun popUndoState(): PatchGridUndoSnapshot? {
+        return if (undoStack.isNotEmpty()) undoStack.removeLast() else null
+    }
+
     /** MIDI Learn mode toggle and active learn target */
     var isMidiLearnMode: Boolean = false
     var midiLearnTarget: MidiLearnTarget? = null
@@ -94,3 +112,8 @@ class PatchGridState {
         selectedParam = null
     }
 }
+
+data class PatchGridUndoSnapshot(
+    val modulatorsByParamKey: Map<String, List<CvModulator>>
+)
+

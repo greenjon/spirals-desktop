@@ -6,6 +6,7 @@ import imgui.flag.ImGuiTreeNodeFlags
 import imgui.flag.ImGuiKey
 import llm.slop.spirals.cv.CVRegistry
 import llm.slop.spirals.parameters.ModulatableParameter
+import llm.slop.spirals.parameters.CvModulator
 import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mandala
 import llm.slop.spirals.rendering.Mixer
@@ -150,6 +151,7 @@ object PatchGridPanel {
         // Draw Randomize All button in the top-left empty space of the column headers
         ImGui.setCursorScreenPos(startX, startY + (maxH + 5f - 24f) * 0.5f)
         if (ImGui.button("Randomize All", labelColW - CELL_PAD, 24f)) {
+            pushUndoState(state, mixer)
             mixer.deckA.randomizeModulators()
             mixer.deckB.randomizeModulators()
             listOf(mixer.crossfade, mixer.masterAlpha).forEach { param ->
@@ -266,6 +268,7 @@ object PatchGridPanel {
         }
     }
 
+
     private inline fun drawSubGroup(parentLabel: String, label: String, state: PatchGridState, block: () -> Unit) {
         val key = "$parentLabel/$label"
         val open = state.groupOpen.getValue(key)
@@ -282,6 +285,25 @@ object PatchGridPanel {
             state.groupNeedsExpand[key] = false
         }
 
+        val startY = ImGui.getCursorScreenPosY()
+        val prevHeight = state.subgroupHeight[key] ?: 0f
+        if (open && prevHeight > 0f) {
+            val dlBg = ImGui.getWindowDrawList()
+            val bgCol = when(label) {
+                "Geometry" -> ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.5f, 0.04f)
+                "Color" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.6f, 0.04f)
+                "Background" -> ImGui.colorConvertFloat4ToU32(0.4f, 0.5f, 0.8f, 0.04f)
+                "Feedback" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.7f, 0.3f, 0.04f)
+                else -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.04f)
+            }
+            val lastVisibleCol = getCvColumns().lastOrNull() ?: "midi"
+            val avail = ImGui.getContentRegionAvailX()
+            val maxGridW = getColumnOffset(lastVisibleCol) + CELL + CELL_PAD * 0.5f
+            val labelColW = (avail - maxGridW).coerceAtLeast(120f)
+            val rowWidth = labelColW + maxGridW
+            dlBg.addRectFilled(gridStartX + 2f, startY - 2f, gridStartX + rowWidth - 2f, startY + prevHeight + 2f, bgCol, 4f)
+        }
+
         if (ImGui.treeNodeEx(label, if (open) flags else ImGuiTreeNodeFlags.None)) {
             val wasClosed = !open
             if (wasClosed && UITheme.autocollapseEnabled) {
@@ -290,7 +312,7 @@ object PatchGridPanel {
             state.groupOpen[key] = true
             
             // Record start Y for the margin line
-            val startY = ImGui.getCursorScreenPosY()
+            val subStartY = ImGui.getCursorScreenPosY()
             val dl = ImGui.getWindowDrawList()
             
             ImGui.indent()
@@ -310,15 +332,19 @@ object PatchGridPanel {
                 else -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.6f)
             }
             
-            dl.addLine(startX, startY, startX, endY - 2f, lineCol, 3f)
+            dl.addLine(startX, subStartY, startX, endY - 2f, lineCol, 3f)
 
             ImGui.treePop()
+            
+            val finalEndY = ImGui.getCursorScreenPosY()
+            state.subgroupHeight[key] = finalEndY - startY
         } else {
             val wasOpen = open
             if (wasOpen && UITheme.autocollapseEnabled) {
                 syncCloseSubgroup(label, state)
             }
             state.groupOpen[key] = false
+            state.subgroupHeight[key] = 0f
         }
     }
 
@@ -445,13 +471,16 @@ object PatchGridPanel {
             }
             val hasRowClip = ClipboardManager.rowClipboard != null
             if (ImGui.menuItem("Paste Row Modulations", null, false, hasRowClip)) {
+                pushUndoState(state, mixer)
                 ClipboardManager.rowClipboard?.let { ClipboardManager.applyRowClipboard(param, it, mixer) }
             }
             ImGui.separator()
             if (ImGui.menuItem("Reset Parameter to Default")) {
+                pushUndoState(state, mixer)
                 param.reset()
             }
             if (ImGui.menuItem("Clear all CVs")) {
+                pushUndoState(state, mixer)
                 param.modulators.clear()
             }
             val hasMidiMap = llm.slop.spirals.midi.MidiMappingManager.hasMapping(paramKey)
@@ -527,9 +556,11 @@ object PatchGridPanel {
         if (ImGui.beginPopupContextItem("midi_cell_menu_$paramKey")) {
             if (midiMods.isNotEmpty()) {
                 if (ImGui.menuItem("Clear MIDI Modulator")) {
+                    pushUndoState(state, mixer)
                     param.modulators.removeAll(midiMods)
                 }
                 if (ImGui.menuItem(if (isMidiBypassed) "Enable MIDI Modulator" else "Bypass MIDI Modulator")) {
+                    pushUndoState(state, mixer)
                     val updated = param.modulators.map {
                         if (it.sourceId.startsWith("midi_cc_")) it.copy(bypassed = !it.bypassed) else it
                     }
@@ -629,13 +660,16 @@ object PatchGridPanel {
                 }
                 val hasCellClip = ClipboardManager.cellClipboard != null
                 if (ImGui.menuItem("Paste Modulator(s)", null, false, hasCellClip)) {
+                    pushUndoState(state, mixer)
                     ClipboardManager.cellClipboard?.let { ClipboardManager.applyCellClipboard(param, cvId, it) }
                 }
                 if (activeMods.isNotEmpty()) {
                     if (ImGui.menuItem("Clear Modulator(s)")) {
+                        pushUndoState(state, mixer)
                         param.modulators.removeAll(activeMods)
                     }
                     if (ImGui.menuItem(if (isBypassed) "Enable Modulator(s)" else "Bypass Modulator(s)")) {
+                        pushUndoState(state, mixer)
                         val updated = param.modulators.map { mod ->
                             if (activeMods.any { it.id == mod.id }) {
                                 mod.copy(bypassed = !mod.bypassed)
@@ -836,12 +870,96 @@ object PatchGridPanel {
         }
     }
 
+    private fun getAllGridRows(mixer: Mixer): List<Pair<String, ModulatableParameter>> {
+        val list = mutableListOf<Pair<String, ModulatableParameter>>()
+        
+        // Mixer
+        list.add("Mixer/crossfade" to mixer.crossfade)
+        list.add("Mixer/masterAlpha" to mixer.masterAlpha)
+        list.add("Mixer/bloom" to mixer.bloom)
+        list.add("Mixer/setlistPrev" to mixer.setlistPrev)
+        list.add("Mixer/setlistNext" to mixer.setlistNext)
+        
+        // Deck A and B
+        for (deckLabel in listOf("Deck A", "Deck B")) {
+            val deck = if (deckLabel == "Deck A") mixer.deckA else mixer.deckB
+            val mandala = deck.source as? Mandala
+            if (mandala != null) {
+                // Geometry
+                list.add("$deckLabel/Geometry/Lobes" to mandala.parameters["Lobes"]!!)
+                list.add("$deckLabel/Geometry/Recipe" to mandala.parameters["Recipe Select"]!!)
+                list.add("$deckLabel/Geometry/L1" to mandala.parameters["L1"]!!)
+                list.add("$deckLabel/Geometry/L2" to mandala.parameters["L2"]!!)
+                list.add("$deckLabel/Geometry/L3" to mandala.parameters["L3"]!!)
+                list.add("$deckLabel/Geometry/L4" to mandala.parameters["L4"]!!)
+                list.add("$deckLabel/Geometry/Scale" to mandala.parameters["Scale"]!!)
+                list.add("$deckLabel/Geometry/Rotation" to mandala.parameters["Rotation"]!!)
+                
+                // Color
+                list.add("$deckLabel/Color/Thickness" to mandala.parameters["Thickness"]!!)
+                list.add("$deckLabel/Color/HueOffset" to mandala.parameters["Hue Offset"]!!)
+                list.add("$deckLabel/Color/HueSweep" to mandala.parameters["Hue Sweep"]!!)
+                list.add("$deckLabel/Color/Depth" to mandala.parameters["Depth"]!!)
+                list.add("$deckLabel/Color/Gain" to mandala.globalAlpha)
+                
+                // Background
+                list.add("$deckLabel/Background/Style" to mandala.parameters["Bg Style"]!!)
+                list.add("$deckLabel/Background/Feedback" to mandala.parameters["Bg Feedback"]!!)
+                list.add("$deckLabel/Background/Hue" to mandala.parameters["Bg Hue"]!!)
+                list.add("$deckLabel/Background/Sat" to mandala.parameters["Bg Sat"]!!)
+                list.add("$deckLabel/Background/Val" to mandala.parameters["Bg Val"]!!)
+                list.add("$deckLabel/Background/Sweep" to mandala.parameters["Bg Sweep"]!!)
+                list.add("$deckLabel/Background/Speed" to mandala.parameters["Bg Speed"]!!)
+                list.add("$deckLabel/Background/Zoom" to mandala.parameters["Bg Zoom"]!!)
+            }
+            
+            // Feedback
+            list.add("$deckLabel/FB/Decay" to deck.fbDecay)
+            list.add("$deckLabel/FB/Gain" to deck.fbGain)
+            list.add("$deckLabel/FB/Zoom" to deck.fbZoom)
+            list.add("$deckLabel/FB/Rotate" to deck.fbRotate)
+            list.add("$deckLabel/FB/HueShift" to deck.fbHueShift)
+            list.add("$deckLabel/FB/Blur" to deck.fbBlur)
+            list.add("$deckLabel/FB/Chroma" to deck.fbChroma)
+            list.add("$deckLabel/FB/Mode" to deck.fbMode)
+        }
+        
+        return list
+    }
+
+    private fun createUndoSnapshot(mixer: Mixer): PatchGridUndoSnapshot {
+        return PatchGridUndoSnapshot(
+            modulatorsByParamKey = getAllGridRows(mixer).associate { (paramKey, param) ->
+                paramKey to param.modulators.toList()
+            }
+        )
+    }
+
+    private fun pushUndoState(state: PatchGridState, mixer: Mixer) {
+        state.pushUndoState(createUndoSnapshot(mixer))
+    }
+
+    private fun performUndo(state: PatchGridState, mixer: Mixer) {
+        val snapshot = state.popUndoState()
+        if (snapshot != null) {
+            val allRows = getAllGridRows(mixer)
+            for ((paramKey, param) in allRows) {
+                val savedModulators = snapshot.modulatorsByParamKey[paramKey]
+                if (savedModulators != null) {
+                    param.modulators.clear()
+                    param.modulators.addAll(savedModulators)
+                }
+            }
+        }
+    }
+
     private fun handleKeyboardShortcuts(state: PatchGridState, mixer: Mixer) {
         val io = ImGui.getIO()
         val ctrl = io.keyCtrl
         if (ctrl) {
             val cKey = ImGui.getKeyIndex(ImGuiKey.C)
             val vKey = ImGui.getKeyIndex(ImGuiKey.V)
+            val zKey = ImGui.getKeyIndex(ImGuiKey.Z)
 
             if (ImGui.isKeyPressed(cKey)) {
                 val cell = state.selectedCell
@@ -862,7 +980,90 @@ object PatchGridPanel {
                 val param = state.selectedParam
                 if (cell != null && param != null && cell.cvSourceId != "base" && cell.cvSourceId != "final") {
                     ClipboardManager.cellClipboard?.let { clip ->
+                        pushUndoState(state, mixer)
                         ClipboardManager.applyCellClipboard(param, cell.cvSourceId, clip)
+                    }
+                }
+            }
+            if (ImGui.isKeyPressed(zKey)) {
+                performUndo(state, mixer)
+            }
+        } else {
+            val deleteKey = ImGui.getKeyIndex(ImGuiKey.Delete)
+            if (ImGui.isKeyPressed(deleteKey)) {
+                val cell = state.selectedCell
+                val param = state.selectedParam
+                if (cell != null && param != null) {
+                    if (cell.cvSourceId == "midi") {
+                        val midiMods = param.modulators.filter { it.sourceId.startsWith("midi_cc_") }
+                        if (midiMods.isNotEmpty()) {
+                            pushUndoState(state, mixer)
+                            param.modulators.removeAll(midiMods)
+                        }
+                    } else if (cell.cvSourceId != "final" && cell.cvSourceId != "base") {
+                        val activeMods = if (cell.cvSourceId == "audio") {
+                            param.modulators.filter { it.sourceId in setOf("audio_amp", "audio_bass", "audio_mid", "audio_high") }
+                        } else if (cell.cvSourceId == "trigger") {
+                            param.modulators.filter { it.sourceId in setOf("trigger_onset", "trigger_accent") }
+                        } else {
+                            param.modulators.filter { it.sourceId == cell.cvSourceId }
+                        }
+                        if (activeMods.isNotEmpty()) {
+                            pushUndoState(state, mixer)
+                            param.modulators.removeAll(activeMods)
+                        }
+                    }
+                }
+            }
+
+            // Cell traversal arrow keys
+            val cell = state.selectedCell
+            if (cell != null) {
+                val allRows = getAllGridRows(mixer)
+                val columns = listOf("final", "midi") + getCvColumns()
+                val currentRowIdx = allRows.indexOfFirst { it.first == cell.paramKey }
+                val currentColIdx = columns.indexOf(cell.cvSourceId)
+                if (currentRowIdx >= 0 && currentColIdx >= 0) {
+                    var newRowIdx = currentRowIdx
+                    var newColIdx = currentColIdx
+
+                    val upKey = ImGui.getKeyIndex(ImGuiKey.UpArrow)
+                    val downKey = ImGui.getKeyIndex(ImGuiKey.DownArrow)
+                    val leftKey = ImGui.getKeyIndex(ImGuiKey.LeftArrow)
+                    val rightKey = ImGui.getKeyIndex(ImGuiKey.RightArrow)
+
+                    if (ImGui.isKeyPressed(upKey)) {
+                        newRowIdx = (currentRowIdx - 1 + allRows.size) % allRows.size
+                    } else if (ImGui.isKeyPressed(downKey)) {
+                        newRowIdx = (currentRowIdx + 1) % allRows.size
+                    } else if (ImGui.isKeyPressed(leftKey)) {
+                        newColIdx = (currentColIdx - 1 + columns.size) % columns.size
+                    } else if (ImGui.isKeyPressed(rightKey)) {
+                        newColIdx = (currentColIdx + 1) % columns.size
+                    }
+
+                    if (newRowIdx != currentRowIdx || newColIdx != currentColIdx) {
+                        val newRow = allRows[newRowIdx]
+                        val newCol = columns[newColIdx]
+                        state.select(PatchCellId(newRow.first, newCol), newRow.second)
+
+                        // Expand the new subgroup if necessary
+                        val parts = newRow.first.split("/")
+                        if (parts.size >= 2) {
+                            val parentGroup = parts[0]
+                            state.groupOpen[parentGroup] = true
+                            state.groupNeedsExpand[parentGroup] = true
+                            if (parts.size == 3) {
+                                val subgroupLabel = if (parts[1] == "FB") "Feedback" else parts[1]
+                                val subgroupKey = "${parts[0]}/$subgroupLabel"
+                                if (UITheme.autocollapseEnabled) {
+                                    syncAndCollapseSubgroups(subgroupLabel, state)
+                                } else {
+                                    state.groupOpen[subgroupKey] = true
+                                    state.groupNeedsExpand[subgroupKey] = true
+                                }
+                            }
+                        }
                     }
                 }
             }

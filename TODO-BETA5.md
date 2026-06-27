@@ -5,10 +5,10 @@ This file consolidates all remaining tasks from previous `TODO.md`, `TODO-PATCH.
 ---
 
 ## 1. UI & Interaction Improvements
-- [ ] **Subtle Panel Backgrounds for Subgroups**: In the Patch Grid, record the cursor position before a subgroup (like "Background" or "Feedback") starts and after it ends, then draw a subtle rounded rectangle behind the entire block using `dl.addRectFilled()`.
-- [ ] **Grid Cell Traversal**: Enable grid cell traversal with arrow keys.
-- [ ] **Cell Deletion Key**: Enable using the `DELETE` key to remove a patch modulator from the selected cell.
-- [ ] **Undo Support**: Add `CTRL-Z` to undo a paste or delete action in the grid.
+- [x] **Subtle Panel Backgrounds for Subgroups**: In the Patch Grid, record the cursor position before a subgroup (like "Background" or "Feedback") starts and after it ends, then draw a subtle rounded rectangle behind the entire block using `dl.addRectFilled()`.
+- [x] **Grid Cell Traversal**: Enable grid cell traversal with arrow keys.
+- [x] **Cell Deletion Key**: Enable using the `DELETE` key to remove a patch modulator from the selected cell.
+- [x] **Undo Support**: Add `CTRL-Z` to undo a paste or delete action in the grid.
 - [x] **Intuitive LFO Times**: Make LFO times more intuitive in the Cell Config panel.
 
 ## 2. DSP & Audio Analysis
