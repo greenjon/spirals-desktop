@@ -6,6 +6,7 @@ import imgui.type.ImBoolean
 import imgui.type.ImInt
 import llm.slop.spirals.cv.CVRegistry
 import llm.slop.spirals.cv.CvHistoryBuffer
+import llm.slop.spirals.cv.evaluateModulator
 import llm.slop.spirals.parameters.CvModulator
 import llm.slop.spirals.parameters.LfoSpeedMode
 import llm.slop.spirals.parameters.ModulationOperator
@@ -33,6 +34,7 @@ object CellConfigPanel {
     private val operatorLabels = arrayOf("ADD", "MUL", "SCALE")
 
     private var activeHistory: CvHistoryBuffer? = null
+    private val modulatorHistories = mutableMapOf<String, CvHistoryBuffer>()
     private var activeCellId: PatchCellId? = null
     private val virtualModulators = mutableListOf<CvModulator>()
     private var lastActiveIds: Set<String> = emptySet()
@@ -197,20 +199,27 @@ object CellConfigPanel {
             UITheme.h3("Live Modulated Value: $liveLabel")
             ImGui.spacing()
 
-            // Oscilloscope showing final value history
-            drawFinalOscilloscope(param.history, param.minClamp, param.maxClamp, themeColor)
+            // Update active modulators history
+            val activeMods = param.modulators.filter { 
+                !it.bypassed && (CVRegistry.exists(it.sourceId) || it.sourceId.startsWith("midi_cc_"))
+            }
+            val activeIds = activeMods.map { it.id }.toSet()
+            modulatorHistories.keys.retainAll(activeIds)
 
-            // Cyan progress bar under the oscilloscope showing the value in the clamp range
-            ImGui.spacing()
-            val range = param.maxClamp - param.minClamp
-            val pct = if (range == 0f) 0.5f else ((param.value - param.minClamp) / range).coerceIn(0f, 1f)
-            val barW = ImGui.getContentRegionAvailX()
-            val dl = ImGui.getWindowDrawList()
-            var cx = ImGui.getCursorScreenPosX()
-            var cy = ImGui.getCursorScreenPosY()
-            dl.addRectFilled(cx, cy, cx + barW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
-            dl.addRectFilled(cx, cy, cx + barW * pct, cy + 10f, themeColor)
-            ImGui.dummy(barW, 10f)
+            for (mod in activeMods) {
+                val hist = modulatorHistories.getOrPut(mod.id) { CvHistoryBuffer(200) }
+                val cvVal = evaluateModulator(mod)
+                val modAmount = cvVal * mod.amplitude + mod.dcOffset
+                val modulatorVal = when (mod.operator) {
+                    ModulationOperator.ADD -> param.baseValue + modAmount
+                    ModulationOperator.MUL -> param.baseValue * (1.0f + modAmount)
+                    ModulationOperator.SCALE -> param.baseValue * (1.0f - mod.amplitude + modAmount)
+                }.coerceIn(param.minClamp, param.maxClamp)
+                hist.add(modulatorVal)
+            }
+
+            // Oscilloscope showing final value history plus modulator histories
+            drawFinalOscilloscope(param.history, param.minClamp, param.maxClamp, themeColor, activeMods, modulatorHistories)
 
             ImGui.spacing()
             ImGui.separator()
@@ -400,8 +409,8 @@ object CellConfigPanel {
             }
             val baseBarW = ImGui.getContentRegionAvailX()
             val baseDl = ImGui.getWindowDrawList()
-            cx = ImGui.getCursorScreenPosX()
-            cy = ImGui.getCursorScreenPosY()
+            val cx = ImGui.getCursorScreenPosX()
+            val cy = ImGui.getCursorScreenPosY()
             baseDl.addRectFilled(cx, cy, cx + baseBarW, cy + 10f, ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
             baseDl.addRectFilled(cx, cy, cx + baseBarW * param.baseValue, cy + 10f, getThemeColor("base"))
             ImGui.dummy(baseBarW, 10f)
@@ -1029,7 +1038,14 @@ object CellConfigPanel {
 
     }
 
-    private fun drawFinalOscilloscope(history: CvHistoryBuffer, minVal: Float, maxVal: Float, themeColor: Int) {
+    private fun drawFinalOscilloscope(
+        history: CvHistoryBuffer,
+        minVal: Float,
+        maxVal: Float,
+        themeColor: Int,
+        modulators: List<CvModulator>,
+        modulatorHistories: Map<String, CvHistoryBuffer>
+    ) {
         val historySize = history.size
         val w = ImGui.getContentRegionAvailX()
         val h = 80f
@@ -1058,11 +1074,34 @@ object CellConfigPanel {
         
         val stepX = w / (historySize - 1)
         val usableHeight = h - 10f
-        val lineCol = themeColor
         
         val range = maxVal - minVal
         val divisor = if (range == 0f) 1f else range
         
+        // 1. Draw each active modulator's history line
+        for (mod in modulators) {
+            val hist = modulatorHistories[mod.id] ?: continue
+            val colorId = if (mod.sourceId.startsWith("midi_cc_")) "midi" else mod.sourceId
+            val modColor = getThemeColor(colorId, 0.6f) // Thinner and transparent background line
+            
+            for (i in 0 until historySize - 1) {
+                val raw1 = hist.getAt(i)
+                val raw2 = hist.getAt(i + 1)
+                
+                val val1 = if (range == 0f) 0.5f else ((raw1 - minVal) / divisor).coerceIn(0f, 1f)
+                val val2 = if (range == 0f) 0.5f else ((raw2 - minVal) / divisor).coerceIn(0f, 1f)
+                
+                val x1 = startX + i * stepX
+                val y1 = (startY + h - 5f) - val1 * usableHeight
+                val x2 = startX + (i + 1) * stepX
+                val y2 = (startY + h - 5f) - val2 * usableHeight
+                
+                dl.addLine(x1, y1, x2, y2, modColor, 1.25f)
+            }
+        }
+        
+        // 2. Draw final modulated line on top
+        val lineCol = themeColor
         for (i in 0 until historySize - 1) {
             val raw1 = history.getAt(i)
             val raw2 = history.getAt(i + 1)
@@ -1075,7 +1114,7 @@ object CellConfigPanel {
             val x2 = startX + (i + 1) * stepX
             val y2 = (startY + h - 5f) - val2 * usableHeight
             
-            dl.addLine(x1, y1, x2, y2, lineCol, 2.0f)
+            dl.addLine(x1, y1, x2, y2, lineCol, 2.25f)
         }
         
         val borderCol = ImGui.colorConvertFloat4ToU32(0.18f, 0.18f, 0.18f, 1.0f)
