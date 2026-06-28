@@ -30,6 +30,7 @@ class Deck(
     val gyroid: Gyroid = if (source is Gyroid) source as Gyroid else Gyroid()
     val chladni: Chladni = if (source is Chladni) source as Chladni else Chladni()
     val mandelbox: Mandelbox = if (source is Mandelbox) source as Mandelbox else Mandelbox()
+    val pseudoKleinian: PseudoKleinian = if (source is PseudoKleinian) source as PseudoKleinian else PseudoKleinian()
 
     // Feedback parameters with custom clamp ranges
     val fbDecay = ModulatableParameter(0.73f, minClamp = 0f, maxClamp = 1f)
@@ -49,12 +50,13 @@ class Deck(
         
         // Ensure starting source matches the initialized source
         source = when {
-            sourceSelect.value < 0.1667f -> mandala
-            sourceSelect.value < 0.3333f -> mandelbulb
-            sourceSelect.value < 0.5000f -> kifs
-            sourceSelect.value < 0.6667f -> gyroid
-            sourceSelect.value < 0.8333f -> chladni
-            else -> mandelbox
+            sourceSelect.value < 0.1428f -> mandala
+            sourceSelect.value < 0.2857f -> mandelbulb
+            sourceSelect.value < 0.4285f -> kifs
+            sourceSelect.value < 0.5714f -> gyroid
+            sourceSelect.value < 0.7142f -> chladni
+            sourceSelect.value < 0.8571f -> mandelbox
+            else -> pseudoKleinian
         }
     }
 
@@ -75,6 +77,8 @@ class Deck(
         chladni.globalAlpha.reset()
         mandelbox.parameters.values.forEach { it.reset() }
         mandelbox.globalAlpha.reset()
+        pseudoKleinian.parameters.values.forEach { it.reset() }
+        pseudoKleinian.globalAlpha.reset()
         fbDecay.reset()
         fbGain.reset()
         fbZoom.reset()
@@ -84,12 +88,13 @@ class Deck(
         fbChroma.reset()
         fbMode.reset()
         source = when {
-            sourceSelect.value < 0.1667f -> mandala
-            sourceSelect.value < 0.3333f -> mandelbulb
-            sourceSelect.value < 0.5000f -> kifs
-            sourceSelect.value < 0.6667f -> gyroid
-            sourceSelect.value < 0.8333f -> chladni
-            else -> mandelbox
+            sourceSelect.value < 0.1428f -> mandala
+            sourceSelect.value < 0.2857f -> mandelbulb
+            sourceSelect.value < 0.4285f -> kifs
+            sourceSelect.value < 0.5714f -> gyroid
+            sourceSelect.value < 0.7142f -> chladni
+            sourceSelect.value < 0.8571f -> mandelbox
+            else -> pseudoKleinian
         }
     }
 
@@ -129,12 +134,13 @@ class Deck(
     fun update() {
         sourceSelect.evaluate()
         source = when {
-            sourceSelect.value < 0.1667f -> mandala
-            sourceSelect.value < 0.3333f -> mandelbulb
-            sourceSelect.value < 0.5000f -> kifs
-            sourceSelect.value < 0.6667f -> gyroid
-            sourceSelect.value < 0.8333f -> chladni
-            else -> mandelbox
+            sourceSelect.value < 0.1428f -> mandala
+            sourceSelect.value < 0.2857f -> mandelbulb
+            sourceSelect.value < 0.4285f -> kifs
+            sourceSelect.value < 0.5714f -> gyroid
+            sourceSelect.value < 0.7142f -> chladni
+            sourceSelect.value < 0.8571f -> mandelbox
+            else -> pseudoKleinian
         }
         source.update()
         fbDecay.evaluate()

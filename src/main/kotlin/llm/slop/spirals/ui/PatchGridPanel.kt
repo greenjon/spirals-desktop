@@ -15,6 +15,7 @@ import llm.slop.spirals.rendering.Gyroid
 import llm.slop.spirals.rendering.Chladni
 import llm.slop.spirals.rendering.Mandelbox
 import llm.slop.spirals.rendering.Mixer
+import llm.slop.spirals.rendering.PseudoKleinian
 import llm.slop.spirals.models.ClipboardManager
 import llm.slop.spirals.models.CellClipboardData
 import llm.slop.spirals.models.RowClipboardData
@@ -112,21 +113,24 @@ object PatchGridPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        drawGroup("Mixer", state, true) {
-            drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer)
-            drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer)
-            drawParamRow("bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer)
-            drawParamRow("setlist prev", "Mixer/setlistPrev", mixer.setlistPrev, state, labelColW, mixer)
-            drawParamRow("setlist next", "Mixer/setlistNext", mixer.setlistNext, state, labelColW, mixer)
+        if (ImGui.beginChild("##patch_grid_scroll", 0f, 0f, false)) {
+            drawGroup("Mixer", state, true) {
+                drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer)
+                drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer)
+                drawParamRow("bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer)
+                drawParamRow("setlist prev", "Mixer/setlistPrev", mixer.setlistPrev, state, labelColW, mixer)
+                drawParamRow("setlist next", "Mixer/setlistNext", mixer.setlistNext, state, labelColW, mixer)
+            }
+            ImGui.spacing()
+            ImGui.spacing()
+
+            drawDeckGroup("Deck A", mixer.deckA, state, labelColW, mixer)
+            ImGui.spacing()
+            ImGui.spacing()
+
+            drawDeckGroup("Deck B", mixer.deckB, state, labelColW, mixer)
         }
-        ImGui.spacing()
-        ImGui.spacing()
-
-        drawDeckGroup("Deck A", mixer.deckA, state, labelColW, mixer)
-        ImGui.spacing()
-        ImGui.spacing()
-
-        drawDeckGroup("Deck B", mixer.deckB, state, labelColW, mixer)
+        ImGui.endChild()
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -171,8 +175,8 @@ object PatchGridPanel {
         }
         
         val lineCol = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f) // VERY subtle extended grid line
-        val bottomY = startY + ImGui.getWindowHeight() + ImGui.getScrollMaxY() + 1000f // ensure it goes all the way down
-
+        val bottomY = startY + ImGui.getWindowHeight() // align to parent window height
+        
         // Draw FINAL header
         val finalColX = startX + labelColW + getColumnOffset("final")
         dl.addLine(finalColX - CELL_PAD * 0.5f, startY, finalColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
@@ -391,6 +395,7 @@ object PatchGridPanel {
             val gyroid = deck.source as? Gyroid
             val chladni = deck.source as? Chladni
             val mandelbox = deck.source as? Mandelbox
+            val pseudoKleinian = deck.source as? PseudoKleinian
 
             if (mandala != null) {
                 drawSubGroup(deckLabel, "Geometry", state) {
@@ -530,6 +535,26 @@ object PatchGridPanel {
                     drawParamRow("Pitch",        "$deckLabel/Mandelbox/Pitch",       mandelbox.parameters["Pitch"]!!,        state, labelColW, mixer)
                     drawParamRow("Glow",         "$deckLabel/Mandelbox/Glow",        mandelbox.parameters["Glow"]!!,         state, labelColW, mixer)
                     drawParamRow("Gain",         "$deckLabel/Mandelbox/Gain",        mandelbox.globalAlpha,                  state, labelColW, mixer)
+                }
+            }
+
+            if (pseudoKleinian != null) {
+                drawSubGroup(deckLabel, "Pseudo-Kleinian", state) {
+                    drawParamRow("Scale",       "$deckLabel/PseudoKleinian/Scale",       pseudoKleinian.parameters["Scale"]!!,       state, labelColW, mixer)
+                    drawParamRow("Radius",      "$deckLabel/PseudoKleinian/Radius",      pseudoKleinian.parameters["Radius"]!!,      state, labelColW, mixer)
+                    drawParamRow("CX",          "$deckLabel/PseudoKleinian/CX",          pseudoKleinian.parameters["CX"]!!,          state, labelColW, mixer)
+                    drawParamRow("CY",          "$deckLabel/PseudoKleinian/CY",          pseudoKleinian.parameters["CY"]!!,          state, labelColW, mixer)
+                    drawParamRow("CZ",          "$deckLabel/PseudoKleinian/CZ",          pseudoKleinian.parameters["CZ"]!!,          state, labelColW, mixer)
+                    drawParamRow("Rot X",       "$deckLabel/PseudoKleinian/RotX",        pseudoKleinian.parameters["Rot X"]!!,       state, labelColW, mixer)
+                    drawParamRow("Rot Y",       "$deckLabel/PseudoKleinian/RotY",        pseudoKleinian.parameters["Rot Y"]!!,       state, labelColW, mixer)
+                    drawParamRow("Rot Z",       "$deckLabel/PseudoKleinian/RotZ",        pseudoKleinian.parameters["Rot Z"]!!,       state, labelColW, mixer)
+                    drawParamRow("Iterations",  "$deckLabel/PseudoKleinian/Iterations",  pseudoKleinian.parameters["Iterations"]!!,  state, labelColW, mixer)
+                    drawParamRow("Zoom",        "$deckLabel/PseudoKleinian/Zoom",        pseudoKleinian.parameters["Zoom"]!!,        state, labelColW, mixer)
+                    drawParamRow("Color Shift", "$deckLabel/PseudoKleinian/ColorShift",  pseudoKleinian.parameters["Color Shift"]!!, state, labelColW, mixer)
+                    drawParamRow("Yaw",         "$deckLabel/PseudoKleinian/Yaw",         pseudoKleinian.parameters["Yaw"]!!,         state, labelColW, mixer)
+                    drawParamRow("Pitch",       "$deckLabel/PseudoKleinian/Pitch",       pseudoKleinian.parameters["Pitch"]!!,       state, labelColW, mixer)
+                    drawParamRow("Glow",        "$deckLabel/PseudoKleinian/Glow",        pseudoKleinian.parameters["Glow"]!!,        state, labelColW, mixer)
+                    drawParamRow("Gain",        "$deckLabel/PseudoKleinian/Gain",        pseudoKleinian.globalAlpha,                 state, labelColW, mixer)
                 }
             }
 

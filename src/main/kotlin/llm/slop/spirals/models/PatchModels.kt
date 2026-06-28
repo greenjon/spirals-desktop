@@ -282,6 +282,7 @@ fun Deck.toDto(name: String, tags: List<String> = emptyList()): DeckPatchDto {
         is Gyroid -> "Gyroid"
         is Chladni -> "Chladni"
         is Mandelbox -> "Mandelbox"
+        is PseudoKleinian -> "PseudoKleinian"
         else -> "Mandala"
     }
     val recipeDto = if (source is Mandala) (source as Mandala).recipe.toDto() else null
@@ -317,12 +318,13 @@ fun Deck.applyDto(dto: DeckPatchDto) {
     
     // Select the active source dynamically based on sourceSelect parameter
     source = when {
-        sourceSelect.value < 0.1667f -> mandala
-        sourceSelect.value < 0.3333f -> mandelbulb
-        sourceSelect.value < 0.5000f -> kifs
-        sourceSelect.value < 0.6667f -> gyroid
-        sourceSelect.value < 0.8333f -> chladni
-        else -> mandelbox
+        sourceSelect.value < 0.1428f -> mandala
+        sourceSelect.value < 0.2857f -> mandelbulb
+        sourceSelect.value < 0.4285f -> kifs
+        sourceSelect.value < 0.5714f -> gyroid
+        sourceSelect.value < 0.7142f -> chladni
+        sourceSelect.value < 0.8571f -> mandelbox
+        else -> pseudoKleinian
     }
     
     if (source is Mandala) {
@@ -380,6 +382,11 @@ fun Deck.applyDto(dto: DeckPatchDto) {
         val mandelboxObj = source as Mandelbox
         for ((key, paramDto) in dto.parameters) {
             mandelboxObj.parameters[key]?.applyDto(paramDto)
+        }
+    } else if (source is PseudoKleinian) {
+        val pkObj = source as PseudoKleinian
+        for ((key, paramDto) in dto.parameters) {
+            pkObj.parameters[key]?.applyDto(paramDto)
         }
     }
     

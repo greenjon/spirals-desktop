@@ -21,6 +21,7 @@ class Renderer {
     private val gyroidShader: Shader
     private val chladniShader: Shader
     private val mandelboxShader: Shader
+    private val pseudoKleinianShader: Shader
 
     private var mandalaVAO: Int = 0
     private var mandalaVBO: Int = 0
@@ -38,6 +39,7 @@ class Renderer {
         gyroidShader = Shader.fromResources("shaders/mandelbulb.vert", "shaders/gyroid.frag")
         chladniShader = Shader.fromResources("shaders/mandelbulb.vert", "shaders/chladni.frag")
         mandelboxShader = Shader.fromResources("shaders/mandelbulb.vert", "shaders/mandelbox.frag")
+        pseudoKleinianShader = Shader.fromResources("shaders/mandelbulb.vert", "shaders/pseudo_kleinian.frag")
 
         // Initialize VAO and VBO for Mandala geometry (ribbon coordinates)
         val expansionBuffer = Mandala.expansionBuffer
@@ -76,6 +78,8 @@ class Renderer {
             renderChladni(source, targetFBO)
         } else if (source is Mandelbox) {
             renderMandelbox(source, targetFBO)
+        } else if (source is PseudoKleinian) {
+            renderPseudoKleinian(source, targetFBO)
         }
     }
 
@@ -107,6 +111,41 @@ class Renderer {
         Geometry.drawFullscreenQuad()
 
         mandelboxShader.unbind()
+        targetFBO.unbind()
+    }
+
+    private fun renderPseudoKleinian(pseudoKleinian: PseudoKleinian, targetFBO: FBO) {
+        targetFBO.bind()
+
+        glClearColor(0f, 0f, 0f, 0f)
+        glClear(GL_COLOR_BUFFER_BIT)
+
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+        pseudoKleinianShader.bind()
+
+        val p = pseudoKleinian.parameters
+        pseudoKleinianShader.setUniform("uScale", p["Scale"]?.value ?: 1.5f)
+        pseudoKleinianShader.setUniform("uRadius", p["Radius"]?.value ?: 1.0f)
+        pseudoKleinianShader.setUniform("uCX", p["CX"]?.value ?: 1.0f)
+        pseudoKleinianShader.setUniform("uCY", p["CY"]?.value ?: 1.0f)
+        pseudoKleinianShader.setUniform("uCZ", p["CZ"]?.value ?: 1.0f)
+        pseudoKleinianShader.setUniform("uRotX", p["Rot X"]?.value ?: 0.0f)
+        pseudoKleinianShader.setUniform("uRotY", p["Rot Y"]?.value ?: 0.0f)
+        pseudoKleinianShader.setUniform("uRotZ", p["Rot Z"]?.value ?: 0.0f)
+        pseudoKleinianShader.setUniform("uIterations", p["Iterations"]?.value ?: 8.0f)
+        pseudoKleinianShader.setUniform("uZoom", p["Zoom"]?.value ?: 1.0f)
+        pseudoKleinianShader.setUniform("uColorShift", p["Color Shift"]?.value ?: 0.0f)
+        pseudoKleinianShader.setUniform("uYaw", p["Yaw"]?.value ?: 0.0f)
+        pseudoKleinianShader.setUniform("uPitch", p["Pitch"]?.value ?: 0.0f)
+        pseudoKleinianShader.setUniform("uAlpha", pseudoKleinian.globalAlpha.value)
+        pseudoKleinianShader.setUniform("uResolution", targetFBO.width.toFloat(), targetFBO.height.toFloat())
+        pseudoKleinianShader.setUniform("uGlow", p["Glow"]?.value ?: 0.5f)
+
+        Geometry.drawFullscreenQuad()
+
+        pseudoKleinianShader.unbind()
         targetFBO.unbind()
     }
 
@@ -510,6 +549,7 @@ class Renderer {
             gyroidShader.dispose()
             chladniShader.dispose()
             mandelboxShader.dispose()
+            pseudoKleinianShader.dispose()
             isDisposed = true
         }
     }
