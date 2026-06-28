@@ -449,8 +449,30 @@ object PatchGridPanel {
 
             val activeSource = deck.source
             if (activeSource is DynamicVisualSource) {
+                val transformNames = setOf("Zoom", "Yaw", "Pitch", "Roll", "Rot X", "Rot Y", "Rot Z", "Scale", "Scale X", "Scale Y", "Scale Z")
+                
+                // Partition parameters into transform vs others
+                val transformParams = mutableListOf<Map.Entry<String, ModulatableParameter>>()
+                val otherParams = mutableListOf<Map.Entry<String, ModulatableParameter>>()
+                
+                activeSource.parameters.forEach { entry ->
+                    if (transformNames.contains(entry.key)) {
+                        transformParams.add(entry)
+                    } else {
+                        otherParams.add(entry)
+                    }
+                }
+                
+                if (transformParams.isNotEmpty()) {
+                    drawSubGroup(deckLabel, "Transform", state) {
+                        transformParams.forEach { (name, param) ->
+                            drawParamRow(name, "$deckLabel/Transform/$name", param, state, labelColW, mixer)
+                        }
+                    }
+                }
+                
                 drawSubGroup(deckLabel, activeSource.displayName, state) {
-                    activeSource.parameters.forEach { (name, param) ->
+                    otherParams.forEach { (name, param) ->
                         drawParamRow(name, "$deckLabel/${activeSource.displayName}/$name", param, state, labelColW, mixer)
                     }
                     drawParamRow("Gain", "$deckLabel/${activeSource.displayName}/Gain", activeSource.globalAlpha, state, labelColW, mixer)

@@ -54,6 +54,12 @@ Here is an example `meta.json` for a simple pulsing circle:
 - **name**: The human-readable name that will appear in the Spirals UI.
 - **parameters**: An array of parameter definitions. For each parameter, Spirals will automatically generate a slider in the UI, complete with CV modulation capabilities.
 
+> [!TIP]
+> **Transform Grouping Rules**
+> If you want specific parameters to appear inside the standardized **Transform** UI subgroup rather than your shader's general subgroup, you must name them exactly as follows:
+> `Zoom`, `Yaw`, `Pitch`, `Roll`, `Rot X`, `Rot Y`, `Rot Z`, `Scale`, `Scale X`, `Scale Y`, `Scale Z`.
+> Spirals will automatically detect these parameter names and group them logically for the user.
+
 ### The Shader File (`.frag`)
 
 Your fragment shader should be written in standard GLSL (version `330 core`). 
