@@ -59,21 +59,21 @@
       "type": "ENDLESS"
     },
     {
-      "name": "Yaw",
+      "name": "Rotate Y",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS"
     },
     {
-      "name": "Pitch",
+      "name": "Rotate X",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS"
     },
     {
-      "name": "Roll",
+      "name": "Rotate Z",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,

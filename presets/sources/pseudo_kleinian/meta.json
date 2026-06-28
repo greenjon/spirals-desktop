@@ -38,21 +38,21 @@
       "type": "BIPOLAR"
     },
     {
-      "name": "Rot X",
+      "name": "Rotate X",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS"
     },
     {
-      "name": "Rot Y",
+      "name": "Rotate Y",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS"
     },
     {
-      "name": "Rot Z",
+      "name": "Rotate Z",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
@@ -80,21 +80,21 @@
       "type": "ENDLESS"
     },
     {
-      "name": "Yaw",
+      "name": "Cam Rotate Y",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS"
     },
     {
-      "name": "Pitch",
+      "name": "Cam Rotate X",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS"
     },
     {
-      "name": "Roll",
+      "name": "Cam Rotate Z",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,

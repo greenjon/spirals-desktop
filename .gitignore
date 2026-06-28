@@ -30,6 +30,7 @@ logs/
 patches/*.json
 !patches/default.json
 presets/
+!presets/sources/
 spirals-settings.properties
 imgui.ini
 

@@ -8,15 +8,15 @@ uniform float uRadius;
 uniform float uCX;
 uniform float uCY;
 uniform float uCZ;
-uniform float uRotX;
-uniform float uRotY;
-uniform float uRotZ;
+uniform float uRotateX;
+uniform float uRotateY;
+uniform float uRotateZ;
 uniform float uIterations;
 uniform float uZoom;
 uniform float uColorShift;
-uniform float uYaw;
-uniform float uPitch;
-uniform float uRoll;
+uniform float uCamRotateY;
+uniform float uCamRotateX;
+uniform float uCamRotateZ;
 uniform float uAlpha;
 uniform vec2 uResolution;
 uniform float uGlow;
@@ -45,7 +45,7 @@ float map(vec3 p, out float trap) {
     trap = 1e10;
     
     vec3 offset = vec3(uCX, uCY, uCZ);
-    mat3 rotMat = rotateX(uRotX) * rotateY(uRotY) * rotateZ(uRotZ);
+    mat3 rotMat = rotateX(uRotateX) * rotateY(uRotateY) * rotateZ(uRotateZ);
     
     int maxIt = int(uIterations);
     float minRad2 = uRadius * uRadius;
@@ -103,7 +103,7 @@ void main() {
     vec3 ro = vec3(0.0, 0.0, -3.0 / uZoom);
     vec3 rd = normalize(vec3(uv, 1.2));
 
-    mat3 camRot = rotateZ(uRoll) * rotateY(uYaw) * rotateX(uPitch);
+    mat3 camRot = rotateZ(uCamRotateZ) * rotateY(uCamRotateY) * rotateX(uCamRotateX);
     ro = camRot * ro;
     rd = camRot * rd;
 

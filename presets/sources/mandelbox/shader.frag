@@ -10,9 +10,9 @@ uniform float uIterations;
 uniform float uFoldLimit;
 uniform float uZoom;
 uniform float uColorShift;
-uniform float uYaw;
-uniform float uPitch;
-uniform float uRoll;
+uniform float uRotateY;
+uniform float uRotateX;
+uniform float uRotateZ;
 uniform float uAlpha;
 uniform vec2 uResolution;
 uniform float uGlow;
@@ -100,7 +100,7 @@ void main() {
     vec3 ro = vec3(0.0, 0.0, -3.0 / uZoom);
     vec3 rd = normalize(vec3(uv, 1.2));
 
-    mat3 camRot = rotateZ(uRoll) * rotateY(uYaw) * rotateX(uPitch);
+    mat3 camRot = rotateZ(uRotateZ) * rotateY(uRotateY) * rotateX(uRotateX);
     ro = camRot * ro;
     rd = camRot * rd;
 

@@ -9,9 +9,9 @@ uniform float uGlow;
 uniform float uZoom;
 uniform float uColorShift;
 uniform float uBailout;
-uniform float uYaw;
-uniform float uPitch;
-uniform float uRoll;
+uniform float uRotateY;
+uniform float uRotateX;
+uniform float uRotateZ;
 uniform float uAlpha;
 uniform vec2 uResolution;
 
@@ -102,7 +102,7 @@ void main() {
     vec3 rd = normalize(vec3(uv, 1.2));     // Ray direction
 
     // Rotate camera based on Yaw/Pitch parameters
-    mat3 camRot = rotateZ(uRoll) * rotateY(uYaw) * rotateX(uPitch);
+    mat3 camRot = rotateZ(uRotateZ) * rotateY(uRotateY) * rotateX(uRotateX);
     ro = camRot * ro;
     rd = camRot * rd;
 

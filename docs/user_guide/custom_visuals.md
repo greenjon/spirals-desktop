@@ -55,9 +55,9 @@ Here is an example `meta.json` for a simple pulsing circle:
 - **parameters**: An array of parameter definitions. For each parameter, Spirals will automatically generate a slider in the UI, complete with CV modulation capabilities.
 
 > [!TIP]
-> **Transform Grouping Rules**
-> If you want specific parameters to appear inside the standardized **Transform** UI subgroup rather than your shader's general subgroup, you must name them exactly as follows:
-> `Zoom`, `Yaw`, `Pitch`, `Roll`, `Rot X`, `Rot Y`, `Rot Z`, `Scale`, `Scale X`, `Scale Y`, `Scale Z`.
+> **View Grouping Rules**
+> If you want specific parameters to appear inside the standardized **View** UI subgroup rather than your shader's general subgroup, you must name them exactly as follows:
+> `Zoom`, `Rotate X`, `Rotate Y`, `Rotate Z`, `Cam Rotate X`, `Cam Rotate Y`, `Cam Rotate Z`, `Scale`, `Scale X`, `Scale Y`, `Scale Z`.
 > Spirals will automatically detect these parameter names and group them logically for the user.
 
 ### The Shader File (`.frag`)
