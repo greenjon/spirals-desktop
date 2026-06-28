@@ -40,6 +40,17 @@ mat3 rotateX(float theta) {
     );
 }
 
+mat3 rotateZ(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, -s, 0.0),
+        vec3(s, c, 0.0),
+        vec3(0.0, 0.0, 1.0)
+    );
+}
+
+
 // Mandelbulb Distance Estimator
 // Ref: http://iquilezles.org/www/articles/mandelbulb/mandelbulb.htm
 float map(vec3 p, out float trap) {
