@@ -210,7 +210,16 @@ object CellConfigPanel {
             for (mod in activeMods) {
                 val hist = modulatorHistories.getOrPut(mod.id) { CvHistoryBuffer(200) }
                 val cvVal = evaluateModulator(mod)
-                val modAmount = cvVal * mod.amplitude + mod.dcOffset
+                val isBipolar = param.minClamp < 0f
+                val rawModAmount = if (isBipolar) {
+                    cvVal * mod.amplitude + mod.dcOffset
+                } else {
+                    ((cvVal + 1f) / 2f) * mod.amplitude + mod.dcOffset
+                }
+                val scalar = if (mod.operator == ModulationOperator.ADD) {
+                    if (isBipolar) (param.maxClamp - param.minClamp) / 2.0f else (param.maxClamp - param.minClamp)
+                } else 1.0f
+                val modAmount = rawModAmount * scalar
                 val modulatorVal = when (mod.operator) {
                     ModulationOperator.ADD -> param.baseValue + modAmount
                     ModulationOperator.MUL -> param.baseValue * (1.0f + modAmount)
@@ -480,7 +489,9 @@ object CellConfigPanel {
         }
 
         val modsToDraw = activeMods + virtualModulators.filter { vm -> activeMods.none { am -> am.id == vm.id } }
-        val combinedVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods)
+        val isBipolar = param.minClamp < 0f
+        // Use the same formula as the engine so the O-scope displays what the parameter actually receives.
+        val combinedVal = llm.slop.spirals.cv.getCombinedEffectiveValue(activeMods, isBipolar)
         activeHistory?.add(combinedVal)
 
         // ── Delete ALL ───────────────────────────────────────────
@@ -1507,51 +1518,51 @@ object CellConfigPanel {
         val bgCol = ImGui.colorConvertFloat4ToU32(0.04f, 0.04f, 0.04f, 1.0f)
         dl.addRectFilled(startX, startY, startX + w, startY + h, bgCol, 4f)
         
+        val isBipolar = param.minClamp < 0f
+
         // 2. Grid lines
-        val centerY = startY + h / 2f
         val gridColCenter = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 0.8f)
         val gridColFaint = ImGui.colorConvertFloat4ToU32(0.12f, 0.12f, 0.12f, 0.5f)
-        
-        // Horizontal lines (Center, Max, Min)
-        dl.addLine(startX, centerY, startX + w, centerY, gridColCenter, 1.5f)
+
+        if (isBipolar) {
+            // Bipolar: center line represents zero
+            val centerY = startY + h / 2f
+            dl.addLine(startX, centerY, startX + w, centerY, gridColCenter, 1.5f)
+        } else {
+            // Monopolar: bottom line is the zero baseline
+            dl.addLine(startX, startY + h - 5f, startX + w, startY + h - 5f, gridColCenter, 1.5f)
+        }
         dl.addLine(startX, startY + 5f, startX + w, startY + 5f, gridColFaint, 1f)
-        dl.addLine(startX, startY + h - 5f, startX + w, startY + h - 5f, gridColFaint, 1f)
-        
+        if (isBipolar) {
+            dl.addLine(startX, startY + h - 5f, startX + w, startY + h - 5f, gridColFaint, 1f)
+        }
+
         // Vertical lines
         val numDivisions = 4
         for (i in 1 until numDivisions) {
             val gridX = startX + (w * i / numDivisions)
             dl.addLine(gridX, startY, gridX, startY + h, gridColFaint, 1f)
         }
-        
+
         // 3. Draw lines of history
         val stepX = w / (historySize - 1)
         val usableHeight = h - 10f
-        
+
         val lineCol = themeColor
-        
+
         for (i in 0 until historySize - 1) {
-            val raw1 = history.getAt(i).coerceIn(-1f, 1f)
-            val raw2 = history.getAt(i + 1).coerceIn(-1f, 1f)
-            
-            // Map the native -1..1 CV to the parameter's visual range based on MeterType
-            val norm1 = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
-                (raw1 + 1f) / 2f // Map -1..1 to 0..1 visually
-            } else {
-                raw1.coerceAtLeast(0f) // Map 0..1 to 0..1 visually (clipping negatives)
-            }
-            
-            val norm2 = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
-                (raw2 + 1f) / 2f
-            } else {
-                raw2.coerceAtLeast(0f)
-            }
-            
+            // Bipolar history is stored as [-1,1] raw CV → normalize to [0,1].
+            // Monopolar history is already stored as effective [0,1] value → use directly.
+            val raw1 = history.getAt(i)
+            val raw2 = history.getAt(i + 1)
+            val norm1 = if (isBipolar) (raw1 + 1f) / 2f else raw1.coerceIn(0f, 1f)
+            val norm2 = if (isBipolar) (raw2 + 1f) / 2f else raw2.coerceIn(0f, 1f)
+
             val x1 = startX + i * stepX
             val y1 = (startY + h - 5f) - norm1 * usableHeight
             val x2 = startX + (i + 1) * stepX
             val y2 = (startY + h - 5f) - norm2 * usableHeight
-            
+
             dl.addLine(x1, y1, x2, y2, lineCol, 2.0f)
         }
         
@@ -1566,13 +1577,16 @@ object CellConfigPanel {
         
         ImGui.setCursorScreenPos(startX + 6f, startY + 4f)
         UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, maxLabel)
-        
-        ImGui.setCursorScreenPos(startX + 6f, centerY - 6f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, midLabel)
-        
+
+        if (isBipolar) {
+            val centerY = startY + h / 2f
+            ImGui.setCursorScreenPos(startX + 6f, centerY - 6f)
+            UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, midLabel)
+        }
+
         ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
         UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, minLabel)
-        
+
         val textWidth = ImGui.calcTextSize("Raw Modulator CV").x
         ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 4f)
         UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "Raw Modulator CV")

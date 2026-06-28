@@ -188,3 +188,41 @@ fun getCombinedModulatorValue(mods: List<CvModulator>): Float {
     }
     return result.coerceIn(-1.0f, 1.0f)
 }
+
+/**
+ * Like getCombinedModulatorValue, but applies the correct formula per parameter polarity:
+ *   Bipolar  (isBipolar=true):  modAmount = cv * amplitude + dc         → result in [-1, 1]
+ *   Monopolar (isBipolar=false): modAmount = ((cv+1)/2) * amplitude + dc → result in [ 0, 1]
+ *
+ * Used by the O-scope in CellConfigPanel so its display matches the engine output.
+ */
+fun getCombinedEffectiveValue(mods: List<CvModulator>, isBipolar: Boolean): Float {
+    if (mods.isEmpty()) return 0f
+
+    var result = 0f
+    var first = true
+    for (mod in mods) {
+        if (mod.bypassed) continue
+        val cv = evaluateModulator(mod)
+        val modAmount = if (isBipolar) {
+            cv * mod.amplitude + mod.dcOffset
+        } else {
+            ((cv + 1f) / 2f) * mod.amplitude + mod.dcOffset
+        }
+        if (first) {
+            result = when (mod.operator) {
+                llm.slop.spirals.parameters.ModulationOperator.ADD -> modAmount
+                llm.slop.spirals.parameters.ModulationOperator.MUL -> modAmount
+                llm.slop.spirals.parameters.ModulationOperator.SCALE -> 1.0f - mod.amplitude + modAmount
+            }
+            first = false
+        } else {
+            result = when (mod.operator) {
+                llm.slop.spirals.parameters.ModulationOperator.ADD -> result + modAmount
+                llm.slop.spirals.parameters.ModulationOperator.MUL -> result * (1.0f + modAmount)
+                llm.slop.spirals.parameters.ModulationOperator.SCALE -> result * (1.0f - mod.amplitude + modAmount)
+            }
+        }
+    }
+    return if (isBipolar) result.coerceIn(-1f, 1f) else result.coerceIn(0f, 1f)
+}

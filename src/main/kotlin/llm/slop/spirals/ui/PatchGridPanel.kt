@@ -658,15 +658,11 @@ object PatchGridPanel {
         if (hasMidiMod || isMidiBypassed) {
             val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(midiMods).coerceIn(-1f, 1f)
             // Map the -1..1 modulator value to the parameter's visual range for display
-            val displayValue = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
-                // -1..1 maps to min..max
+            // For display purposes, map the raw [-1,1] CV symmetrically onto the param range.
+            // This matches amp=1, dc=0 showing a full-range wave on the O-Scope.
+            val displayValue = run {
                 val range = param.maxClamp - param.minClamp
                 param.minClamp + ((liveVal + 1f) / 2f) * range
-            } else {
-                // CV 0..1 maps to min..max (assuming monopolar modulators typically pulse 0..1, though natively they are -1..1)
-                // Actually, just map the positive part for monopolar visualization
-                val range = param.maxClamp - param.minClamp
-                param.minClamp + ((liveVal.coerceAtLeast(0f))) * range
             }
             
             drawKnobMeter(
@@ -768,12 +764,10 @@ object PatchGridPanel {
 
             if (hasModulator || isBypassed) {
                 val liveVal = llm.slop.spirals.cv.getCombinedModulatorValue(activeMods).coerceIn(-1f, 1f)
-                val displayValue = if (param.meterType == llm.slop.spirals.parameters.MeterType.BIPOLAR) {
+                // For display purposes, map the raw [-1,1] CV symmetrically onto the param range.
+                val displayValue = run {
                     val range = param.maxClamp - param.minClamp
                     param.minClamp + ((liveVal + 1f) / 2f) * range
-                } else {
-                    val range = param.maxClamp - param.minClamp
-                    param.minClamp + ((liveVal.coerceAtLeast(0f))) * range
                 }
                 
                 drawKnobMeter(
