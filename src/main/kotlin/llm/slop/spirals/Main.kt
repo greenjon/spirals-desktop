@@ -29,8 +29,7 @@ fun main() {
     java.io.File("presets/global").mkdirs()
     java.io.File("presets/midi").mkdirs()
 
-    // Load dynamic visual sources
-    llm.slop.spirals.rendering.VisualSourceRegistry.loadAll()
+
 
     // Load active MIDI mapping profile
     llm.slop.spirals.midi.MidiMappingManager.loadProfile(UITheme.activeMidiProfile)
@@ -58,6 +57,9 @@ fun main() {
     // Initialize OpenGL
     GL.createCapabilities()
     GLDebug.setupDebugCallback()
+
+    // Load dynamic visual sources
+    llm.slop.spirals.rendering.VisualSourceRegistry.loadAll()
 
     logger.info { "OpenGL Version: ${glGetString(GL_VERSION)}" }
     logger.info { "OpenGL Renderer: ${glGetString(GL_RENDERER)}" }
