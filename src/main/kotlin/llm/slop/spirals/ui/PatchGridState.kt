@@ -63,7 +63,7 @@ class PatchGridState {
     fun applyAutocollapseSetting() {
         val openState = !UITheme.autocollapseEnabled
         val groups = listOf("Mixer", "Deck A", "Deck B")
-        val subgroups = listOf("Geometry", "Color", "Background", "Feedback")
+        val subgroups = listOf("Geometry", "Color", "Background", "Feedback", "View", "KIFS", "Gyroid", "Chladni", "Mandelbox")
 
         for (g in groups) {
             groupOpen[g] = true // top level groups are always open

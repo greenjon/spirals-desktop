@@ -154,13 +154,13 @@ class Renderer {
         mandalaShader.setUniform("uPermuteZX", p["Permute ZX"]?.value ?: 1f)
 
         // Set 3D rotations & perspective projection
-        mandalaShader.setUniform("uYaw", p["3D Yaw"]?.value ?: 0f)
-        mandalaShader.setUniform("uPitch", p["3D Pitch"]?.value ?: 0f)
+        mandalaShader.setUniform("uYaw", p["Rotate Y"]?.value ?: 0f)
+        mandalaShader.setUniform("uPitch", p["Rotate X"]?.value ?: 0f)
         mandalaShader.setUniform("uPersp", p["3D Persp"]?.value ?: 0.5f)
 
         // Calculate and set global transformation uniforms
-        val scale = (p["Scale"]?.value ?: 0.125f) * 8.0f
-        val rotation = (p["Rotation"]?.value ?: 0f) * 2.0f * Math.PI.toFloat()
+        val scale = (p["Zoom"]?.value ?: 0.125f) * 8.0f
+        val rotation = (p["Rotate Z"]?.value ?: 0f) * 2.0f * Math.PI.toFloat()
         val thickness = (p["Thickness"]?.value ?: 0.5f) * 0.035f
         val aspect = targetFBO.width.toFloat() / targetFBO.height.toFloat()
 

@@ -331,7 +331,14 @@ fun Deck.applyDto(dto: DeckPatchDto) {
         
         // Apply visual source parameters
         for ((key, paramDto) in dto.parameters) {
-            mandalaObj.parameters[key]?.applyDto(paramDto)
+            val mappedKey = when (key) {
+                "Scale" -> "Zoom"
+                "Rotation" -> "Rotate Z"
+                "3D Yaw" -> "Rotate Y"
+                "3D Pitch" -> "Rotate X"
+                else -> key
+            }
+            mandalaObj.parameters[mappedKey]?.applyDto(paramDto)
         }
 
         // Legacy patch fallback: sync parameter values to recipe if they weren't in the saved patch

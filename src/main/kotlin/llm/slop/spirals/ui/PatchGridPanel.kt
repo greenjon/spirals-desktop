@@ -359,7 +359,7 @@ object PatchGridPanel {
 
     private fun syncAndCollapseSubgroups(activeSubgroupLabel: String, state: PatchGridState) {
         val decks = listOf("Deck A", "Deck B")
-        val subgroups = listOf("Geometry", "3D Geometry", "Color", "Background", "Feedback", "KIFS", "Gyroid", "Chladni", "Mandelbox")
+        val subgroups = listOf("Geometry", "Color", "Background", "Feedback", "KIFS", "Gyroid", "Chladni", "Mandelbox", "View")
 
         for (deck in decks) {
             for (sub in subgroups) {
@@ -395,6 +395,18 @@ object PatchGridPanel {
             
 
             if (mandala != null) {
+                drawSubGroup(deckLabel, "View", state) {
+                    drawParamRow("Zoom",     "$deckLabel/View/Zoom",     mandala.parameters["Zoom"]!!,     state, labelColW, mixer)
+                    drawParamRow("Rotate Z", "$deckLabel/View/RotateZ",   mandala.parameters["Rotate Z"]!!,   state, labelColW, mixer)
+                    
+                    val modeVal = mandala.parameters["3D Mode"]?.value ?: 0f
+                    val mode = modeVal.roundToInt().coerceIn(0, 3)
+                    if (mode > 0) {
+                        drawParamRow("Rotate X", "$deckLabel/View/RotateX", mandala.parameters["Rotate X"]!!, state, labelColW, mixer)
+                        drawParamRow("Rotate Y", "$deckLabel/View/RotateY", mandala.parameters["Rotate Y"]!!, state, labelColW, mixer)
+                        drawParamRow("3D Persp", "$deckLabel/View/Persp",   mandala.parameters["3D Persp"]!!,  state, labelColW, mixer)
+                    }
+                }
                 drawSubGroup(deckLabel, "Geometry", state) {
                     drawParamRow("Lobe Count", "$deckLabel/Geometry/Lobes",    mandala.parameters["Lobes"]!!,         state, labelColW, mixer)
                     drawParamRow("Recipe ID",  "$deckLabel/Geometry/Recipe",   mandala.parameters["Recipe Select"]!!,  state, labelColW, mixer)
@@ -402,32 +414,22 @@ object PatchGridPanel {
                     drawParamRow("L2",       "$deckLabel/Geometry/L2",       mandala.parameters["L2"]!!,       state, labelColW, mixer)
                     drawParamRow("L3",       "$deckLabel/Geometry/L3",       mandala.parameters["L3"]!!,       state, labelColW, mixer)
                     drawParamRow("L4",       "$deckLabel/Geometry/L4",       mandala.parameters["L4"]!!,       state, labelColW, mixer)
-                    drawParamRow("Scale",    "$deckLabel/Geometry/Scale",    mandala.parameters["Scale"]!!,    state, labelColW, mixer)
-                    drawParamRow("Rotation", "$deckLabel/Geometry/Rotation", mandala.parameters["Rotation"]!!, state, labelColW, mixer)
-                }
-                drawSubGroup(deckLabel, "3D Geometry", state) {
+
                     val modeVal = mandala.parameters["3D Mode"]?.value ?: 0f
                     val mode = modeVal.roundToInt().coerceIn(0, 3)
-
-                    drawParamRow("3D Mode", "$deckLabel/3D/Mode", mandala.parameters["3D Mode"]!!, state, labelColW, mixer)
+                    drawParamRow("3D Mode", "$deckLabel/Geometry/3DMode", mandala.parameters["3D Mode"]!!, state, labelColW, mixer)
 
                     if (mode == 1) {
-                        drawParamRow("Sphere Wrap X", "$deckLabel/3D/SphereWrapX", mandala.parameters["Sphere Wrap X"]!!, state, labelColW, mixer)
-                        drawParamRow("Sphere Wrap Y", "$deckLabel/3D/SphereWrapY", mandala.parameters["Sphere Wrap Y"]!!, state, labelColW, mixer)
+                        drawParamRow("Sphere Wrap X", "$deckLabel/Geometry/SphereWrapX", mandala.parameters["Sphere Wrap X"]!!, state, labelColW, mixer)
+                        drawParamRow("Sphere Wrap Y", "$deckLabel/Geometry/SphereWrapY", mandala.parameters["Sphere Wrap Y"]!!, state, labelColW, mixer)
                     } else if (mode == 2) {
-                        drawParamRow("Mirror Group",  "$deckLabel/3D/MirrorGroup", mandala.parameters["Mirror Group"]!!,  state, labelColW, mixer)
-                        drawParamRow("Sphere Wrap X", "$deckLabel/3D/SphereWrapX", mandala.parameters["Sphere Wrap X"]!!, state, labelColW, mixer)
-                        drawParamRow("Sphere Wrap Y", "$deckLabel/3D/SphereWrapY", mandala.parameters["Sphere Wrap Y"]!!, state, labelColW, mixer)
+                        drawParamRow("Mirror Group",  "$deckLabel/Geometry/MirrorGroup", mandala.parameters["Mirror Group"]!!,  state, labelColW, mixer)
+                        drawParamRow("Sphere Wrap X", "$deckLabel/Geometry/SphereWrapX", mandala.parameters["Sphere Wrap X"]!!, state, labelColW, mixer)
+                        drawParamRow("Sphere Wrap Y", "$deckLabel/Geometry/SphereWrapY", mandala.parameters["Sphere Wrap Y"]!!, state, labelColW, mixer)
                     } else if (mode == 3) {
-                        drawParamRow("Permute XY",    "$deckLabel/3D/PermuteXY",   mandala.parameters["Permute XY"]!!,    state, labelColW, mixer)
-                        drawParamRow("Permute YZ",    "$deckLabel/3D/PermuteYZ",   mandala.parameters["Permute YZ"]!!,    state, labelColW, mixer)
-                        drawParamRow("Permute ZX",    "$deckLabel/3D/PermuteZX",   mandala.parameters["Permute ZX"]!!,    state, labelColW, mixer)
-                    }
-
-                    if (mode > 0) {
-                        drawParamRow("3D Yaw",   "$deckLabel/3D/Yaw",   mandala.parameters["3D Yaw"]!!,   state, labelColW, mixer)
-                        drawParamRow("3D Pitch", "$deckLabel/3D/Pitch", mandala.parameters["3D Pitch"]!!, state, labelColW, mixer)
-                        drawParamRow("3D Persp", "$deckLabel/3D/Persp", mandala.parameters["3D Persp"]!!, state, labelColW, mixer)
+                        drawParamRow("Permute XY",    "$deckLabel/Geometry/PermuteXY",   mandala.parameters["Permute XY"]!!,    state, labelColW, mixer)
+                        drawParamRow("Permute YZ",    "$deckLabel/Geometry/PermuteYZ",   mandala.parameters["Permute YZ"]!!,    state, labelColW, mixer)
+                        drawParamRow("Permute ZX",    "$deckLabel/Geometry/PermuteZX",   mandala.parameters["Permute ZX"]!!,    state, labelColW, mixer)
                     }
                 }
                 drawSubGroup(deckLabel, "Color", state) {
@@ -962,8 +964,20 @@ object PatchGridPanel {
                 list.add("$deckLabel/Geometry/L2" to mandala.parameters["L2"]!!)
                 list.add("$deckLabel/Geometry/L3" to mandala.parameters["L3"]!!)
                 list.add("$deckLabel/Geometry/L4" to mandala.parameters["L4"]!!)
-                list.add("$deckLabel/Geometry/Scale" to mandala.parameters["Scale"]!!)
-                list.add("$deckLabel/Geometry/Rotation" to mandala.parameters["Rotation"]!!)
+                list.add("$deckLabel/Geometry/3DMode" to mandala.parameters["3D Mode"]!!)
+                list.add("$deckLabel/Geometry/SphereWrapX" to mandala.parameters["Sphere Wrap X"]!!)
+                list.add("$deckLabel/Geometry/SphereWrapY" to mandala.parameters["Sphere Wrap Y"]!!)
+                list.add("$deckLabel/Geometry/MirrorGroup" to mandala.parameters["Mirror Group"]!!)
+                list.add("$deckLabel/Geometry/PermuteXY" to mandala.parameters["Permute XY"]!!)
+                list.add("$deckLabel/Geometry/PermuteYZ" to mandala.parameters["Permute YZ"]!!)
+                list.add("$deckLabel/Geometry/PermuteZX" to mandala.parameters["Permute ZX"]!!)
+
+                // View
+                list.add("$deckLabel/View/Zoom" to mandala.parameters["Zoom"]!!)
+                list.add("$deckLabel/View/RotateZ" to mandala.parameters["Rotate Z"]!!)
+                list.add("$deckLabel/View/RotateX" to mandala.parameters["Rotate X"]!!)
+                list.add("$deckLabel/View/RotateY" to mandala.parameters["Rotate Y"]!!)
+                list.add("$deckLabel/View/Persp" to mandala.parameters["3D Persp"]!!)
                 
                 // Color
                 list.add("$deckLabel/Color/Thickness" to mandala.parameters["Thickness"]!!)

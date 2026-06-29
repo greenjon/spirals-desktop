@@ -74,8 +74,8 @@ class Mandala(
         "L2" to ModulatableParameter(0.3f),
         "L3" to ModulatableParameter(0.2f),
         "L4" to ModulatableParameter(0.1f),
-        "Scale" to ModulatableParameter(0.125f),
-        "Rotation" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "Zoom" to ModulatableParameter(0.125f),
+        "Rotate Z" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
         "Thickness" to ModulatableParameter(0.5f),
         "Hue Offset" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
         "Hue Sweep" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
@@ -97,8 +97,8 @@ class Mandala(
         "Permute XY" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f),
         "Permute YZ" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f),
         "Permute ZX" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f),
-        "3D Yaw" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "3D Pitch" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "Rotate Y" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
+        "Rotate X" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
         "3D Persp" to ModulatableParameter(0.5f, minClamp = 0.0f, maxClamp = 1.0f)
     )
 
