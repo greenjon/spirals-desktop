@@ -563,7 +563,9 @@ object CellConfigPanel {
             val btnX1 = ImGui.getCursorScreenPosX()
             val btnY1 = ImGui.getCursorScreenPosY()
             val btnHeight = ImGui.getFrameHeight()
-            if (ImGui.button("##rand_bar_$idx", 50f, btnHeight)) {
+            val scale = btnHeight / 30f
+            val btnWidth = 50f * scale
+            if (ImGui.button("##rand_bar_$idx", btnWidth, btnHeight)) {
                 val randomized = existing.randomizeActiveValues()
                 replaceModulator(state, param, randomized)
             }
@@ -571,32 +573,32 @@ object CellConfigPanel {
                 ImGui.setTooltip("Randomize modulator values")
             }
             
-            // Draw pair of dice inside the randomize button (30% larger)
+            // Draw pair of dice inside the randomize button (scaled and enlarged 15% more)
             val diceColor = ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 1f)
             val dotColor = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1f)
             // Die 1
-            val dieW = 17f
-            val d1X = btnX1 + 6f
+            val dieW = 23f * scale
+            val d1X = btnX1 + 5f * scale
             val d1Y = btnY1 + (btnHeight - dieW) / 2f
-            dl.addRectFilled(d1X, d1Y, d1X + dieW, d1Y + dieW, diceColor, 2f)
-            dl.addRect(d1X, d1Y, d1X + dieW, d1Y + dieW, dotColor, 2f, 0, 1f)
+            dl.addRectFilled(d1X, d1Y, d1X + dieW, d1Y + dieW, diceColor, 2f * scale)
+            dl.addRect(d1X, d1Y, d1X + dieW, d1Y + dieW, dotColor, 2f * scale, 0, 1.2f * scale)
             // Face 3 dots
-            val dotRadius = 1.3f
-            dl.addCircleFilled(d1X + 4f, d1Y + 4f, dotRadius, dotColor)
-            dl.addCircleFilled(d1X + 8.5f, d1Y + 8.5f, dotRadius, dotColor)
-            dl.addCircleFilled(d1X + 13f, d1Y + 13f, dotRadius, dotColor)
+            val dotRadius = 1.7f * scale
+            dl.addCircleFilled(d1X + 5f * scale, d1Y + 5f * scale, dotRadius, dotColor)
+            dl.addCircleFilled(d1X + 11.5f * scale, d1Y + 11.5f * scale, dotRadius, dotColor)
+            dl.addCircleFilled(d1X + 18f * scale, d1Y + 18f * scale, dotRadius, dotColor)
 
             // Die 2
-            val d2X = btnX1 + 26f
-            val d2Y = btnY1 + (btnHeight - dieW) / 2f + 2f
-            dl.addRectFilled(d2X, d2Y, d2X + dieW, d2Y + dieW, diceColor, 2f)
-            dl.addRect(d2X, d2Y, d2X + dieW, d2Y + dieW, dotColor, 2f, 0, 1f)
+            val d2X = btnX1 + 24f * scale
+            val d2Y = btnY1 + (btnHeight - dieW) / 2f + 2f * scale
+            dl.addRectFilled(d2X, d2Y, d2X + dieW, d2Y + dieW, diceColor, 2f * scale)
+            dl.addRect(d2X, d2Y, d2X + dieW, d2Y + dieW, dotColor, 2f * scale, 0, 1.2f * scale)
             // Face 5 dots
-            dl.addCircleFilled(d2X + 4f, d2Y + 4f, dotRadius, dotColor)
-            dl.addCircleFilled(d2X + 13f, d2Y + 4f, dotRadius, dotColor)
-            dl.addCircleFilled(d2X + 8.5f, d2Y + 8.5f, dotRadius, dotColor)
-            dl.addCircleFilled(d2X + 4f, d2Y + 13f, dotRadius, dotColor)
-            dl.addCircleFilled(d2X + 13f, d2Y + 13f, dotRadius, dotColor)
+            dl.addCircleFilled(d2X + 5f * scale, d2Y + 5f * scale, dotRadius, dotColor)
+            dl.addCircleFilled(d2X + 18f * scale, d2Y + 5f * scale, dotRadius, dotColor)
+            dl.addCircleFilled(d2X + 11.5f * scale, d2Y + 11.5f * scale, dotRadius, dotColor)
+            dl.addCircleFilled(d2X + 5f * scale, d2Y + 18f * scale, dotRadius, dotColor)
+            dl.addCircleFilled(d2X + 18f * scale, d2Y + 18f * scale, dotRadius, dotColor)
 
             // 2. Active/Bypass button (universal on/off power icon)
             ImGui.sameLine(0f, 10f)
@@ -612,7 +614,7 @@ object CellConfigPanel {
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, btnHoverColor)
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, btnActiveColor)
             
-            if (ImGui.button("##bypass_bar_$idx", 50f, btnHeight)) {
+            if (ImGui.button("##bypass_bar_$idx", btnWidth, btnHeight)) {
                 replaceModulator(state, param, existing.copy(bypassed = !bypassed))
             }
             if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
@@ -620,19 +622,19 @@ object CellConfigPanel {
             }
             ImGui.popStyleColor(3)
             
-            // Draw universal on/off (power icon 30% larger) on the button
+            // Draw universal on/off (power icon scaled/enlarged) on the button
             val pColor = ImGui.colorConvertFloat4ToU32(1f, 1.0f, 1.0f, 1f)
-            val pCenterX = btnX2 + 25f
+            val pCenterX = btnX2 + btnWidth / 2f
             val pCenterY = btnY2 + btnHeight / 2f
-            val pRadius = 9f
-            val pThickness = 2.5f
+            val pRadius = 11f * scale
+            val pThickness = 3f * scale
             
             dl.addCircle(pCenterX, pCenterY, pRadius, pColor, 16, pThickness)
             dl.addLine(pCenterX, pCenterY - pRadius * 1.3f, pCenterX, pCenterY + pRadius * 0.2f, pColor, pThickness)
 
             // 3. Reset button (trash can icon)
             if (idx == 0) {
-                val resetWidth = 50f
+                val resetWidth = 50f * scale
                 ImGui.sameLine(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - resetWidth)
                 if (isVirtual) {
                     ImGui.beginDisabled()
@@ -666,23 +668,23 @@ object CellConfigPanel {
                     ImGui.endDisabled()
                 }
                 
-                // Draw trash can on reset button (30% larger)
+                // Draw trash can on reset button (scaled/enlarged)
                 val tcColor = ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 1f)
-                val tcX = btnX3 + 25f
+                val tcX = btnX3 + resetWidth / 2f
                 val tcY = btnY3 + btnHeight / 2f
                 // Bucket
-                dl.addLine(tcX - 6.5f, tcY - 4f, tcX - 5f, tcY + 9f, tcColor, 1.8f)
-                dl.addLine(tcX + 6.5f, tcY - 4f, tcX + 5f, tcY + 9f, tcColor, 1.8f)
-                dl.addLine(tcX - 5f, tcY + 9f, tcX + 5f, tcY + 9f, tcColor, 1.8f)
+                dl.addLine(tcX - 8f * scale, tcY - 5f * scale, tcX - 6f * scale, tcY + 11f * scale, tcColor, 2.2f * scale)
+                dl.addLine(tcX + 8f * scale, tcY - 5f * scale, tcX + 6f * scale, tcY + 11f * scale, tcColor, 2.2f * scale)
+                dl.addLine(tcX - 6f * scale, tcY + 11f * scale, tcX + 6f * scale, tcY + 11f * scale, tcColor, 2.2f * scale)
                 // Lid
-                dl.addLine(tcX - 9f, tcY - 4f, tcX + 9f, tcY - 4f, tcColor, 1.8f)
+                dl.addLine(tcX - 11f * scale, tcY - 5f * scale, tcX + 11f * scale, tcY - 5f * scale, tcColor, 2.2f * scale)
                 // Handle
-                dl.addLine(tcX - 3f, tcY - 4f, tcX - 3f, tcY - 7f, tcColor, 1.8f)
-                dl.addLine(tcX - 3f, tcY - 7f, tcX + 3f, tcY - 7f, tcColor, 1.8f)
-                dl.addLine(tcX + 3f, tcY - 7f, tcX + 3f, tcY - 4f, tcColor, 1.8f)
+                dl.addLine(tcX - 4f * scale, tcY - 5f * scale, tcX - 4f * scale, tcY - 9f * scale, tcColor, 2.2f * scale)
+                dl.addLine(tcX - 4f * scale, tcY - 9f * scale, tcX + 4f * scale, tcY - 9f * scale, tcColor, 2.2f * scale)
+                dl.addLine(tcX + 4f * scale, tcY - 9f * scale, tcX + 4f * scale, tcY - 5f * scale, tcColor, 2.2f * scale)
                 // Vertical lines inside (ribs)
-                dl.addLine(tcX - 2.5f, tcY - 1f, tcX - 2f, tcY + 7f, tcColor, 1.2f)
-                dl.addLine(tcX + 2.5f, tcY - 1f, tcX + 2f, tcY + 7f, tcColor, 1.2f)
+                dl.addLine(tcX - 3f * scale, tcY - 1f * scale, tcX - 2.5f * scale, tcY + 8f * scale, tcColor, 1.5f * scale)
+                dl.addLine(tcX + 3f * scale, tcY - 1f * scale, tcX + 2.5f * scale, tcY + 8f * scale, tcColor, 1.5f * scale)
             }
 
             ImGui.spacing()
@@ -1941,34 +1943,50 @@ object CellConfigPanel {
                 ImGui.endDisabled()
             }
             
-            // Single die icon
+            // Single die icon (white with black spots, scaled and enlarged 15% more)
             val centerX = randBtnX + buttonSize / 2f
             val centerYBtn = row2Y + buttonSize / 2f
-            val iconColor = if (!isRandomizable) {
-                ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
+            
+            val diceBgColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.3f)
             } else if (ImGui.isItemActive()) {
                 ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
             } else if (hovered) {
-                ImGui.colorConvertFloat4ToU32(0.95f, 0.95f, 0.95f, 1.0f)
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
             } else {
-                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.9f)
             }
-            val dieSize = buttonSize * 0.5f
+
+            val diceOutlineColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 0.3f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 1.0f)
+            }
+
+            val spotColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 0.3f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 1.0f)
+            }
+
+            val dieSize = buttonSize * 0.7f
             val halfSize = dieSize / 2f
             val x0 = centerX - halfSize
             val y0 = centerYBtn - halfSize
             val x1 = centerX + halfSize
             val y1 = centerYBtn + halfSize
-            dl.addRect(x0, y0, x1, y1, iconColor, 2f, 0, 1.5f)
             
-            // Draw a single die face 5
-            val dotRadius = buttonSize * 0.04f
-            val offset = halfSize * 0.5f
-            dl.addCircleFilled(centerX, centerYBtn, dotRadius, iconColor)
-            dl.addCircleFilled(centerX - offset, centerYBtn - offset, dotRadius, iconColor)
-            dl.addCircleFilled(centerX + offset, centerYBtn - offset, dotRadius, iconColor)
-            dl.addCircleFilled(centerX - offset, centerYBtn + offset, dotRadius, iconColor)
-            dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, iconColor)
+            dl.addRectFilled(x0, y0, x1, y1, diceBgColor, 2f)
+            dl.addRect(x0, y0, x1, y1, diceOutlineColor, 2f, 0, 1.5f)
+            
+            // Draw a single die face 5 (scaled and enlarged 15% more)
+            val dotRadius = buttonSize * 0.06f
+            val offset = halfSize * 0.6f
+            dl.addCircleFilled(centerX, centerYBtn, dotRadius, spotColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn - offset, dotRadius, spotColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn - offset, dotRadius, spotColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn + offset, dotRadius, spotColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, spotColor)
         }
         
         // 3. Text inputs
@@ -2328,34 +2346,50 @@ object CellConfigPanel {
             if (hovered && UITheme.tooltipsEnabled) ImGui.setTooltip("Randomize $label now")
             if (!isRandomizable) ImGui.endDisabled()
 
-            // Single die icon
+            // Single die icon (white with black spots, scaled and enlarged 15% more)
             val centerX = randBtnX + buttonSize / 2f
             val centerYBtn = row2Y + buttonSize / 2f
-            val iconColor = if (!isRandomizable) {
-                ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
+            
+            val diceBgColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.3f)
             } else if (ImGui.isItemActive()) {
                 ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
             } else if (hovered) {
-                ImGui.colorConvertFloat4ToU32(0.95f, 0.95f, 0.95f, 1.0f)
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f)
             } else {
-                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
+                ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.9f)
             }
-            val dieSize = buttonSize * 0.5f
+
+            val diceOutlineColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 0.3f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 1.0f)
+            }
+
+            val spotColor = if (!isRandomizable) {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 0.3f)
+            } else {
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 1.0f)
+            }
+
+            val dieSize = buttonSize * 0.7f
             val halfSize = dieSize / 2f
             val x0 = centerX - halfSize
             val y0 = centerYBtn - halfSize
             val x1 = centerX + halfSize
             val y1 = centerYBtn + halfSize
-            dl.addRect(x0, y0, x1, y1, iconColor, 2f, 0, 1.5f)
             
-            // Draw a single die face 5
-            val dotRadius = buttonSize * 0.04f
-            val offset = halfSize * 0.5f
-            dl.addCircleFilled(centerX, centerYBtn, dotRadius, iconColor)
-            dl.addCircleFilled(centerX - offset, centerYBtn - offset, dotRadius, iconColor)
-            dl.addCircleFilled(centerX + offset, centerYBtn - offset, dotRadius, iconColor)
-            dl.addCircleFilled(centerX - offset, centerYBtn + offset, dotRadius, iconColor)
-            dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, iconColor)
+            dl.addRectFilled(x0, y0, x1, y1, diceBgColor, 2f)
+            dl.addRect(x0, y0, x1, y1, diceOutlineColor, 2f, 0, 1.5f)
+            
+            // Draw a single die face 5 (scaled and enlarged 15% more)
+            val dotRadius = buttonSize * 0.06f
+            val offset = halfSize * 0.6f
+            dl.addCircleFilled(centerX, centerYBtn, dotRadius, spotColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn - offset, dotRadius, spotColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn - offset, dotRadius, spotColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn + offset, dotRadius, spotColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, spotColor)
         }
 
         // ─── Combo dropdowns instead of text inputs ───
