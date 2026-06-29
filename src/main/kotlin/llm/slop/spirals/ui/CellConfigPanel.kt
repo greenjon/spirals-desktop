@@ -558,38 +558,94 @@ object CellConfigPanel {
             ImGui.popItemWidth()
             if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
 
-            // Randomize to the right
-            // Randomize to the right
+            // 1. Randomize button (pair of dice)
             ImGui.sameLine(0f, 10f)
-            if (ImGui.button("Randomize", 120f, 30f)) {
+            val btnX1 = ImGui.getCursorScreenPosX()
+            val btnY1 = ImGui.getCursorScreenPosY()
+            if (ImGui.button("##rand_bar_$idx", 50f, 30f)) {
                 val randomized = existing.randomizeActiveValues()
                 replaceModulator(state, param, randomized)
             }
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+                ImGui.setTooltip("Randomize modulator values")
+            }
+            
+            // Draw pair of dice inside the randomize button
+            val diceColor = ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 1f)
+            val dotColor = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1f)
+            // Die 1
+            val d1X = btnX1 + 10f
+            val d1Y = btnY1 + 8f
+            val dieW = 13f
+            dl.addRectFilled(d1X, d1Y, d1X + dieW, d1Y + dieW, diceColor, 2f)
+            dl.addRect(d1X, d1Y, d1X + dieW, d1Y + dieW, dotColor, 2f, 0, 1f)
+            // Face 3 dots
+            dl.addCircleFilled(d1X + 3f, d1Y + 3f, 1f, dotColor)
+            dl.addCircleFilled(d1X + 6.5f, d1Y + 6.5f, 1f, dotColor)
+            dl.addCircleFilled(d1X + 10f, d1Y + 10f, 1f, dotColor)
 
-            // Active/Bypass to the right
+            // Die 2
+            val d2X = btnX1 + 27f
+            val d2Y = btnY1 + 10f
+            dl.addRectFilled(d2X, d2Y, d2X + dieW, d2Y + dieW, diceColor, 2f)
+            dl.addRect(d2X, d2Y, d2X + dieW, d2Y + dieW, dotColor, 2f, 0, 1f)
+            // Face 5 dots
+            dl.addCircleFilled(d2X + 3f, d2Y + 3f, 1f, dotColor)
+            dl.addCircleFilled(d2X + 10f, d2Y + 3f, 1f, dotColor)
+            dl.addCircleFilled(d2X + 6.5f, d2Y + 6.5f, 1f, dotColor)
+            dl.addCircleFilled(d2X + 3f, d2Y + 10f, 1f, dotColor)
+            dl.addCircleFilled(d2X + 10f, d2Y + 10f, 1f, dotColor)
+
+            // 2. Active/Bypass button (universal on/off power icon)
             ImGui.sameLine(0f, 10f)
-            val bypassLabel = if (bypassed) "BYPASSED" else "ACTIVE"
-            if (bypassed) ImGui.pushStyleColor(0, 0.5f, 0.5f, 0.5f, 1f)
-            else ImGui.pushStyleColor(0, currentThemeRGB[0], currentThemeRGB[1], currentThemeRGB[2], 0.8f) // use theme color for active button
-            if (ImGui.button(bypassLabel, 120f, 30f)) {
+            val btnX2 = ImGui.getCursorScreenPosX()
+            val btnY2 = ImGui.getCursorScreenPosY()
+            
+            // Push styled button colors: Green for active, Red for bypassed
+            val btnColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.7f, 0.2f, 0.2f, 1f) else ImGui.colorConvertFloat4ToU32(0.1f, 0.6f, 0.2f, 1f)
+            val btnHoverColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.8f, 0.3f, 0.3f, 1f) else ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.3f, 1f)
+            val btnActiveColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.9f, 0.4f, 0.4f, 1f) else ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.4f, 1f)
+            
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, btnColor)
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, btnHoverColor)
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, btnActiveColor)
+            
+            if (ImGui.button("##bypass_bar_$idx", 50f, 30f)) {
                 replaceModulator(state, param, existing.copy(bypassed = !bypassed))
             }
-            ImGui.popStyleColor()
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+                ImGui.setTooltip(if (bypassed) "Enable modulator (Active)" else "Bypass modulator")
+            }
+            ImGui.popStyleColor(3)
+            
+            // Draw universal on/off (power icon) on the button
+            val pColor = ImGui.colorConvertFloat4ToU32(1f, 1.0f, 1.0f, 1f)
+            val pCenterX = btnX2 + 25f
+            val pCenterY = btnY2 + 15f
+            val pRadius = 7f
+            val pThickness = 2f
+            
+            dl.addCircle(pCenterX, pCenterY, pRadius, pColor, 16, pThickness)
+            dl.addLine(pCenterX, pCenterY - pRadius * 1.3f, pCenterX, pCenterY + pRadius * 0.2f, pColor, pThickness)
 
-            // Reset aligned to the right (only for the first modulator)
+            // 3. Reset button (trash can icon)
             if (idx == 0) {
-                val resetWidth = 80f
+                val resetWidth = 50f
                 ImGui.sameLine(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - resetWidth)
                 if (isVirtual) {
                     ImGui.beginDisabled()
                 }
-                ImGui.pushStyleColor(0, 0.8f, 0.2f, 0.2f, 1f)
-                if (ImGui.button("Reset", resetWidth, 30f)) {
+                val btnX3 = ImGui.getCursorScreenPosX()
+                val btnY3 = ImGui.getCursorScreenPosY()
+                
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1f))
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.8f, 0.2f, 0.2f, 1f)) // Red on hover
+                if (ImGui.button("##reset_bar_$idx", resetWidth, 30f)) {
                     val toRemove = activeMods.toList()
                     for (mod in toRemove) {
                         param.modulators.remove(mod)
                     }
-                    ImGui.popStyleColor()
+                    ImGui.popStyleColor(2)
                     if (isVirtual) {
                         ImGui.endDisabled()
                     }
@@ -600,10 +656,31 @@ object CellConfigPanel {
                     ImGui.popID()
                     return
                 }
-                ImGui.popStyleColor()
+                if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+                    ImGui.setTooltip("Clear/reset modulators")
+                }
+                ImGui.popStyleColor(2)
                 if (isVirtual) {
                     ImGui.endDisabled()
                 }
+                
+                // Draw trash can on reset button
+                val tcColor = ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 1f)
+                val tcX = btnX3 + 25f
+                val tcY = btnY3 + 15f
+                // Bucket
+                dl.addLine(tcX - 5f, tcY - 3f, tcX - 4f, tcY + 7f, tcColor, 1.5f)
+                dl.addLine(tcX + 5f, tcY - 3f, tcX + 4f, tcY + 7f, tcColor, 1.5f)
+                dl.addLine(tcX - 4f, tcY + 7f, tcX + 4f, tcY + 7f, tcColor, 1.5f)
+                // Lid
+                dl.addLine(tcX - 7f, tcY - 3f, tcX + 7f, tcY - 3f, tcColor, 1.5f)
+                // Handle
+                dl.addLine(tcX - 2f, tcY - 3f, tcX - 2f, tcY - 5f, tcColor, 1.5f)
+                dl.addLine(tcX - 2f, tcY - 5f, tcX + 2f, tcY - 5f, tcColor, 1.5f)
+                dl.addLine(tcX + 2f, tcY - 5f, tcX + 2f, tcY - 3f, tcColor, 1.5f)
+                // Vertical lines inside (ribs)
+                dl.addLine(tcX - 2f, tcY - 1f, tcX - 1.5f, tcY + 5f, tcColor, 1f)
+                dl.addLine(tcX + 2f, tcY - 1f, tcX + 1.5f, tcY + 5f, tcColor, 1f)
             }
 
             ImGui.spacing()
@@ -1862,11 +1939,9 @@ object CellConfigPanel {
                 ImGui.endDisabled()
             }
             
-            // Circle arrow icon for randomize button
+            // Single die icon
             val centerX = randBtnX + buttonSize / 2f
             val centerYBtn = row2Y + buttonSize / 2f
-            val radius = buttonSize * 0.22f
-            val thickness = 1.8f
             val iconColor = if (!isRandomizable) {
                 ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
             } else if (ImGui.isItemActive()) {
@@ -1876,24 +1951,22 @@ object CellConfigPanel {
             } else {
                 ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
             }
-            val numSegments = 16
-            val startAngle = -kotlin.math.PI.toFloat() * 0.5f
-            val sweepAngle = kotlin.math.PI.toFloat() * 1.55f
-            var prevX = centerX + radius * kotlin.math.cos(startAngle)
-            var prevY = centerYBtn + radius * kotlin.math.sin(startAngle)
-            for (i in 1..numSegments) {
-                val angle = startAngle + (sweepAngle * i / numSegments)
-                val nextX = centerX + radius * kotlin.math.cos(angle)
-                val nextY = centerYBtn + radius * kotlin.math.sin(angle)
-                dl.addLine(prevX, prevY, nextX, nextY, iconColor, thickness)
-                prevX = nextX
-                prevY = nextY
-            }
-            val tipX = centerX
-            val tipY = centerYBtn - radius
-            val arrowSize = buttonSize * 0.12f
-            dl.addLine(tipX, tipY, tipX - arrowSize, tipY - arrowSize * 0.7f, iconColor, thickness)
-            dl.addLine(tipX, tipY, tipX - arrowSize * 0.7f, tipY + arrowSize, iconColor, thickness)
+            val dieSize = buttonSize * 0.5f
+            val halfSize = dieSize / 2f
+            val x0 = centerX - halfSize
+            val y0 = centerYBtn - halfSize
+            val x1 = centerX + halfSize
+            val y1 = centerYBtn + halfSize
+            dl.addRect(x0, y0, x1, y1, iconColor, 2f, 0, 1.5f)
+            
+            // Draw a single die face 5
+            val dotRadius = buttonSize * 0.04f
+            val offset = halfSize * 0.5f
+            dl.addCircleFilled(centerX, centerYBtn, dotRadius, iconColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn - offset, dotRadius, iconColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn - offset, dotRadius, iconColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn + offset, dotRadius, iconColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, iconColor)
         }
         
         // 3. Text inputs
@@ -2253,11 +2326,9 @@ object CellConfigPanel {
             if (hovered && UITheme.tooltipsEnabled) ImGui.setTooltip("Randomize $label now")
             if (!isRandomizable) ImGui.endDisabled()
 
-            // Circle-arrow icon
+            // Single die icon
             val centerX = randBtnX + buttonSize / 2f
             val centerYBtn = row2Y + buttonSize / 2f
-            val radius = buttonSize * 0.22f
-            val thickness = 1.8f
             val iconColor = if (!isRandomizable) {
                 ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f)
             } else if (ImGui.isItemActive()) {
@@ -2267,24 +2338,22 @@ object CellConfigPanel {
             } else {
                 ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f)
             }
-            val numSegments = 16
-            val startAngle = -kotlin.math.PI.toFloat() * 0.5f
-            val sweepAngle = kotlin.math.PI.toFloat() * 1.55f
-            var prevX = centerX + radius * kotlin.math.cos(startAngle)
-            var prevY = centerYBtn + radius * kotlin.math.sin(startAngle)
-            for (i in 1..numSegments) {
-                val angle = startAngle + (sweepAngle * i / numSegments)
-                val nextX = centerX + radius * kotlin.math.cos(angle)
-                val nextY = centerYBtn + radius * kotlin.math.sin(angle)
-                dl.addLine(prevX, prevY, nextX, nextY, iconColor, thickness)
-                prevX = nextX
-                prevY = nextY
-            }
-            val tipX = centerX
-            val tipY = centerYBtn - radius
-            val arrowSize = buttonSize * 0.12f
-            dl.addLine(tipX, tipY, tipX - arrowSize, tipY - arrowSize * 0.7f, iconColor, thickness)
-            dl.addLine(tipX, tipY, tipX - arrowSize * 0.7f, tipY + arrowSize, iconColor, thickness)
+            val dieSize = buttonSize * 0.5f
+            val halfSize = dieSize / 2f
+            val x0 = centerX - halfSize
+            val y0 = centerYBtn - halfSize
+            val x1 = centerX + halfSize
+            val y1 = centerYBtn + halfSize
+            dl.addRect(x0, y0, x1, y1, iconColor, 2f, 0, 1.5f)
+            
+            // Draw a single die face 5
+            val dotRadius = buttonSize * 0.04f
+            val offset = halfSize * 0.5f
+            dl.addCircleFilled(centerX, centerYBtn, dotRadius, iconColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn - offset, dotRadius, iconColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn - offset, dotRadius, iconColor)
+            dl.addCircleFilled(centerX - offset, centerYBtn + offset, dotRadius, iconColor)
+            dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, iconColor)
         }
 
         // ─── Combo dropdowns instead of text inputs ───
