@@ -97,10 +97,9 @@ object PatchGridPanel {
         val avail = ImGui.getContentRegionAvailX()
         gridStartX = ImGui.getCursorScreenPosX()
         
-        // Calculate label column width based on the visible columns
         val lastVisibleCol = getCvColumns().lastOrNull() ?: "midi"
         val maxGridW = getColumnOffset(lastVisibleCol) + CELL + CELL_PAD * 0.5f
-        val labelColW = (avail - maxGridW).coerceAtLeast(120f)
+        val labelColW = (avail - maxGridW - 20f).coerceAtLeast(120f)
 
         handleKeyboardShortcuts(state, mixer)
 
@@ -307,7 +306,7 @@ object PatchGridPanel {
             val lastVisibleCol = getCvColumns().lastOrNull() ?: "midi"
             val avail = ImGui.getContentRegionAvailX()
             val maxGridW = getColumnOffset(lastVisibleCol) + CELL + CELL_PAD * 0.5f
-            val labelColW = (avail - maxGridW).coerceAtLeast(120f)
+            val labelColW = (avail - maxGridW - 20f).coerceAtLeast(120f)
             val rowWidth = labelColW + maxGridW
             dlBg.addRectFilled(gridStartX + 2f, startY - 2f, gridStartX + rowWidth - 2f, startY + prevHeight + 2f, bgCol, 4f)
         }

@@ -932,8 +932,8 @@ class UIManager(private val windowHandle: Long) {
         }
         ImGui.end()
 
-        // Middle: Cell Config (30% width, full content height)
-        val middleW = displayWidth * 0.3f
+        // Middle: Cell Config (40% width, full content height)
+        val middleW = displayWidth * 0.4f
         ImGui.setNextWindowPos(leftW, menuBarH)
         ImGui.setNextWindowSize(middleW, contentH)
         if (ImGui.begin("Cell Config", noDecorate)) {
@@ -941,7 +941,7 @@ class UIManager(private val windowHandle: Long) {
         }
         ImGui.end()
 
-        // Right: Mixer / Monitor (40% width, full content height)
+        // Right: Mixer / Monitor (30% width, full content height)
         val rightW = displayWidth - leftW - middleW
         ImGui.setNextWindowPos(leftW + middleW, menuBarH)
         ImGui.setNextWindowSize(rightW, contentH)

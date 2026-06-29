@@ -520,51 +520,67 @@ object CellConfigPanel {
             }
             
             val bandLabel = when (existing.sourceId) {
-                "audio_amp" -> "Envelope / Amp"
-                "audio_bass" -> "Low / Bass"
+                "audio_amp" -> "Amplitude"
+                "audio_bass" -> "Low"
                 "audio_mid" -> "Mid"
                 "audio_high" -> "High"
                 "trigger_onset" -> "Onset / Transient"
                 "trigger_accent" -> "Accent / Peak"
                 else -> null
             }
-            if (bandLabel != null) {
-                UITheme.h3(bandLabel)
-                ImGui.spacing()
-            } else if (modsToDraw.size > 1) {
+            val titleText = bandLabel ?: if (modsToDraw.size > 1) {
                 val typeLabel = if (hasAdvanced) "Oscillator" else "Modulator"
-                UITheme.h3("$typeLabel ${idx + 1}")
-                ImGui.spacing()
+                "$typeLabel ${idx + 1}"
+            } else {
+                val typeLabel = if (hasAdvanced) "Oscillator" else "Modulator"
+                typeLabel
             }
 
             ImGui.indent(10f) // Indent controls slightly
 
-            // Operator Box
-            val opIdx = ImInt(when (existing.operator) {
-                ModulationOperator.ADD -> 0
-                ModulationOperator.MUL -> 1
-                ModulationOperator.SCALE -> 2
-            })
-            if (bypassed) ImGui.popStyleVar()
-            ImGui.pushItemWidth(100f)
-            if (ImGui.combo("##op", opIdx, operatorLabels)) {
-                val newOp = when (opIdx.get()) {
-                    0 -> ModulationOperator.ADD
-                    1 -> ModulationOperator.MUL
-                    else -> ModulationOperator.SCALE
-                }
-                replaceModulator(state, param, existing.copy(operator = newOp))
-            }
-            ImGui.popItemWidth()
-            if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
-
-            // 1. Randomize button (pair of dice)
-            ImGui.sameLine(0f, 10f)
-            val btnX1 = ImGui.getCursorScreenPosX()
-            val btnY1 = ImGui.getCursorScreenPosY()
             val btnHeight = ImGui.getFrameHeight()
             val scale = btnHeight / 30f
             val btnWidth = 50f * scale
+
+            if (bypassed) {
+                ImGui.popStyleVar() // Draw header controls at full opacity
+            }
+
+            // 1. Power icon (Active/Bypass button)
+            val btnX2 = ImGui.getCursorScreenPosX()
+            val btnY2 = ImGui.getCursorScreenPosY()
+            
+            // Push styled button colors: Green for active, Red for bypassed
+            val btnColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.7f, 0.2f, 0.2f, 1f) else ImGui.colorConvertFloat4ToU32(0.1f, 0.6f, 0.2f, 1f)
+            val btnHoverColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.8f, 0.3f, 0.3f, 1f) else ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.3f, 1f)
+            val btnActiveColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.9f, 0.4f, 0.4f, 1f) else ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.4f, 1f)
+            
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, btnColor)
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, btnHoverColor)
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, btnActiveColor)
+            
+            if (ImGui.button("##bypass_bar_$idx", btnWidth, btnHeight)) {
+                replaceModulator(state, param, existing.copy(bypassed = !bypassed))
+            }
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+                ImGui.setTooltip(if (bypassed) "Enable modulator (Active)" else "Bypass modulator")
+            }
+            ImGui.popStyleColor(3)
+            
+            // Draw universal on/off (power icon scaled/enlarged) on the button
+            val pColor = ImGui.colorConvertFloat4ToU32(1f, 1.0f, 1.0f, 1f)
+            val pCenterX = btnX2 + btnWidth / 2f
+            val pCenterY = btnY2 + btnHeight / 2f
+            val pRadius = 11f * scale
+            val pThickness = 3f * scale
+            
+            dl.addCircle(pCenterX, pCenterY, pRadius, pColor, 16, pThickness)
+            dl.addLine(pCenterX, pCenterY - pRadius * 1.3f, pCenterX, pCenterY + pRadius * 0.2f, pColor, pThickness)
+
+            // 2. Dice icon (Randomize button)
+            ImGui.sameLine(0f, 10f)
+            val btnX1 = ImGui.getCursorScreenPosX()
+            val btnY1 = ImGui.getCursorScreenPosY()
             if (ImGui.button("##rand_bar_$idx", btnWidth, btnHeight)) {
                 val randomized = existing.randomizeActiveValues()
                 replaceModulator(state, param, randomized)
@@ -600,39 +616,31 @@ object CellConfigPanel {
             dl.addCircleFilled(d2X + 5f * scale, d2Y + 18f * scale, dotRadius, dotColor)
             dl.addCircleFilled(d2X + 18f * scale, d2Y + 18f * scale, dotRadius, dotColor)
 
-            // 2. Active/Bypass button (universal on/off power icon)
+            // 3. Operator dropdown (ADD/MUL/SCALE combo box)
             ImGui.sameLine(0f, 10f)
-            val btnX2 = ImGui.getCursorScreenPosX()
-            val btnY2 = ImGui.getCursorScreenPosY()
-            
-            // Push styled button colors: Green for active, Red for bypassed
-            val btnColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.7f, 0.2f, 0.2f, 1f) else ImGui.colorConvertFloat4ToU32(0.1f, 0.6f, 0.2f, 1f)
-            val btnHoverColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.8f, 0.3f, 0.3f, 1f) else ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.3f, 1f)
-            val btnActiveColor = if (bypassed) ImGui.colorConvertFloat4ToU32(0.9f, 0.4f, 0.4f, 1f) else ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.4f, 1f)
-            
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, btnColor)
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, btnHoverColor)
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, btnActiveColor)
-            
-            if (ImGui.button("##bypass_bar_$idx", btnWidth, btnHeight)) {
-                replaceModulator(state, param, existing.copy(bypassed = !bypassed))
+            val opIdx = ImInt(when (existing.operator) {
+                ModulationOperator.ADD -> 0
+                ModulationOperator.MUL -> 1
+                ModulationOperator.SCALE -> 2
+            })
+            ImGui.pushItemWidth(100f)
+            if (ImGui.combo("##op", opIdx, operatorLabels)) {
+                val newOp = when (opIdx.get()) {
+                    0 -> ModulationOperator.ADD
+                    1 -> ModulationOperator.MUL
+                    else -> ModulationOperator.SCALE
+                }
+                replaceModulator(state, param, existing.copy(operator = newOp))
             }
-            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
-                ImGui.setTooltip(if (bypassed) "Enable modulator (Active)" else "Bypass modulator")
-            }
-            ImGui.popStyleColor(3)
-            
-            // Draw universal on/off (power icon scaled/enlarged) on the button
-            val pColor = ImGui.colorConvertFloat4ToU32(1f, 1.0f, 1.0f, 1f)
-            val pCenterX = btnX2 + btnWidth / 2f
-            val pCenterY = btnY2 + btnHeight / 2f
-            val pRadius = 11f * scale
-            val pThickness = 3f * scale
-            
-            dl.addCircle(pCenterX, pCenterY, pRadius, pColor, 16, pThickness)
-            dl.addLine(pCenterX, pCenterY - pRadius * 1.3f, pCenterX, pCenterY + pRadius * 0.2f, pColor, pThickness)
+            ImGui.popItemWidth()
 
-            // 3. Reset button (trash can icon)
+            // 4. Title Text (vertically centered in the row, left-aligned)
+            ImGui.sameLine(0f, 115f)
+            val alignY = btnY2 + (btnHeight - ImGui.getTextLineHeightWithSpacing()) / 2f
+            ImGui.setCursorScreenPos(ImGui.getCursorScreenPosX(), alignY)
+            UITheme.h2(titleText)
+
+            // 5. Reset button (trash can icon)
             if (idx == 0) {
                 val resetWidth = 50f * scale
                 ImGui.sameLine(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - resetWidth)
@@ -654,9 +662,7 @@ object CellConfigPanel {
                         ImGui.endDisabled()
                     }
                     ImGui.unindent(10f)
-                    if (bypassed) {
-                        ImGui.popStyleVar()
-                    }
+                    // If bypassed, style var was popped, so no need to pop it again
                     ImGui.popID()
                     return
                 }
@@ -685,6 +691,10 @@ object CellConfigPanel {
                 // Vertical lines inside (ribs)
                 dl.addLine(tcX - 3f * scale, tcY - 1f * scale, tcX - 2.5f * scale, tcY + 8f * scale, tcColor, 1.5f * scale)
                 dl.addLine(tcX + 3f * scale, tcY - 1f * scale, tcX + 2.5f * scale, tcY + 8f * scale, tcColor, 1.5f * scale)
+            }
+
+            if (bypassed) {
+                ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f) // Re-push style var for sub-controls
             }
 
             ImGui.spacing()
