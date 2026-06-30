@@ -57,11 +57,36 @@ class Renderer {
         if (source is Mandala) {
             renderMandala(source, targetFBO)
         } else if (source is DynamicVisualSource) {
-            targetFBO.bind()
-            org.lwjgl.opengl.GL33.glClearColor(0f, 0f, 0f, 0f)
-            org.lwjgl.opengl.GL33.glClear(org.lwjgl.opengl.GL33.GL_COLOR_BUFFER_BIT)
-            org.lwjgl.opengl.GL33.glEnable(org.lwjgl.opengl.GL33.GL_BLEND)
-            org.lwjgl.opengl.GL33.glBlendFunc(org.lwjgl.opengl.GL33.GL_SRC_ALPHA, org.lwjgl.opengl.GL33.GL_ONE_MINUS_SRC_ALPHA)
+            val hasFb = source.hasFeedback
+            val renderTarget = if (hasFb) {
+                // Lazily initialize feedback FBOs
+                if (source.fb1 == null || source.fb1!!.width != targetFBO.width || source.fb1!!.height != targetFBO.height) {
+                    source.fb1?.dispose()
+                    source.fb2?.dispose()
+                    source.fb1 = FBO(targetFBO.width, targetFBO.height)
+                    source.fb2 = FBO(targetFBO.width, targetFBO.height)
+                    source.fb1!!.clear(0f, 0f, 0f, 0f)
+                    source.fb2!!.clear(0f, 0f, 0f, 0f)
+                    source.fbIndex = 0
+                }
+                source.getNextHistoryFBO()!!
+            } else {
+                targetFBO
+            }
+
+            renderTarget.bind()
+            glClearColor(0f, 0f, 0f, 0f)
+            glClear(GL_COLOR_BUFFER_BIT)
+
+            if (hasFb) {
+                glDisable(GL_BLEND)
+                // Bind current history texture as unit 0
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, source.getCurrentHistoryFBO()!!.texture)
+            } else {
+                glEnable(GL_BLEND)
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            }
 
             source.shader.bind()
 
@@ -73,11 +98,38 @@ class Renderer {
             source.shader.setUniform("uAlpha", source.globalAlpha.value)
             source.shader.setUniform("uResolution", targetFBO.width.toFloat(), targetFBO.height.toFloat())
             source.shader.setUniform("uTime", org.lwjgl.glfw.GLFW.glfwGetTime().toFloat())
+            if (hasFb) {
+                source.shader.setUniform("src", 0)
+            }
 
             Geometry.drawFullscreenQuad()
 
             source.shader.unbind()
-            targetFBO.unbind()
+            renderTarget.unbind()
+
+            if (hasFb) {
+                source.swapFeedbackBuffers()
+
+                // Blit the new history texture (containing the frame we just rendered) onto the targetFBO
+                targetFBO.bind()
+                glClearColor(0f, 0f, 0f, 0f)
+                glClear(GL_COLOR_BUFFER_BIT)
+                glEnable(GL_BLEND)
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+                blitShader.bind()
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, source.getCurrentHistoryFBO()!!.texture)
+                blitShader.setUniform("uTexture", 0)
+
+                Geometry.drawFullscreenQuad()
+
+                blitShader.unbind()
+                targetFBO.unbind()
+
+                // Reset active texture to unit 0
+                glActiveTexture(GL_TEXTURE0)
+            }
         }
     }
 

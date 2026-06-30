@@ -63,6 +63,7 @@ class Deck(
         availableSources.forEach { src ->
             src.parameters.values.forEach { it.reset() }
             src.globalAlpha.reset()
+            src.clear()
         }
         fbDecay.reset()
         fbGain.reset()
@@ -72,6 +73,7 @@ class Deck(
         fbBlur.reset()
         fbChroma.reset()
         fbMode.reset()
+        source.clear()
         updateSourceSelection()
     }
 
@@ -129,5 +131,7 @@ class Deck(
         cleanFBO.dispose()
         fb1.dispose()
         fb2.dispose()
+        source.dispose()
+        availableSources.forEach { it.dispose() }
     }
 }

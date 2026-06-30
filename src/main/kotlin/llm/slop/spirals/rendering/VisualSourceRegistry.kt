@@ -72,19 +72,26 @@ object VisualSourceRegistry {
                     } catch (e: Exception) {
                         MeterType.MONOPOLAR
                     }
-                    parameters[pMeta.name] = ModulatableParameter(
+                    val param = ModulatableParameter(
                         baseValue = pMeta.default,
                         minClamp = pMeta.min,
                         maxClamp = pMeta.max,
                         meterType = meterType
                     )
+                    if (pMeta.defaultMin != null && pMeta.defaultMax != null) {
+                        param.baseMin = pMeta.defaultMin
+                        param.baseMax = pMeta.defaultMax
+                        param.randomizeBase = true
+                    }
+                    parameters[pMeta.name] = param
                 }
 
                 val dynamicSource = DynamicVisualSource(
                     id = meta.id,
                     displayName = meta.name,
                     shader = shader,
-                    parameters = parameters
+                    parameters = parameters,
+                    hasFeedback = meta.feedback
                 )
                 availableSources.add(dynamicSource)
                 logger.info { "Loaded dynamic visual source: ${meta.name} (${meta.id})" }

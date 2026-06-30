@@ -30,4 +30,14 @@ interface VisualSource {
      * Creates an independent copy of this visual source.
      */
     fun clone(): VisualSource
+
+    /**
+     * Clean up any native or graphics resources.
+     */
+    fun dispose() {}
+
+    /**
+     * Clear any accumulated feedback/history buffers.
+     */
+    fun clear() {}
 }
