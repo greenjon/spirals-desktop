@@ -292,7 +292,7 @@ class UIManager(private val windowHandle: Long) {
             SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight, { newSize ->
                 applyFontSize(newSize)
             }, {
-                patchState.applyAutocollapseSetting()
+                // Layout is now tabbed, no-op for autocollapse setting
             })
 
             // Audio Engine Monitor modal — drawn outside any docked window so it floats freely.

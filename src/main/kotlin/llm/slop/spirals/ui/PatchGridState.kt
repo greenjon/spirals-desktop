@@ -47,60 +47,9 @@ class PatchGridState {
     var isMidiLearnMode: Boolean = false
     var midiLearnTarget: MidiLearnTarget? = null
 
-    /** Tracks which tree node groups are open (keyed by label). Default open. */
-    val groupOpen = mutableMapOf<String, Boolean>().withDefault { !UITheme.autocollapseEnabled }
-
-    /** Tracks which tree node groups need to be programmatically collapsed. */
-    val groupNeedsCollapse = mutableMapOf<String, Boolean>().withDefault { false }
-
-    /** Tracks which tree node groups need to be programmatically expanded. */
-    val groupNeedsExpand = mutableMapOf<String, Boolean>().withDefault { false }
-
-    init {
-        applyAutocollapseSetting()
-    }
-
-    fun applyAutocollapseSetting() {
-        val openState = !UITheme.autocollapseEnabled
-        val groups = listOf("Mixer", "Deck A", "Deck B")
-        val subgroups = listOf("Geometry", "Color", "Background", "Feedback", "View", "KIFS", "Gyroid", "Chladni", "Mandelbox")
-
-        for (g in groups) {
-            groupOpen[g] = true // top level groups are always open
-            groupNeedsExpand[g] = true
-            groupNeedsCollapse[g] = false
-        }
-
-        var foundOpenSubgroupLabel: String? = null
-        if (!openState) {
-            for (deck in listOf("Deck A", "Deck B")) {
-                for (sub in subgroups) {
-                    val key = "$deck/$sub"
-                    if (groupOpen.getValue(key)) {
-                        foundOpenSubgroupLabel = sub
-                        break
-                    }
-                }
-                if (foundOpenSubgroupLabel != null) break
-            }
-        }
-
-        for (deck in listOf("Deck A", "Deck B")) {
-            for (sub in subgroups) {
-                val key = "$deck/$sub"
-                val shouldOpen = if (openState) true else (sub == foundOpenSubgroupLabel)
-
-                groupOpen[key] = shouldOpen
-                if (shouldOpen) {
-                    groupNeedsExpand[key] = true
-                    groupNeedsCollapse[key] = false
-                } else {
-                    groupNeedsCollapse[key] = true
-                    groupNeedsExpand[key] = false
-                }
-            }
-        }
-    }
+    var activeTopTab: String = "Deck A"
+    var activeDeckASubTab: String = "View"
+    var activeDeckBSubTab: String = "View"
 
     fun select(cellId: PatchCellId, param: ModulatableParameter) {
         selectedCell = cellId
