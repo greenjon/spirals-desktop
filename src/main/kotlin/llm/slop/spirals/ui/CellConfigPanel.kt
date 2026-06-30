@@ -305,9 +305,11 @@ object CellConfigPanel {
                         param.randomizeBaseValue()
                     },
                     onRangeChanged = { nextMin, nextMax ->
-                        param.baseMin = nextMin
-                        param.baseMax = nextMax
-                        param.baseValue = param.baseValue.coerceIn(nextMin, nextMax)
+                        val safeMin = minOf(nextMin, nextMax)
+                        val safeMax = maxOf(nextMin, nextMax)
+                        param.baseMin = safeMin
+                        param.baseMax = safeMax
+                        param.baseValue = param.baseValue.coerceIn(safeMin, safeMax)
                     },
                     onValueChanged = { newVal ->
                         param.baseValue = newVal
@@ -376,9 +378,11 @@ object CellConfigPanel {
                         param.randomizeBaseValue()
                     },
                     onRangeChanged = { nextMin, nextMax ->
-                        param.baseMin = nextMin
-                        param.baseMax = nextMax
-                        param.baseValue = param.baseValue.coerceIn(nextMin, nextMax)
+                        val safeMin = minOf(nextMin, nextMax)
+                        val safeMax = maxOf(nextMin, nextMax)
+                        param.baseMin = safeMin
+                        param.baseMax = safeMax
+                        param.baseValue = param.baseValue.coerceIn(safeMin, safeMax)
                     },
                     onValueChanged = { newVal ->
                         param.baseValue = newVal
@@ -780,10 +784,12 @@ object CellConfigPanel {
                 replaceModulator(state, param, existing.randomizeAmplitude())
             },
             onRangeChanged = { nextMin, nextMax ->
-                val nextActive = existing.amplitude.coerceIn(nextMin, nextMax)
+                val safeMin = minOf(nextMin, nextMax)
+                val safeMax = maxOf(nextMin, nextMax)
+                val nextActive = existing.amplitude.coerceIn(safeMin, safeMax)
                 replaceModulator(state, param, existing.copy(
-                    amplitudeMin = nextMin,
-                    amplitudeMax = nextMax,
+                    amplitudeMin = safeMin,
+                    amplitudeMax = safeMax,
                     amplitude = nextActive
                 ))
             },
@@ -835,10 +841,12 @@ object CellConfigPanel {
                 replaceModulator(state, param, existing.randomizeDcOffset())
             },
             onRangeChanged = { nextMin, nextMax ->
-                val nextActive = existing.dcOffset.coerceIn(nextMin, nextMax)
+                val safeMin = minOf(nextMin, nextMax)
+                val safeMax = maxOf(nextMin, nextMax)
+                val nextActive = existing.dcOffset.coerceIn(safeMin, safeMax)
                 replaceModulator(state, param, existing.copy(
-                    dcOffsetMin = nextMin,
-                    dcOffsetMax = nextMax,
+                    dcOffsetMin = safeMin,
+                    dcOffsetMax = safeMax,
                     dcOffset = nextActive
                 ))
             },
@@ -914,8 +922,10 @@ object CellConfigPanel {
                     replaceModulator(state, param, existing.randomizeSubdivision())
                 },
                 onRangeChanged = { nextMinIdx, nextMaxIdx ->
-                    val nextMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
-                    val nextMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                    val rawMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                    val rawMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                    val nextMinVal = minOf(rawMinVal, rawMaxVal)
+                    val nextMaxVal = maxOf(rawMinVal, rawMaxVal)
                     val nextActive = existing.subdivision.coerceIn(nextMinVal, nextMaxVal)
                     replaceModulator(state, param, existing.copy(
                         subdivisionMin = nextMinVal,
@@ -981,11 +991,13 @@ object CellConfigPanel {
                 onRangeChanged = { nextMin, nextMax ->
                     val roundedMin = if (nextMin >= 3600f) nextMin.toInt().toFloat() else nextMin
                     val roundedMax = if (nextMax >= 3600f) nextMax.toInt().toFloat() else nextMax
-                    val nextActive = existing.subdivision.coerceIn(roundedMin, roundedMax)
+                    val safeMin = minOf(roundedMin, roundedMax)
+                    val safeMax = maxOf(roundedMin, roundedMax)
+                    val nextActive = existing.subdivision.coerceIn(safeMin, safeMax)
                     val roundedActive = if (nextActive >= 3600f) nextActive.toInt().toFloat() else nextActive
                     replaceModulator(state, param, existing.copy(
-                        subdivisionMin = roundedMin,
-                        subdivisionMax = roundedMax,
+                        subdivisionMin = safeMin,
+                        subdivisionMax = safeMax,
                         subdivision = roundedActive
                     ))
                 },
@@ -1039,10 +1051,12 @@ object CellConfigPanel {
                 replaceModulator(state, param, existing.randomizePhaseOffset())
             },
             onRangeChanged = { nextMin, nextMax ->
-                val nextActive = existing.phaseOffset.coerceIn(nextMin, nextMax)
+                val safeMin = minOf(nextMin, nextMax)
+                val safeMax = maxOf(nextMin, nextMax)
+                val nextActive = existing.phaseOffset.coerceIn(safeMin, safeMax)
                 replaceModulator(state, param, existing.copy(
-                    phaseOffsetMin = nextMin,
-                    phaseOffsetMax = nextMax,
+                    phaseOffsetMin = safeMin,
+                    phaseOffsetMax = safeMax,
                     phaseOffset = nextActive
                 ))
             },
@@ -1104,10 +1118,12 @@ object CellConfigPanel {
                     replaceModulator(state, param, existing.randomizeSlope())
                 },
                 onRangeChanged = { nextMin, nextMax ->
-                    val nextActive = existing.slope.coerceIn(nextMin, nextMax)
+                    val safeMin = minOf(nextMin, nextMax)
+                    val safeMax = maxOf(nextMin, nextMax)
+                    val nextActive = existing.slope.coerceIn(safeMin, safeMax)
                     replaceModulator(state, param, existing.copy(
-                        slopeMin = nextMin,
-                        slopeMax = nextMax,
+                        slopeMin = safeMin,
+                        slopeMax = safeMax,
                         slope = nextActive
                     ))
                 },
@@ -1180,10 +1196,12 @@ object CellConfigPanel {
                         replaceModulator(state, param, existing.randomizeGeneratorModDepth())
                     },
                     onRangeChanged = { nextMin, nextMax ->
-                        val nextActive = existing.generatorModDepth.coerceIn(nextMin, nextMax)
+                        val safeMin = minOf(nextMin, nextMax)
+                        val safeMax = maxOf(nextMin, nextMax)
+                        val nextActive = existing.generatorModDepth.coerceIn(safeMin, safeMax)
                         replaceModulator(state, param, existing.copy(
-                            generatorModDepthMin = nextMin,
-                            generatorModDepthMax = nextMax,
+                            generatorModDepthMin = safeMin,
+                            generatorModDepthMax = safeMax,
                             generatorModDepth = nextActive
                         ))
                     },
@@ -1276,8 +1294,10 @@ object CellConfigPanel {
                             replaceModulator(state, param, existing.randomizeModSubdivision())
                         },
                         onRangeChanged = { nextMinIdx, nextMaxIdx ->
-                            val nextMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
-                            val nextMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                            val rawMinVal = subdivisionOptions[nextMinIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                            val rawMaxVal = subdivisionOptions[nextMaxIdx.toInt().coerceIn(0, subdivisionOptions.size - 1)]
+                            val nextMinVal = minOf(rawMinVal, rawMaxVal)
+                            val nextMaxVal = maxOf(rawMinVal, rawMaxVal)
                             val nextActive = existing.modSubdivision.coerceIn(nextMinVal, nextMaxVal)
                             replaceModulator(state, param, existing.copy(
                                 modSubdivisionMin = nextMinVal,
@@ -1338,10 +1358,12 @@ object CellConfigPanel {
                             replaceModulator(state, param, existing.randomizeModSubdivision())
                         },
                         onRangeChanged = { nextMin, nextMax ->
-                            val nextActive = existing.modSubdivision.coerceIn(nextMin, nextMax)
+                            val safeMin = minOf(nextMin, nextMax)
+                            val safeMax = maxOf(nextMin, nextMax)
+                            val nextActive = existing.modSubdivision.coerceIn(safeMin, safeMax)
                             replaceModulator(state, param, existing.copy(
-                                modSubdivisionMin = nextMin,
-                                modSubdivisionMax = nextMax,
+                                modSubdivisionMin = safeMin,
+                                modSubdivisionMax = safeMax,
                                 modSubdivision = nextActive
                             ))
                         },
@@ -1394,10 +1416,12 @@ object CellConfigPanel {
                         replaceModulator(state, param, existing.randomizeModPhaseOffset())
                     },
                     onRangeChanged = { nextMin, nextMax ->
-                        val nextActive = existing.modPhaseOffset.coerceIn(nextMin, nextMax)
+                        val safeMin = minOf(nextMin, nextMax)
+                        val safeMax = maxOf(nextMin, nextMax)
+                        val nextActive = existing.modPhaseOffset.coerceIn(safeMin, safeMax)
                         replaceModulator(state, param, existing.copy(
-                            modPhaseOffsetMin = nextMin,
-                            modPhaseOffsetMax = nextMax,
+                            modPhaseOffsetMin = safeMin,
+                            modPhaseOffsetMax = safeMax,
                             modPhaseOffset = nextActive
                         ))
                     },
@@ -1458,10 +1482,12 @@ object CellConfigPanel {
                             replaceModulator(state, param, existing.randomizeModSlope())
                         },
                         onRangeChanged = { nextMin, nextMax ->
-                            val nextActive = existing.modSlope.coerceIn(nextMin, nextMax)
+                            val safeMin = minOf(nextMin, nextMax)
+                            val safeMax = maxOf(nextMin, nextMax)
+                            val nextActive = existing.modSlope.coerceIn(safeMin, safeMax)
                             replaceModulator(state, param, existing.copy(
-                                modSlopeMin = nextMin,
-                                modSlopeMax = nextMax,
+                                modSlopeMin = safeMin,
+                                modSlopeMax = safeMax,
                                 modSlope = nextActive
                             ))
                         },
@@ -2010,7 +2036,7 @@ object CellConfigPanel {
                 posY = row2Y,
                 width = boxWidth,
                 onChanged = { nextMin ->
-                    onRangeChanged(nextMin, currentMax)
+                    onRangeChanged(nextMin, maxOf(nextMin, currentMax))
                 },
                 formatValue = formatValue,
                 parseValue = parseValue
@@ -2024,7 +2050,7 @@ object CellConfigPanel {
                 posY = row2Y,
                 width = boxWidth,
                 onChanged = { nextMax ->
-                    onRangeChanged(currentMin, nextMax)
+                    onRangeChanged(minOf(nextMax, currentMin), nextMax)
                 },
                 formatValue = formatValue,
                 parseValue = parseValue
@@ -2409,7 +2435,8 @@ object CellConfigPanel {
             ImGui.setCursorScreenPos(textBoxesStartX, row2Y)
             ImGui.pushItemWidth(comboWidth)
             if (ImGui.combo("##bd_min_$label", minIdx, subdivisionLabels)) {
-                onRangeChanged(minIdx.get().toFloat(), currentMax)
+                val nextMin = minIdx.get().toFloat()
+                onRangeChanged(nextMin, maxOf(nextMin, currentMax))
             }
             if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
                 ImGui.setTooltip("Minimum modulation speed subdivision dropdown")
@@ -2421,7 +2448,8 @@ object CellConfigPanel {
             ImGui.setCursorScreenPos(textBoxesStartX + comboWidth + comboSpacing, row2Y)
             ImGui.pushItemWidth(comboWidth)
             if (ImGui.combo("##bd_max_$label", maxIdx, subdivisionLabels)) {
-                onRangeChanged(currentMin, maxIdx.get().toFloat())
+                val nextMax = maxIdx.get().toFloat()
+                onRangeChanged(minOf(nextMax, currentMin), nextMax)
             }
             if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
                 ImGui.setTooltip("Maximum modulation speed subdivision dropdown")
