@@ -66,23 +66,23 @@ object PatchGridPanel {
     private fun getCvColor(colId: String, alpha: Float = 1f): Int {
         return when (colId) {
             // Special
-            "final"          -> ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, alpha)
+            "final"          -> ImGui.colorConvertFloat4ToU32(0.0f, 1.0f, 0.7f, alpha)
             "base"           -> ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, alpha)
-            "midi"           -> ImGui.colorConvertFloat4ToU32(0.3f, 1.0f, 0.4f, alpha)
+            "midi"           -> ImGui.colorConvertFloat4ToU32(0.7f, 0.3f, 1.0f, alpha)
             // Synthetic / Generators
-            "gen1"           -> ImGui.colorConvertFloat4ToU32(0.1f, 0.7f, 0.9f, alpha)
-            "gen2"           -> ImGui.colorConvertFloat4ToU32(0.1f, 0.8f, 0.7f, alpha)
-            "lfo"            -> ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, alpha)
+            "gen1"           -> ImGui.colorConvertFloat4ToU32(0.0f, 0.7f, 1.0f, alpha)
+            "gen2"           -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 0.7f, alpha)
+            "lfo"            -> ImGui.colorConvertFloat4ToU32(0.0f, 0.7f, 1.0f, alpha)
             "sampleAndHold"  -> ImGui.colorConvertFloat4ToU32(0.7f, 0.4f, 1.0f, alpha)
             "beatPhase"      -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 1.0f, alpha)
             // Amplitude / Spectral
-            "audio"          -> ImGui.colorConvertFloat4ToU32(0.4f, 0.9f, 0.1f, alpha)
-            "amp"            -> ImGui.colorConvertFloat4ToU32(0.7f, 0.9f, 0.1f, alpha)
+            "audio"          -> ImGui.colorConvertFloat4ToU32(0.3f, 0.9f, 0.0f, alpha)
+            "amp"            -> ImGui.colorConvertFloat4ToU32(0.3f, 0.9f, 0.0f, alpha)
             "bass"           -> ImGui.colorConvertFloat4ToU32(0.9f, 0.2f, 0.2f, alpha)
             "mid"            -> ImGui.colorConvertFloat4ToU32(0.9f, 0.5f, 0.1f, alpha)
             "high"           -> ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.2f, alpha)
             // Transients / Triggers
-            "trigger"        -> ImGui.colorConvertFloat4ToU32(0.9f, 0.2f, 0.7f, alpha)
+            "trigger"        -> ImGui.colorConvertFloat4ToU32(1.0f, 0.0f, 0.5f, alpha)
             "onset"          -> ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, alpha)
             "accent"         -> ImGui.colorConvertFloat4ToU32(0.9f, 0.1f, 0.9f, alpha)
             else             -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, alpha)
@@ -353,14 +353,8 @@ object PatchGridPanel {
     }
 
     private fun getSubTabColor(label: String, alpha: Float): Int {
-        return when(label) {
-            "Geometry" -> ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 0.5f, alpha)
-            "3D Geometry" -> ImGui.colorConvertFloat4ToU32(0.6f, 0.4f, 0.8f, alpha)
-            "Color" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.6f, alpha)
-            "Background" -> ImGui.colorConvertFloat4ToU32(0.4f, 0.5f, 0.8f, alpha)
-            "Feedback" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.7f, 0.3f, alpha)
-            else -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, alpha)
-        }
+        // All sub tabs use the same premium slate blue accent color for visual consistency
+        return ImGui.colorConvertFloat4ToU32(0.25f, 0.55f, 0.85f, alpha)
     }
 
     private inline fun drawSubGroupContent(parentLabel: String, label: String, state: PatchGridState, block: () -> Unit) {

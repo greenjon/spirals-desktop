@@ -49,20 +49,20 @@ object CellConfigPanel {
 
     private fun getThemeColor(cvId: String, alpha: Float = 1f): Int {
         return when (cvId) {
-            "final"          -> ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, alpha)
+            "final"          -> ImGui.colorConvertFloat4ToU32(0.0f, 1.0f, 0.7f, alpha)
             "base"           -> ImGui.colorConvertFloat4ToU32(0.8f, 0.6f, 0.2f, alpha)
-            "midi"           -> ImGui.colorConvertFloat4ToU32(0.3f, 1.0f, 0.4f, alpha)
-            "gen1"           -> ImGui.colorConvertFloat4ToU32(0.1f, 0.7f, 0.9f, alpha)
-            "gen2"           -> ImGui.colorConvertFloat4ToU32(0.1f, 0.8f, 0.7f, alpha)
-            "lfo"            -> ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, alpha)
+            "midi"           -> ImGui.colorConvertFloat4ToU32(0.7f, 0.3f, 1.0f, alpha)
+            "gen1"           -> ImGui.colorConvertFloat4ToU32(0.0f, 0.7f, 1.0f, alpha)
+            "gen2"           -> ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 0.7f, alpha)
+            "lfo"            -> ImGui.colorConvertFloat4ToU32(0.0f, 0.7f, 1.0f, alpha)
             "sampleAndHold"  -> ImGui.colorConvertFloat4ToU32(0.7f, 0.4f, 1.0f, alpha)
             "beatPhase"      -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 1.0f, alpha)
-            "audio"          -> ImGui.colorConvertFloat4ToU32(0.4f, 0.9f, 0.1f, alpha)
-            "amp", "audio_amp" -> ImGui.colorConvertFloat4ToU32(0.7f, 0.9f, 0.1f, alpha)
+            "audio"          -> ImGui.colorConvertFloat4ToU32(0.3f, 0.9f, 0.0f, alpha)
+            "amp", "audio_amp" -> ImGui.colorConvertFloat4ToU32(0.3f, 0.9f, 0.0f, alpha)
             "bass", "audio_bass" -> ImGui.colorConvertFloat4ToU32(0.9f, 0.2f, 0.2f, alpha)
             "mid", "audio_mid" -> ImGui.colorConvertFloat4ToU32(0.9f, 0.5f, 0.1f, alpha)
             "high", "audio_high" -> ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.2f, alpha)
-            "trigger"        -> ImGui.colorConvertFloat4ToU32(0.9f, 0.2f, 0.7f, alpha)
+            "trigger"        -> ImGui.colorConvertFloat4ToU32(1.0f, 0.0f, 0.5f, alpha)
             "onset", "trigger_onset" -> ImGui.colorConvertFloat4ToU32(1.0f, 0.3f, 0.6f, alpha)
             "accent", "trigger_accent" -> ImGui.colorConvertFloat4ToU32(0.9f, 0.1f, 0.9f, alpha)
             else             -> ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, alpha)
@@ -71,20 +71,20 @@ object CellConfigPanel {
 
     private fun getThemeColorRGB(cvId: String): FloatArray {
         return when (cvId) {
-            "final"          -> floatArrayOf(0.4f, 1.0f, 0.8f)
+            "final"          -> floatArrayOf(0.0f, 1.0f, 0.7f)
             "base"           -> floatArrayOf(0.8f, 0.6f, 0.2f)
-            "midi"           -> floatArrayOf(0.3f, 1.0f, 0.4f)
-            "gen1"           -> floatArrayOf(0.1f, 0.7f, 0.9f)
-            "gen2"           -> floatArrayOf(0.1f, 0.8f, 0.7f)
-            "lfo"            -> floatArrayOf(0.2f, 0.8f, 1.0f)
+            "midi"           -> floatArrayOf(0.7f, 0.3f, 1.0f)
+            "gen1"           -> floatArrayOf(0.0f, 0.7f, 1.0f)
+            "gen2"           -> floatArrayOf(0.0f, 0.8f, 0.7f)
+            "lfo"            -> floatArrayOf(0.0f, 0.7f, 1.0f)
             "sampleAndHold"  -> floatArrayOf(0.7f, 0.4f, 1.0f)
             "beatPhase"      -> floatArrayOf(0.4f, 0.4f, 1.0f)
-            "audio"          -> floatArrayOf(0.4f, 0.9f, 0.1f)
-            "amp", "audio_amp" -> floatArrayOf(0.7f, 0.9f, 0.1f)
+            "audio"          -> floatArrayOf(0.3f, 0.9f, 0.0f)
+            "amp", "audio_amp" -> floatArrayOf(0.3f, 0.9f, 0.0f)
             "bass", "audio_bass" -> floatArrayOf(0.9f, 0.2f, 0.2f)
             "mid", "audio_mid" -> floatArrayOf(0.9f, 0.5f, 0.1f)
             "high", "audio_high" -> floatArrayOf(0.9f, 0.9f, 0.2f)
-            "trigger"        -> floatArrayOf(0.9f, 0.2f, 0.7f)
+            "trigger"        -> floatArrayOf(1.0f, 0.0f, 0.5f)
             "onset", "trigger_onset" -> floatArrayOf(1.0f, 0.3f, 0.6f)
             "accent", "trigger_accent" -> floatArrayOf(0.9f, 0.1f, 0.9f)
             else             -> floatArrayOf(0.5f, 0.5f, 0.5f)
@@ -168,9 +168,7 @@ object CellConfigPanel {
         val hasAdvanced = isBeat || isLfo || isSnh || isGen
 
         if (cvId == "final") {
-            UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey)
-            ImGui.sameLine()
-            UITheme.caption("  <--  FINAL & INITIAL VALUE")
+            UITheme.h2Colored(0.4f, 0.9f, 1.0f, 1.0f, paramKey.replace("/", " | "))
             ImGui.separator()
             ImGui.spacing()
 
@@ -432,41 +430,7 @@ object CellConfigPanel {
             return
         }
 
-        UITheme.h2Colored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, paramKey)
-        ImGui.sameLine()
-        if (isMidiMod) {
-            val firstMidiMod = activeMods.firstOrNull { it.sourceId.startsWith("midi_cc_") }
-            val label = if (firstMidiMod != null) {
-                val midiId = firstMidiMod.sourceId
-                val parts = midiId.substring("midi_cc_".length).split('_')
-                if (parts.size >= 2) {
-                    val ch = parts[0].toIntOrNull() ?: 0
-                    val cc = parts[1].toIntOrNull() ?: 0
-                    if (ch == 0) "MIDI CC $cc" else "MIDI Ch ${ch + 1} CC $cc"
-                } else "MIDI"
-            } else {
-                "Unmapped MIDI (Click MIDI Map to bind)"
-            }
-            UITheme.captionColored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, "  <--  $cvId ($label)")
-        } else {
-            val label = when (cvId) {
-                "gen1" -> "LFO"
-                "gen2" -> "Generator 2"
-                "lfo" -> "LFO Modulator"
-                "sampleAndHold" -> "Sample & Hold Modulator"
-                "beatPhase" -> "Beat Phase Modulator"
-                "audio" -> "Audio Envelope / Spectral Bands"
-                "amp" -> "Amplitude Envelope"
-                "bass" -> "Bass Envelope"
-                "mid" -> "Mid Envelope"
-                "high" -> "High Envelope"
-                "trigger" -> "Trigger Triggers"
-                "onset" -> "Transient Onset"
-                "accent" -> "Transient Accent"
-                else -> cvId
-            }
-            UITheme.captionColored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, "  <--  $cvId ($label)")
-        }
+        UITheme.h2Colored(themeRGB[0], themeRGB[1], themeRGB[2], 1.0f, paramKey.replace("/", " | "))
         ImGui.separator()
         ImGui.spacing()
 
@@ -492,7 +456,14 @@ object CellConfigPanel {
             initializeVirtualModulators(cvId, activeMods, hasAdvanced)
         }
 
-        val modsToDraw = activeMods + virtualModulators.filter { vm -> activeMods.none { am -> am.id == vm.id } }
+        var modsToDraw = activeMods + virtualModulators.filter { vm -> activeMods.none { am -> am.id == vm.id } }
+        if (cvId == "audio") {
+            val order = listOf("audio_amp", "audio_bass", "audio_mid", "audio_high")
+            modsToDraw = modsToDraw.sortedBy { order.indexOf(it.sourceId) }
+        } else if (cvId == "trigger") {
+            val order = listOf("trigger_onset", "trigger_accent")
+            modsToDraw = modsToDraw.sortedBy { order.indexOf(it.sourceId) }
+        }
         val isBipolar = param.minClamp < 0f
         // Use the same formula as the engine so the O-scope displays what the parameter actually receives.
         val combinedVal = llm.slop.spirals.cv.getCombinedEffectiveValue(activeMods, isBipolar)
@@ -533,10 +504,10 @@ object CellConfigPanel {
                 else -> null
             }
             val titleText = bandLabel ?: if (modsToDraw.size > 1) {
-                val typeLabel = if (hasAdvanced) "Oscillator" else "Modulator"
+                val typeLabel = if (isLfo) "LFO" else if (hasAdvanced) "Oscillator" else "Modulator"
                 "$typeLabel ${idx + 1}"
             } else {
-                val typeLabel = if (hasAdvanced) "Oscillator" else "Modulator"
+                val typeLabel = if (isLfo) "LFO" else if (hasAdvanced) "Oscillator" else "Modulator"
                 typeLabel
             }
 
@@ -1215,7 +1186,6 @@ object CellConfigPanel {
                 )
 
                 ImGui.spacing()
-                UITheme.h3("Generator Modulator (LFO 2)")
 
                 // LFO 2 Waveform
                 ImGui.beginGroup()
@@ -1729,10 +1699,6 @@ object CellConfigPanel {
         ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
         UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, minLabel)
 
-        val textWidth = ImGui.calcTextSize("Raw Modulator CV").x
-        ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 4f)
-        UITheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "Raw Modulator CV")
-        
         // Restore cursor position for downstream ImGui rendering
         ImGui.setCursorScreenPos(startX, startY + h)
     }
