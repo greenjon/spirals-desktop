@@ -1882,7 +1882,7 @@ object CellConfigPanel {
         
         val buttonSize = ImGui.getFrameHeight()
         val spacing = ImGui.getStyle().itemSpacing.x
-        val combinedWidth = buttonSize * 2f + spacing
+        val combinedWidth = buttonSize
         
         val labelColW = 125f
         val textBoxesStartX = startX + labelColW + 20f
@@ -1952,31 +1952,20 @@ object CellConfigPanel {
         val row2Y = startY + 18f
         
         if (showControls) {
-            // 1. Checkbox
-            ImGui.setCursorScreenPos(startX + labelColW - combinedWidth, row2Y)
-            val checked = imgui.type.ImBoolean(isRandomizable)
-            if (ImGui.checkbox("##check_$label", checked)) {
-                onRandomizableChanged(checked.get())
-            }
-            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
-                ImGui.setTooltip("Enable parameter modulation limits and randomization")
-            }
-            
-            // 2. Randomize Button
             val randBtnX = startX + labelColW - buttonSize
             ImGui.setCursorScreenPos(randBtnX, row2Y)
-            if (!isRandomizable) {
-                ImGui.beginDisabled()
-            }
             if (ImGui.button("##rand_$label", buttonSize, buttonSize)) {
+                onRandomizableChanged(!isRandomizable)
+            }
+            if (ImGui.isItemClicked(1)) { // Right click
+                if (!isRandomizable) {
+                    onRandomizableChanged(true)
+                }
                 onRandomizeNow()
             }
             val hovered = ImGui.isItemHovered()
             if (hovered && UITheme.tooltipsEnabled) {
-                ImGui.setTooltip("Randomize $label now")
-            }
-            if (!isRandomizable) {
-                ImGui.endDisabled()
+                ImGui.setTooltip("Left-click to toggle random range.\nRight-click to randomize now.")
             }
             
             // Single die icon (white with black spots, scaled and enlarged 15% more)
@@ -2313,7 +2302,7 @@ object CellConfigPanel {
 
         val buttonSize = ImGui.getFrameHeight()
         val spacing = ImGui.getStyle().itemSpacing.x
-        val combinedWidth = buttonSize * 2f + spacing
+        val combinedWidth = buttonSize
 
         val labelColW = 125f
         val textBoxesStartX = startX + labelColW + 20f
@@ -2361,26 +2350,21 @@ object CellConfigPanel {
         val row2Y = startY + 18f
 
         if (showControls) {
-            // 1. Checkbox
-            ImGui.setCursorScreenPos(startX + labelColW - combinedWidth, row2Y)
-            val checked = ImBoolean(isRandomizable)
-            if (ImGui.checkbox("##check_$label", checked)) {
-                onRandomizableChanged(checked.get())
-            }
-            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
-                ImGui.setTooltip("Enable parameter modulation limits and randomization")
-            }
-
-            // 2. Randomize Button
             val randBtnX = startX + labelColW - buttonSize
             ImGui.setCursorScreenPos(randBtnX, row2Y)
-            if (!isRandomizable) ImGui.beginDisabled()
             if (ImGui.button("##rand_$label", buttonSize, buttonSize)) {
+                onRandomizableChanged(!isRandomizable)
+            }
+            if (ImGui.isItemClicked(1)) { // Right click
+                if (!isRandomizable) {
+                    onRandomizableChanged(true)
+                }
                 onRandomizeNow()
             }
             val hovered = ImGui.isItemHovered()
-            if (hovered && UITheme.tooltipsEnabled) ImGui.setTooltip("Randomize $label now")
-            if (!isRandomizable) ImGui.endDisabled()
+            if (hovered && UITheme.tooltipsEnabled) {
+                ImGui.setTooltip("Left-click to toggle random range.\nRight-click to randomize now.")
+            }
 
             // Single die icon (white with black spots, scaled and enlarged 15% more)
             val centerX = randBtnX + buttonSize / 2f
