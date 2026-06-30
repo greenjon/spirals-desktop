@@ -85,7 +85,10 @@ class Shader(vertexSource: String, fragmentSource: String) {
         return uniformLocationCache.getOrPut(name) {
             val location = glGetUniformLocation(programId, name)
             if (location == -1) {
-                logger.warn { "Uniform '$name' not found in shader program $programId" }
+                val isStandardSystemUniform = name == "uTime" || name == "uAlpha" || name == "uResolution"
+                if (!isStandardSystemUniform) {
+                    logger.warn { "Uniform '$name' not found in shader program $programId" }
+                }
             }
             location
         }

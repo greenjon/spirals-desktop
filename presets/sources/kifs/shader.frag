@@ -21,9 +21,31 @@ uniform float uAlpha;
 uniform vec2 uResolution;
 uniform float uGlow;
 
+// New uniforms for advanced raymarching tricks
+uniform float uRepeatSpacing;
+uniform float uRepeat3D;
+uniform float uFlySpeed;
+uniform float uTrapMode;
+uniform float uTrapGlow;
+uniform float uSmoothness;
+uniform float uTime;
+
 const int MAX_RAY_STEPS = 80;
 const float MIN_DIST = 0.001;
 const float MAX_DIST = 10.0;
+
+// Smooth minimum and maximum helper functions (Inigo Quilez)
+float smin(float a, float b, float k) {
+    if (k <= 0.0001) return min(a, b);
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+float smax(float a, float b, float k) {
+    if (k <= 0.0001) return max(a, b);
+    float h = clamp(0.5 - 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) + k * h * (1.0 - h);
+}
 
 // Rotation matrices
 mat3 rotateX(float a) {
@@ -51,6 +73,16 @@ float sdSphere(vec3 p, float s) {
 
 float map(vec3 p, out float trap) {
     vec3 z = p;
+    
+    // 1. Apply camera flight translation
+    z.z -= uTime * uFlySpeed;
+    
+    // 2. Apply domain repetition
+    if (uRepeatSpacing > 0.0) {
+        vec3 rep = vec3(uRepeatSpacing, mix(1e10, uRepeatSpacing, uRepeat3D), uRepeatSpacing);
+        z = mod(z + rep * 0.5, rep) - rep * 0.5;
+    }
+    
     float dr = 1.0;
     trap = 1e10;
     
@@ -62,21 +94,41 @@ float map(vec3 p, out float trap) {
     for (int i = 0; i < 8; i++) {
         if (i >= maxIt) break;
         
-        // 1. Fold/mirror space across planes
-        z = abs(z);
+        // 3. Fold/mirror space across planes (sharp or smooth)
+        if (uSmoothness > 0.0) {
+            z = vec3(
+                smax(z.x, -z.x, uSmoothness),
+                smax(z.y, -z.y, uSmoothness),
+                smax(z.z, -z.z, uSmoothness)
+            );
+        } else {
+            z = abs(z);
+        }
         
         // Offset/Translate space
         z -= offset;
         
-        // 2. Rotate space
+        // 4. Rotate space
         z = rotMat * z;
         
-        // 3. Scale space
+        // 5. Scale space
         z *= uScale;
         dr *= uScale;
         
-        // Orbit trap for coloring
-        trap = min(trap, dot(z, z));
+        // 6. Orbit trap for coloring
+        float distVal = 0.0;
+        if (uTrapMode < 0.5) {
+            distVal = dot(z, z); // Origin (squared distance)
+        } else if (uTrapMode < 1.5) {
+            distVal = min(abs(z.x), min(abs(z.y), abs(z.z))); // Fold planes
+        } else if (uTrapMode < 2.5) {
+            distVal = abs(z.x); // X Fold Plane
+        } else if (uTrapMode < 3.5) {
+            distVal = abs(z.y); // Y Fold Plane
+        } else {
+            distVal = abs(z.z); // Z Fold Plane
+        }
+        trap = min(trap, distVal);
     }
     
     // Evaluate base primitive and divide by accumulated scale
@@ -149,6 +201,17 @@ void main() {
         );
 
         color = baseCol * (diff * 0.8 + 0.2) + vec3(0.8, 0.9, 1.0) * rim * 0.4;
+        
+        // Add neon orbit trap surface glow in crevices/edges
+        if (uTrapGlow > 0.0) {
+            vec3 trapGlowCol = palette(colVal + 0.3, 
+                vec3(0.5, 0.5, 0.5), 
+                vec3(0.5, 0.5, 0.5), 
+                vec3(2.0, 1.0, 0.0), 
+                vec3(0.5, 0.20, 0.25)
+            );
+            color += trapGlowCol * (uTrapGlow / (0.01 + trap));
+        }
     }
 
     if (uGlow > 0.0) {
