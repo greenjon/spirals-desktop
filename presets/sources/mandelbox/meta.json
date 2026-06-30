@@ -7,35 +7,45 @@
       "default": 2.0,
       "min": -4.0,
       "max": 4.0,
-      "type": "BIPOLAR"
+      "type": "BIPOLAR",
+      "defaultMin": 1.5,
+      "defaultMax": 2.5
     },
     {
       "name": "Min Radius",
       "default": 0.5,
       "min": 0.1,
       "max": 2.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 0.3,
+      "defaultMax": 0.8
     },
     {
       "name": "Fixed Radius",
       "default": 1.0,
       "min": 0.5,
       "max": 3.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 0.8,
+      "defaultMax": 1.5
     },
     {
       "name": "Iterations",
       "default": 8.0,
       "min": 1.0,
       "max": 15.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 5.0,
+      "defaultMax": 10.0
     },
     {
       "name": "Fold Limit",
       "default": 1.0,
       "min": 0.1,
       "max": 3.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 0.7,
+      "defaultMax": 1.5
     },
     {
       "name": "Zoom",
@@ -49,7 +59,9 @@
       "default": 0.0,
       "min": 0.0,
       "max": 1.0,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "defaultMin": 0.0,
+      "defaultMax": 1.0
     },
     {
       "name": "Rotate Y",
@@ -77,7 +89,9 @@
       "default": 0.5,
       "min": 0.0,
       "max": 1.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 0.2,
+      "defaultMax": 0.7
     }
   ]
 }
