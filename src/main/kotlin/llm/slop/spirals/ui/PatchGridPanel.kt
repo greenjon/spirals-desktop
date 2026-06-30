@@ -153,15 +153,20 @@ object PatchGridPanel {
             if (hMidi > maxH) maxH = hMidi
         }
         
-        val headerH = (maxH + 5f).coerceAtLeast(54f)
+        val btnHeight = ImGui.getFrameHeight()
+        val spacing = 4f
+        val buttonsH = 3 * (btnHeight + spacing)
+        val headerH = (maxH + 5f).coerceAtLeast(buttonsH + 28f)
         
         // Reserve vertical space for headers
         ImGui.dummy(10f, headerH)
         val afterHeadersY = ImGui.getCursorScreenPosY()
 
-        // Draw Randomize All button in the top-left empty space of the column headers
-        ImGui.setCursorScreenPos(startX, startY)
-        if (ImGui.button("Randomize All", labelColW - CELL_PAD, 24f)) {
+        val scale = btnHeight / 30f
+        val btnWidth = 50f * scale
+
+        // Draw the 3 randomize rows vertically
+        drawRandomizeRow("rand_all", "Randomize all", startX, startY, btnWidth, btnHeight, scale) {
             pushUndoState(state, mixer)
             mixer.deckA.randomizeModulators()
             mixer.deckB.randomizeModulators()
@@ -171,6 +176,16 @@ object PatchGridPanel {
                 param.modulators.addAll(randomized)
                 param.randomizeBaseValue()
             }
+        }
+
+        drawRandomizeRow("rand_deck_a", "Randomize Deck A", startX, startY + btnHeight + spacing, btnWidth, btnHeight, scale) {
+            pushUndoState(state, mixer)
+            mixer.deckA.randomizeModulators()
+        }
+
+        drawRandomizeRow("rand_deck_b", "Randomize Deck B", startX, startY + (btnHeight + spacing) * 2f, btnWidth, btnHeight, scale) {
+            pushUndoState(state, mixer)
+            mixer.deckB.randomizeModulators()
         }
         
         // Draw Top Tab Row at the bottom-left of the header area (just above the separator)
@@ -1160,10 +1175,62 @@ object PatchGridPanel {
                             }
                         }
                     }
-                }
-            }
             */
         }
+    }
+
+    private fun drawRandomizeRow(
+        id: String,
+        label: String,
+        startX: Float,
+        startY: Float,
+        btnWidth: Float,
+        btnHeight: Float,
+        scale: Float,
+        onClick: () -> Unit
+    ) {
+        if (drawDiceButton(id, startX, startY, scale, btnWidth, btnHeight)) {
+            onClick()
+        }
+        ImGui.sameLine(0f, 6f)
+        val textY = startY + (btnHeight - ImGui.getTextLineHeight()) * 0.5f
+        ImGui.setCursorScreenPos(ImGui.getCursorScreenPosX(), textY)
+        UITheme.body(label)
+    }
+
+    private fun drawDiceButton(id: String, x: Float, y: Float, scale: Float, btnWidth: Float, btnHeight: Float): Boolean {
+        ImGui.setCursorScreenPos(x, y)
+        val clicked = ImGui.button("##$id", btnWidth, btnHeight)
+        
+        val dl = ImGui.getWindowDrawList()
+        val diceColor = ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 1f)
+        val dotColor = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1f)
+        
+        // Die 1
+        val dieW = 23f * scale
+        val d1X = x + 5f * scale
+        val d1Y = y + (btnHeight - dieW) / 2f
+        dl.addRectFilled(d1X, d1Y, d1X + dieW, d1Y + dieW, diceColor, 2f * scale)
+        dl.addRect(d1X, d1Y, d1X + dieW, d1Y + dieW, dotColor, 2f * scale, 0, 1.2f * scale)
+        // Face 3 dots
+        val dotRadius = 1.7f * scale
+        dl.addCircleFilled(d1X + 5f * scale, d1Y + 5f * scale, dotRadius, dotColor)
+        dl.addCircleFilled(d1X + 11.5f * scale, d1Y + 11.5f * scale, dotRadius, dotColor)
+        dl.addCircleFilled(d1X + 18f * scale, d1Y + 18f * scale, dotRadius, dotColor)
+
+        // Die 2
+        val d2X = x + 24f * scale
+        val d2Y = y + (btnHeight - dieW) / 2f + 2f * scale
+        dl.addRectFilled(d2X, d2Y, d2X + dieW, d2Y + dieW, diceColor, 2f * scale)
+        dl.addRect(d2X, d2Y, d2X + dieW, d2Y + dieW, dotColor, 2f * scale, 0, 1.2f * scale)
+        // Face 5 dots
+        dl.addCircleFilled(d2X + 5f * scale, d2Y + 5f * scale, dotRadius, dotColor)
+        dl.addCircleFilled(d2X + 18f * scale, d2Y + 5f * scale, dotRadius, dotColor)
+        dl.addCircleFilled(d2X + 11.5f * scale, d2Y + 11.5f * scale, dotRadius, dotColor)
+        dl.addCircleFilled(d2X + 5f * scale, d2Y + 18f * scale, dotRadius, dotColor)
+        dl.addCircleFilled(d2X + 18f * scale, d2Y + 18f * scale, dotRadius, dotColor)
+        
+        return clicked
     }
 }
 
