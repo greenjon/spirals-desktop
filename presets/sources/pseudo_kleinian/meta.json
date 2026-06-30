@@ -7,63 +7,81 @@
       "default": 1.5,
       "min": 0.5,
       "max": 3.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 1.1,
+      "defaultMax": 2.2
     },
     {
       "name": "Radius",
       "default": 1.0,
       "min": 0.5,
       "max": 1.2,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 0.7,
+      "defaultMax": 1.1
     },
     {
       "name": "CX",
       "default": 0.5,
       "min": -3.0,
       "max": 3.0,
-      "type": "BIPOLAR"
+      "type": "BIPOLAR",
+      "defaultMin": 0.2,
+      "defaultMax": 0.9
     },
     {
       "name": "CY",
       "default": 0.5,
       "min": -3.0,
       "max": 3.0,
-      "type": "BIPOLAR"
+      "type": "BIPOLAR",
+      "defaultMin": 0.2,
+      "defaultMax": 0.9
     },
     {
       "name": "CZ",
       "default": 0.5,
       "min": -3.0,
       "max": 3.0,
-      "type": "BIPOLAR"
+      "type": "BIPOLAR",
+      "defaultMin": 0.2,
+      "defaultMax": 0.9
     },
     {
       "name": "Rotate X",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "defaultMin": -3.14,
+      "defaultMax": 3.14
     },
     {
       "name": "Rotate Y",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "defaultMin": -3.14,
+      "defaultMax": 3.14
     },
     {
       "name": "Rotate Z",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "defaultMin": -3.14,
+      "defaultMax": 3.14
     },
     {
       "name": "Iterations",
       "default": 8.0,
       "min": 1.0,
       "max": 15.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 5.0,
+      "defaultMax": 10.0
     },
     {
       "name": "Zoom",
@@ -77,7 +95,9 @@
       "default": 0.0,
       "min": 0.0,
       "max": 1.0,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "defaultMin": 0.0,
+      "defaultMax": 1.0
     },
     {
       "name": "Cam Rotate Y",
@@ -105,7 +125,9 @@
       "default": 0.5,
       "min": 0.0,
       "max": 1.0,
-      "type": "MONOPOLAR"
+      "type": "MONOPOLAR",
+      "defaultMin": 0.1,
+      "defaultMax": 0.6
     }
   ]
 }
