@@ -65,10 +65,17 @@ class ModulatableParameter(
      * Called once per frame prior to rendering.
      */
     fun evaluate(): Float {
-        val activeMods = modulators.filter { 
-            !it.bypassed && (CVRegistry.exists(it.sourceId) || it.sourceId.startsWith("midi_cc_"))
+        var hasActive = false
+        val size = modulators.size
+        for (i in 0 until size) {
+            val mod = modulators[i]
+            if (!mod.bypassed && (CVRegistry.exists(mod.sourceId) || mod.sourceId.startsWith("midi_cc_"))) {
+                hasActive = true
+                break
+            }
         }
-        if (activeMods.isEmpty()) {
+
+        if (!hasActive) {
             value = baseValue.coerceIn(minClamp, maxClamp)
             history.add(value)
             return value
@@ -76,7 +83,11 @@ class ModulatableParameter(
 
         var result = baseValue
 
-        for (mod in activeMods) {
+        for (i in 0 until size) {
+            val mod = modulators[i]
+            if (mod.bypassed || !(CVRegistry.exists(mod.sourceId) || mod.sourceId.startsWith("midi_cc_"))) {
+                continue
+            }
             val finalCv = evaluateModulator(mod)
             val isBipolar = minClamp < 0f
             // Bipolar:    rawModAmount = (rawCV * amp) + dc      → symmetric around 0

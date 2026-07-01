@@ -7,6 +7,17 @@ import llm.slop.spirals.parameters.calculateAdvancedLFO
 import llm.slop.spirals.parameters.GenUnit
 import llm.slop.spirals.parameters.Waveform
 
+private fun randomFloatFromSeed(seed: Long): Float {
+    var x = seed
+    x = x xor (x ushr 33)
+    x *= -4906477898972856333L
+    x = x xor (x ushr 33)
+    x *= -4265267296055433173L
+    x = x xor (x ushr 33)
+    val bits = (x ushr 40).toInt() and 0xffffff
+    return (bits.toFloat() / 16777216.0f) * 2.0f - 1.0f
+}
+
 fun evaluateModulator(modulator: CvModulator): Float {
     return when (modulator.sourceId) {
         "beatPhase" -> {
@@ -18,8 +29,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
                 val currentCycle = kotlin.math.floor(cyclePosition).toInt()
                 val previousCycle = currentCycle - 1
                 val seed = modulator.subdivision.hashCode() xor modulator.phaseOffset.hashCode() xor modulator.id.hashCode()
-                val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-                val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+                val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+                val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
                 val safeHold = modulator.hold.coerceIn(0.0f, 0.99f)
                 val slideDuration = 1.0f - safeHold
                 val tSlide = if (positivePhase < slideDuration) {
@@ -58,8 +69,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
 
             val seed = subdivisionD.hashCode() xor modulator.phaseOffset.hashCode() xor modulator.id.hashCode()
 
-            val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-            val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+            val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+            val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
 
             val safeHold = modulator.hold.coerceIn(0.0f, 0.99f)
             val slideDuration = 1.0f - safeHold
@@ -96,8 +107,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
                 val currentCycle = kotlin.math.floor(cyclePosition).toInt()
                 val previousCycle = currentCycle - 1
                 val seed = period.hashCode() xor modulator.phaseOffset.hashCode() xor modulator.id.hashCode()
-                val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-                val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+                val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+                val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
                 val safeHold = modulator.hold.coerceIn(0.0f, 0.99f)
                 val slideDuration = 1.0f - safeHold
                 val tSlide = if (positivePhase < slideDuration) {
@@ -136,8 +147,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
                         val currentCycle = kotlin.math.floor(cyclePosition).toInt()
                         val previousCycle = currentCycle - 1
                         val seed = period.hashCode() xor modulator.modPhaseOffset.hashCode() xor modulator.sourceId.hashCode() xor 999 xor modulator.id.hashCode()
-                        val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-                        val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+                        val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+                        val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
                         
                         val safeHold = modulator.modHold.coerceIn(0.0f, 0.99f)
                         val slideDuration = 1.0f - safeHold
@@ -173,8 +184,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
                         val currentCycle = kotlin.math.floor(cyclePosition).toInt()
                         val previousCycle = currentCycle - 1
                         val seed = subdivisionD.hashCode() xor modulator.modPhaseOffset.hashCode() xor modulator.sourceId.hashCode() xor 999 xor modulator.id.hashCode()
-                        val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-                        val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+                        val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+                        val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
                         
                         val safeHold = modulator.modHold.coerceIn(0.0f, 0.99f)
                         val slideDuration = 1.0f - safeHold
@@ -218,8 +229,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
                     val currentCycle = kotlin.math.floor(cyclePosition).toInt()
                     val previousCycle = currentCycle - 1
                     val seed = period.hashCode() xor modulator.phaseOffset.hashCode() xor modulator.sourceId.hashCode() xor modulator.id.hashCode()
-                    val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-                    val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+                    val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+                    val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
                     
                     val safeHold = modulator.hold.coerceIn(0.0f, 0.99f)
                     val slideDuration = 1.0f - safeHold
@@ -255,8 +266,8 @@ fun evaluateModulator(modulator: CvModulator): Float {
                     val currentCycle = kotlin.math.floor(cyclePosition).toInt()
                     val previousCycle = currentCycle - 1
                     val seed = subdivisionD.hashCode() xor modulator.phaseOffset.hashCode() xor modulator.sourceId.hashCode() xor modulator.id.hashCode()
-                    val currentValue = kotlin.random.Random((currentCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
-                    val previousValue = kotlin.random.Random((previousCycle + seed).toLong()).nextFloat() * 2.0f - 1.0f
+                    val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
+                    val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
                     
                     val safeHold = modulator.hold.coerceIn(0.0f, 0.99f)
                     val slideDuration = 1.0f - safeHold

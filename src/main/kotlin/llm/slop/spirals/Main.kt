@@ -172,6 +172,11 @@ fun main() {
     var frameCount = 0
     var lastTime = glfwGetTime()
 
+    val w = IntArray(1)
+    val h = IntArray(1)
+    val sw = IntArray(1)
+    val sh = IntArray(1)
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents()
 
@@ -199,8 +204,6 @@ fun main() {
         CVRegistry.updateAll()
 
         // Get framebuffer size
-        val w = IntArray(1)
-        val h = IntArray(1)
         glfwGetFramebufferSize(window, w, h)
 
         // 0. Update MIDI mappings
@@ -250,8 +253,6 @@ fun main() {
         if (secondaryWindow != 0L) {
             glfwMakeContextCurrent(secondaryWindow)
 
-            val sw = IntArray(1)
-            val sh = IntArray(1)
             glfwGetFramebufferSize(secondaryWindow, sw, sh)
 
             glViewport(0, 0, sw[0], sh[0])

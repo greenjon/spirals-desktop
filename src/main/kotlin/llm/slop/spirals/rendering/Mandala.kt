@@ -125,16 +125,18 @@ class Mandala(
 
     fun getSymmetricHueCycles(petals: Int): List<Int> {
         val p = petals.coerceAtLeast(1)
-        val options = mutableSetOf<Int>()
-        for (i in 1..p) {
-            if (p % i == 0) {
-                options.add(i)
+        return symmetricHueCyclesCache.getOrPut(p) {
+            val options = mutableSetOf<Int>()
+            for (i in 1..p) {
+                if (p % i == 0) {
+                    options.add(i)
+                }
             }
+            for (i in 1..4) {
+                options.add(p * i)
+            }
+            options.sorted()
         }
-        for (i in 1..4) {
-            options.add(p * i)
-        }
-        return options.sorted()
     }
 
     override val globalAlpha = ModulatableParameter(1.0f)
@@ -207,6 +209,7 @@ class Mandala(
     }
 
     companion object {
+        private val symmetricHueCyclesCache = java.util.concurrent.ConcurrentHashMap<Int, List<Int>>()
         const val POINTS = 2048
 
         /**

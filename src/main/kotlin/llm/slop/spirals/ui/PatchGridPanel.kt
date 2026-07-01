@@ -955,7 +955,25 @@ object PatchGridPanel {
         }
     }
 
+    private var cachedRows: List<Pair<String, ModulatableParameter>>? = null
+    private var lastMixerRef: Mixer? = null
+    private var lastSourceA: llm.slop.spirals.rendering.VisualSource? = null
+    private var lastSourceB: llm.slop.spirals.rendering.VisualSource? = null
+
+    fun invalidateGridRowsCache() {
+        cachedRows = null
+        lastMixerRef = null
+        lastSourceA = null
+        lastSourceB = null
+    }
+
     private fun getAllGridRows(mixer: Mixer): List<Pair<String, ModulatableParameter>> {
+        val srcA = mixer.deckA.source
+        val srcB = mixer.deckB.source
+        if (cachedRows != null && lastMixerRef == mixer && lastSourceA == srcA && lastSourceB == srcB) {
+            return cachedRows!!
+        }
+
         val list = mutableListOf<Pair<String, ModulatableParameter>>()
         
         // Mixer
@@ -1035,6 +1053,10 @@ object PatchGridPanel {
             list.add("$deckLabel/FB/Mode" to deck.fbMode)
         }
         
+        cachedRows = list
+        lastMixerRef = mixer
+        lastSourceA = srcA
+        lastSourceB = srcB
         return list
     }
 
