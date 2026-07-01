@@ -17,7 +17,7 @@ import llm.slop.spirals.cv.CVRegistry
 object AudioEnginePanel {
 
     private const val POPUP_ID = "Audio Engine##modal"
-    private const val MODAL_W  = 540f  // width of the overlay
+    private const val MODAL_W  = 1080f  // width of the overlay
 
     // Pre-allocated arrays to avoid runtime allocations
     private val rawSamples = FloatArray(1024)
@@ -26,14 +26,12 @@ object AudioEnginePanel {
     fun open() = ImGui.openPopup(POPUP_ID)
 
     fun draw(displayWidth: Float, displayHeight: Float) {
-        val modalH = displayHeight * 0.9f
-
         // Center the modal
         ImGui.setNextWindowPos(
             displayWidth * 0.5f, displayHeight * 0.5f,
             ImGuiCond.Always, 0.5f, 0.5f
         )
-        ImGui.setNextWindowSize(MODAL_W, modalH, ImGuiCond.Always)
+        ImGui.setNextWindowSize(MODAL_W, 0f, ImGuiCond.Always)
 
         val flags = ImGuiWindowFlags.NoCollapse or
                     ImGuiWindowFlags.NoResize or
@@ -47,6 +45,12 @@ object AudioEnginePanel {
         UITheme.h2("Audio Engine Monitor")
         ImGui.separator()
         ImGui.spacing()
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 2-Column Area
+        // ─────────────────────────────────────────────────────────────────────
+        if (ImGui.beginTable("##audio_layout_table", 2)) {
+            ImGui.tableNextColumn()
 
         // BPM Sync & Flashing Beat Indicator
         val bpm = AudioEngine.getEstimatedBpm()
@@ -125,15 +129,8 @@ object AudioEnginePanel {
         }
         ImGui.spacing()
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Scrollable Oscilloscopes Area
-        // ─────────────────────────────────────────────────────────────────────
-        // Use a negative height to tell ImGui to auto-size the child to fill all remaining
-        // vertical space except for the 50px needed for the footer.
-        if (ImGui.beginChild("##oscopes_scroll", 0f, -50f, true)) {
-
-            // Beat Sync & Stability Settings
-            UITheme.h3("Beat Sync & Stability Settings")
+        // Beat Sync & Stability Settings
+        UITheme.h3("Beat Sync & Stability Settings")
 
             val lockedBpm = imgui.type.ImBoolean(AudioEngine.isBpmLocked)
             if (ImGui.checkbox("Lock BPM", lockedBpm)) {
@@ -237,8 +234,9 @@ object AudioEnginePanel {
             drawCustomOscilloscope("Raw Buffer", rawSamples, -1.0f, 1.0f, rawColor, 90f)
             
             ImGui.spacing()
-            ImGui.separator()
-            ImGui.spacing()
+
+            // Column 2: CV Oscilloscopes
+            ImGui.tableNextColumn()
 
             // 2. Sound Derived CV Oscilloscopes
             UITheme.h3("Sound-Derived CVs")
@@ -270,7 +268,7 @@ object AudioEnginePanel {
                 }
             }
 
-            ImGui.endChild()
+            ImGui.endTable()
         }
 
         ImGui.spacing()
