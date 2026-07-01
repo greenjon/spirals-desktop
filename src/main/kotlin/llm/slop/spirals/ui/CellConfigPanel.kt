@@ -677,9 +677,17 @@ object CellConfigPanel {
         // ── Waveform, Unit and Operator ──────────────────────────
         val showWaveform = hasAdvanced && (!isSnh || isGen)
         if (showWaveform) {
-            ImGui.beginGroup()
+            val startX = ImGui.getCursorPosX()
+
+            // Labels Row
             UITheme.body(if (isGen) "LFO 1" else "Waveform")
-            
+            if (isGen) {
+                ImGui.sameLine()
+                ImGui.setCursorPosX(startX + 135f)
+                UITheme.body("LFO 1 Unit")
+            }
+
+            // Dropdowns Row
             val currentLabels = if (isGen) {
                 arrayOf("Sine", "Triangle", "Square", "Random")
             } else {
@@ -691,87 +699,24 @@ object CellConfigPanel {
             if (ImGui.combo("##waveform", wfIdx, currentLabels)) {
                 replaceModulator(state, param, existing.copy(waveform = Waveform.entries[wfIdx.get()]))
             }
-            ImGui.popItemWidth()
             if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
-            ImGui.endGroup()
             
             if (isGen) {
-                ImGui.sameLine(0f, 10f)
-                ImGui.beginGroup()
-                UITheme.body("LFO 1 Unit")
+                ImGui.sameLine()
+                ImGui.setCursorPosX(startX + 135f)
                 val unitIdx = ImInt(existing.genUnit.ordinal)
                 val unitLabels = arrayOf("Time", "Beat")
                 if (bypassed) ImGui.popStyleVar()
-                ImGui.pushItemWidth(125f)
                 if (ImGui.combo("##unit", unitIdx, unitLabels)) {
                     replaceModulator(state, param, existing.copy(genUnit = GenUnit.entries[unitIdx.get()]))
                 }
-                ImGui.popItemWidth()
                 if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
-                ImGui.endGroup()
             }
-            
-            ImGui.sameLine(0f, 10f)
+            ImGui.popItemWidth()
+            ImGui.spacing()
         }
 
         // Operator was moved to top row
-        ImGui.spacing()
-
-        // ── Amplitude ─────────────────────────────────────────────
-        drawCustomRangeSlider(
-            idPrefix = existing.id,
-            label = "Amplitude",
-            themeColor = currentThemeColor,
-            currentValue = existing.amplitude,
-            currentMin = existing.amplitudeMin,
-            currentMax = existing.amplitudeMax,
-            minLimit = 0f,
-            maxLimit = 1f,
-            isRandomizable = existing.randomizeAmplitude,
-            formatValue = { "%.3f".format(it) },
-            onRandomizableChanged = { checked ->
-                if (checked) {
-                    val rMin = existing.amplitudeMin
-                    val rMax = existing.amplitudeMax
-                    val (nextMin, nextMax) = if (rMin == rMax) {
-                        Pair((existing.amplitude - 0.1f).coerceAtLeast(0f), (existing.amplitude + 0.1f).coerceAtMost(1f))
-                    } else {
-                        Pair(rMin, rMax)
-                    }
-                    replaceModulator(state, param, existing.copy(
-                        randomizeAmplitude = true,
-                        amplitudeMin = nextMin,
-                        amplitudeMax = nextMax
-                    ))
-                } else {
-                    replaceModulator(state, param, existing.copy(
-                        randomizeAmplitude = false,
-                        amplitudeMin = existing.amplitude,
-                        amplitudeMax = existing.amplitude
-                    ))
-                }
-            },
-            onRandomizeNow = {
-                replaceModulator(state, param, existing.randomizeAmplitude())
-            },
-            onRangeChanged = { nextMin, nextMax ->
-                val safeMin = minOf(nextMin, nextMax)
-                val safeMax = maxOf(nextMin, nextMax)
-                val nextActive = existing.amplitude.coerceIn(safeMin, safeMax)
-                replaceModulator(state, param, existing.copy(
-                    amplitudeMin = safeMin,
-                    amplitudeMax = safeMax,
-                    amplitude = nextActive
-                ))
-            },
-            onValueChanged = { newVal ->
-                replaceModulator(state, param, existing.copy(
-                    amplitude = newVal,
-                    amplitudeMin = newVal,
-                    amplitudeMax = newVal
-                ))
-            }
-        )
         ImGui.spacing()
 
         // ── DC Offset ─────────────────────────────────────────────
@@ -826,6 +771,63 @@ object CellConfigPanel {
                     dcOffset = newVal,
                     dcOffsetMin = newVal,
                     dcOffsetMax = newVal
+                ))
+            }
+        )
+        ImGui.spacing()
+
+        // ── Amplitude ─────────────────────────────────────────────
+        drawCustomRangeSlider(
+            idPrefix = existing.id,
+            label = "Amplitude",
+            themeColor = currentThemeColor,
+            currentValue = existing.amplitude,
+            currentMin = existing.amplitudeMin,
+            currentMax = existing.amplitudeMax,
+            minLimit = 0f,
+            maxLimit = 1f,
+            isRandomizable = existing.randomizeAmplitude,
+            formatValue = { "%.3f".format(it) },
+            onRandomizableChanged = { checked ->
+                if (checked) {
+                    val rMin = existing.amplitudeMin
+                    val rMax = existing.amplitudeMax
+                    val (nextMin, nextMax) = if (rMin == rMax) {
+                        Pair((existing.amplitude - 0.1f).coerceAtLeast(0f), (existing.amplitude + 0.1f).coerceAtMost(1f))
+                    } else {
+                        Pair(rMin, rMax)
+                    }
+                    replaceModulator(state, param, existing.copy(
+                        randomizeAmplitude = true,
+                        amplitudeMin = nextMin,
+                        amplitudeMax = nextMax
+                    ))
+                } else {
+                    replaceModulator(state, param, existing.copy(
+                        randomizeAmplitude = false,
+                        amplitudeMin = existing.amplitude,
+                        amplitudeMax = existing.amplitude
+                    ))
+                }
+            },
+            onRandomizeNow = {
+                replaceModulator(state, param, existing.randomizeAmplitude())
+            },
+            onRangeChanged = { nextMin, nextMax ->
+                val safeMin = minOf(nextMin, nextMax)
+                val safeMax = maxOf(nextMin, nextMax)
+                val nextActive = existing.amplitude.coerceIn(safeMin, safeMax)
+                replaceModulator(state, param, existing.copy(
+                    amplitudeMin = safeMin,
+                    amplitudeMax = safeMax,
+                    amplitude = nextActive
+                ))
+            },
+            onValueChanged = { newVal ->
+                replaceModulator(state, param, existing.copy(
+                    amplitude = newVal,
+                    amplitudeMin = newVal,
+                    amplitudeMax = newVal
                 ))
             }
         )
@@ -1113,10 +1115,70 @@ object CellConfigPanel {
             ImGui.spacing()
             ImGui.separator()
             ImGui.spacing()
-            UITheme.h3("Modulation Mode")
+
             val currentMode = existing.generatorModMode
             val modeLabels = arrayOf("None", "AM (Amplitude)", "PM (Phase)", "ADD (Additive)")
             val modeIdx = ImInt(currentMode.ordinal)
+
+            val startX = ImGui.getCursorPosX()
+            val lfo2Disabled = (currentMode == llm.slop.spirals.parameters.GeneratorModMode.NONE)
+
+            // Labels Row
+            if (lfo2Disabled) {
+                ImGui.beginDisabled()
+            }
+            UITheme.body("LFO 2")
+            
+            ImGui.sameLine()
+            ImGui.setCursorPosX(startX + 135f)
+            UITheme.body("LFO 2 Unit")
+            
+            if (lfo2Disabled) {
+                ImGui.endDisabled()
+            }
+
+            ImGui.sameLine()
+            ImGui.setCursorPosX(startX + 270f)
+            UITheme.body("Modulation Mode")
+
+            // Dropdowns Row
+            if (lfo2Disabled) {
+                ImGui.beginDisabled()
+            }
+
+            // LFO 2 Waveform
+            val modWfLabels = arrayOf("Sine", "Triangle", "Square", "Random")
+            val modWfIdx = ImInt(existing.modWaveform.ordinal)
+            if (bypassed) ImGui.popStyleVar()
+            ImGui.pushItemWidth(125f)
+            if (ImGui.combo("##mod_waveform", modWfIdx, modWfLabels)) {
+                replaceModulator(state, param, existing.copy(modWaveform = Waveform.entries[modWfIdx.get()]))
+            }
+            ImGui.popItemWidth()
+            if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
+
+            ImGui.sameLine()
+            ImGui.setCursorPosX(startX + 135f)
+
+            // LFO 2 Unit
+            val modUnitIdx = ImInt(existing.modGenUnit.ordinal)
+            val modUnitLabels = arrayOf("Time", "Beat")
+            if (bypassed) ImGui.popStyleVar()
+            ImGui.pushItemWidth(125f)
+            if (ImGui.combo("##mod_unit", modUnitIdx, modUnitLabels)) {
+                replaceModulator(state, param, existing.copy(modGenUnit = GenUnit.entries[modUnitIdx.get()]))
+            }
+            ImGui.popItemWidth()
+            if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
+
+            if (lfo2Disabled) {
+                ImGui.endDisabled()
+            }
+
+            ImGui.sameLine()
+            ImGui.setCursorPosX(startX + 270f)
+
+            // Modulation Mode
             if (bypassed) ImGui.popStyleVar()
             ImGui.pushItemWidth(200f)
             if (ImGui.combo("##gen_mod_mode", modeIdx, modeLabels)) {
@@ -1126,9 +1188,11 @@ object CellConfigPanel {
             ImGui.popItemWidth()
             if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
 
+            ImGui.spacing()
+
             if (currentMode != llm.slop.spirals.parameters.GeneratorModMode.NONE) {
                 ImGui.spacing()
-                
+
                 // Modulation Depth range slider
                 drawCustomRangeSlider(
                     idPrefix = existing.id + "_mod_depth",
@@ -1184,37 +1248,6 @@ object CellConfigPanel {
                         ))
                     }
                 )
-
-                ImGui.spacing()
-
-                // LFO 2 Waveform
-                ImGui.beginGroup()
-                UITheme.body("LFO 2")
-                val modWfLabels = arrayOf("Sine", "Triangle", "Square", "Random")
-                val modWfIdx = ImInt(existing.modWaveform.ordinal)
-                if (bypassed) ImGui.popStyleVar()
-                ImGui.pushItemWidth(125f)
-                if (ImGui.combo("##mod_waveform", modWfIdx, modWfLabels)) {
-                    replaceModulator(state, param, existing.copy(modWaveform = Waveform.entries[modWfIdx.get()]))
-                }
-                ImGui.popItemWidth()
-                if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
-                ImGui.endGroup()
-
-                ImGui.sameLine(0f, 10f)
-                // LFO 2 Unit
-                ImGui.beginGroup()
-                UITheme.body("LFO 2 Unit")
-                val modUnitIdx = ImInt(existing.modGenUnit.ordinal)
-                val modUnitLabels = arrayOf("Time", "Beat")
-                if (bypassed) ImGui.popStyleVar()
-                ImGui.pushItemWidth(125f)
-                if (ImGui.combo("##mod_unit", modUnitIdx, modUnitLabels)) {
-                    replaceModulator(state, param, existing.copy(modGenUnit = GenUnit.entries[modUnitIdx.get()]))
-                }
-                ImGui.popItemWidth()
-                if (bypassed) ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.Alpha, 0.5f)
-                ImGui.endGroup()
 
                 ImGui.spacing()
 
