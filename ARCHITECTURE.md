@@ -52,8 +52,6 @@ src/main/kotlin/llm/slop/spirals/
 │   ├── Mandala.kt              — Mandala4Arm (recipe + full field docs),
 │   │                             Mandala (VisualSource with all params)
 │   ├── MandalaLibrary.kt       — ~300 curated MandalaRatio entries
-│   ├── RandomizationModels.kt  — RandomSet, ArmConstraints, etc.
-│   ├── RecipeRandomizer.kt     — Generates mandala config from RandomSet
 │   ├── Deck.kt                 — VisualSource + ping-pong FBOs + FB params
 │   ├── Mixer.kt                — Blends Deck A+B → masterFBO
 │   ├── Renderer.kt             — Per-frame: source → feedback → mix → blit
