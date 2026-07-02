@@ -232,7 +232,20 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
             val name = filenameInput.get().trim()
             if (name.isNotEmpty()) {
                 val hasExt = filterExts.any { name.endsWith(it) }
-                val target = File(currentDir, if (hasExt) name else "$name${filterExts.first()}")
+                val target = if (mode == Mode.LOAD && !hasExt) {
+                    // Smart load: try extensions in order to see which file exists
+                    var found: File? = null
+                    for (ext in filterExts) {
+                        val f = File(currentDir, "$name$ext")
+                        if (f.exists()) {
+                            found = f
+                            break
+                        }
+                    }
+                    found ?: File(currentDir, "$name${filterExts.first()}")
+                } else {
+                    File(currentDir, if (hasExt) name else "$name${filterExts.first()}")
+                }
                 logger.info { "FileBrowser confirmed: ${target.absolutePath}" }
                 onConfirm(target)
                 ImGui.closeCurrentPopup()

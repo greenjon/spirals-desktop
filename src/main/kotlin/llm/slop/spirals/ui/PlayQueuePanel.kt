@@ -63,7 +63,7 @@ object PlayQueuePanel {
                 
                 PlayQueueManager.queue.forEachIndexed { index, file ->
                     val isActive = index == PlayQueueManager.activeIndex
-                    val label = "${index + 1}. ${file.nameWithoutExtension}"
+                    val label = "${index + 1}. ${file.nameWithoutExtension}${if (isActive) " →" else ""}"
                     
                     if (isActive) {
                         ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 1.0f, 0.8f, 1.0f) // Mint green for active
@@ -71,17 +71,15 @@ object PlayQueuePanel {
                     
                     val selected = ImGui.selectable("$label##queue_$index", false)
                     
-                    if (isActive) {
-                        ImGui.popStyleColor()
-                        ImGui.sameLine(5f)
-                        ImGui.text("→")
-                    }
-                    
                     // Drag and Drop for reordering
                     if (ImGui.beginDragDropSource()) {
                         ImGui.setDragDropPayload("QUEUE_ITEM", index as Any)
                         ImGui.text("Moving $label")
                         ImGui.endDragDropSource()
+                    }
+                    
+                    if (isActive) {
+                        ImGui.popStyleColor()
                     }
                     
                     if (ImGui.beginDragDropTarget()) {

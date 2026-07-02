@@ -75,6 +75,8 @@ object PatchManager {
         CompletableFuture.runAsync {
             try {
                 logger.info { "Loading deck preset from ${file.absolutePath} in background..." }
+                if (!file.exists()) throw java.io.FileNotFoundException(file.absolutePath)
+                
                 val content = file.readText()
                 val dto = json.decodeFromString<DeckPatchDto>(content)
                 if (isDeckA) {
@@ -84,14 +86,19 @@ object PatchManager {
                 }
                 logger.info { "Deck preset loaded and queued for main thread swap" }
             } catch (e: Exception) {
-                // Fallback for .lsd extension if the file passed doesn't have it but exists
-                if (!file.exists() && !file.name.endsWith(".lsd")) {
-                    val lsdFile = File(file.absolutePath + ".lsd")
-                    if (lsdFile.exists()) {
-                        loadDeckPresetAsync(lsdFile, isDeckA)
-                        return@runAsync
-                    }
+                // Extension fallback: if .lsd fails, try .json, and vice versa.
+                val altFile = when {
+                    file.name.endsWith(".lsd") -> File(file.absolutePath.substringBeforeLast(".lsd") + ".json")
+                    file.name.endsWith(".json") -> File(file.absolutePath.substringBeforeLast(".json") + ".lsd")
+                    else -> null
                 }
+                
+                if (altFile != null && altFile.exists()) {
+                    logger.info { "File not found or failed, trying alternative: ${altFile.name}" }
+                    loadDeckPresetAsync(altFile, isDeckA)
+                    return@runAsync
+                }
+
                 logger.error(e) { "Failed to load deck preset from ${file.absolutePath}" }
             }
         }

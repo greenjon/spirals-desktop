@@ -22,12 +22,14 @@ object PlaylistPanel {
     }
 
     fun openWithQueue(queue: List<File>) {
+        logger.info { "Opening Playlist Editor with ${queue.size} items from queue" }
         PlaylistManager.initializeFromQueue(queue)
         pendingOpen = true
     }
 
     fun draw() {
         if (pendingOpen) {
+            logger.info { "PlaylistPanel: opening popup $POPUP_ID" }
             ImGui.openPopup(POPUP_ID)
             pendingOpen = false
         }
@@ -41,7 +43,8 @@ object PlaylistPanel {
         )
 
         val flags = ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoMove
-        if (!ImGui.beginPopupModal(POPUP_ID, flags)) return
+        val isOpen = ImGui.beginPopupModal(POPUP_ID, flags)
+        if (!isOpen) return
 
         val fileName = PlaylistManager.currentPlaylistFile?.name ?: "Untitled Playlist"
         val title = if (PlaylistManager.isDirty) "$fileName *" else fileName
@@ -104,6 +107,7 @@ object PlaylistPanel {
                         ImGui.text("Moving $label")
                         ImGui.endDragDropSource()
                     }
+
                     if (ImGui.beginDragDropTarget()) {
                         val payload = ImGui.acceptDragDropPayload<Int>("PLAYLIST_ITEM")
                         if (payload != null) {
