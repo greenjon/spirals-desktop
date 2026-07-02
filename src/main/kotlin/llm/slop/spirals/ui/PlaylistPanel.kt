@@ -150,8 +150,6 @@ object PlaylistPanel {
             ImGui.closeCurrentPopup()
         }
 
-        ImGui.endPopup()
-
         fileBrowser.draw { file ->
             if (fileBrowser.mode == ImGuiFileBrowser.Mode.LOAD) {
                 PlaylistManager.loadPlaylist(file)
@@ -163,6 +161,8 @@ object PlaylistPanel {
         deckBrowser.draw { file ->
             PlaylistManager.addToPlaylist(file)
         }
+
+        ImGui.endPopup()
     }
 
     private const val POPUP_ID = "Playlist Editor###playlistPanel"
