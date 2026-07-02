@@ -14,7 +14,7 @@ class MenuBar(
     private val onTriggerExitFlow: () -> Unit,
     private val onOpenSettings: () -> Unit,
     private val onOpenAudioEngineMonitor: () -> Unit,
-    private val onOpenSetlist: () -> Unit
+    private val onOpenPlaylistEditor: () -> Unit
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -86,8 +86,8 @@ class MenuBar(
                 ImGui.popStyleColor()
             }
 
-            if (ImGui.menuItem("Setlist")) {
-                onOpenSetlist()
+            if (ImGui.menuItem("Playlist Editor")) {
+                onOpenPlaylistEditor()
             }
 
             if (ImGui.beginMenu("Help")) {

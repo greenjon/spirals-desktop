@@ -84,7 +84,8 @@ class DeckControlPanel(
             ImGui.text("Permanently delete '$activePreset'?")
             ImGui.spacing()
             if (ImGui.button("Delete", 80f, 0f)) {
-                val file = File("presets/decks/$activePreset.json")
+                var file = File("presets/decks/$activePreset.lsd")
+                if (!file.exists()) file = File("presets/decks/$activePreset.json")
                 if (file.exists()) file.delete()
                 onDeleteDeck(isDeckA)
                 ImGui.closeCurrentPopup()
@@ -119,15 +120,16 @@ class DeckControlPanel(
         // Ensure no internal padding interferes with drawing
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
         
-        // Explicitly set the Child window width
-        ImGui.beginChild("Child_$label", panelW, 0f, false)
-
-        ImGui.spacing()
-
         val inset = 3f
         val imgAvailW = panelW - (inset * 2f)
         val imgAvailH = imgAvailW * (9f / 16f)
-        
+        val childH = imgAvailH + 10f
+
+        // Explicitly set the Child window width and height
+        ImGui.beginChild("Child_$label", panelW, childH, false)
+
+        ImGui.spacing()
+
         ImGui.setCursorPosX(inset)
         val imgX = ImGui.getCursorScreenPosX()
         val imgY = ImGui.getCursorScreenPosY()
@@ -137,52 +139,6 @@ class DeckControlPanel(
         val dl = ImGui.getWindowDrawList()
         // Draw border perfectly wrapped around the image
         dl.addRect(imgX - 1f, imgY - 1f, imgX + imgAvailW + 1f, imgY + imgAvailH + 1f, themeCol, 0f, 0, 2f)
-
-        ImGui.spacing()
-        ImGui.separator()
-        ImGui.spacing()
-        
-        ImGui.indent(8f)
-
-        // Structural Identity Readouts
-        val mandala = deck.source as? Mandala
-        if (mandala != null) {
-            val lobesParam = mandala.parameters["Lobes"]!!
-            val currentLobe = lobesParam.value.roundToInt()
-            val closestLobe = llm.slop.spirals.rendering.MandalaLibrary.uniquePetals.minByOrNull { kotlin.math.abs(it - currentLobe) } ?: 3
-            
-            UITheme.captionColored(0.8f, 0.8f, 0.8f, 1.0f, "Geometry:")
-            UITheme.body("  Lobes: $currentLobe")
-
-            val recipeParam = mandala.parameters["Recipe Select"]!!
-            val filtered = llm.slop.spirals.rendering.MandalaLibrary.recipesByPetals[closestLobe] ?: emptyList()
-            val currentSelect = recipeParam.value
-            val recipeIdx = (currentSelect * (filtered.size - 1)).roundToInt().coerceIn(0, filtered.size - 1)
-
-            if (filtered.isNotEmpty() && recipeIdx in filtered.indices) {
-                val recipe = filtered[recipeIdx]
-                UITheme.body("  Recipe: ${recipe.a},${recipe.b},${recipe.c},${recipe.d}")
-            } else {
-                UITheme.body("  Recipe: None")
-            }
-
-            ImGui.spacing()
-            val bgStyleParam = mandala.parameters["Bg Style"]!!
-            val bgStyleIdx = bgStyleParam.value.toInt().coerceIn(0, 2)
-            val bgStyleLabels = arrayOf("Off", "Solid Color", "Plasma")
-            
-            UITheme.captionColored(0.8f, 0.8f, 0.8f, 1.0f, "Background:")
-            UITheme.body("  Style: ${bgStyleLabels[bgStyleIdx]}")
-        }
-        val dynamicSource = deck.source as? DynamicVisualSource
-        if (dynamicSource != null) {
-            UITheme.captionColored(0.8f, 0.8f, 0.8f, 1.0f, dynamicSource.displayName + ":")
-            val params = dynamicSource.parameters.entries.take(2)
-            for ((key, param) in params) {
-                UITheme.body("  $key: %.2f".format(param.value))
-            }
-        }
-        ImGui.unindent(8f)
 
         ImGui.endChild()
         ImGui.popStyleVar()

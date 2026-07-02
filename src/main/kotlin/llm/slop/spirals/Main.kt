@@ -27,6 +27,7 @@ fun main() {
     // Ensure preset directories exist
     java.io.File("presets/decks").mkdirs()
     java.io.File("presets/global").mkdirs()
+    java.io.File("presets/playlists").mkdirs()
     java.io.File("presets/midi").mkdirs()
 
 

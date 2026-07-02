@@ -41,7 +41,7 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
     private var currentDir: File = File("presets/global").canonicalFile
     private var selectedFile: File? = null
     private val filenameInput = ImString(128)
-    private val filterExt: String = ".json"
+    private var filterExts: List<String> = listOf(".json", ".lsd", ".lsdset")
 
     /** Set to true for one frame to trigger `ImGui.openPopup`. */
     private var pendingOpen = false
@@ -62,12 +62,14 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
     fun open(
         mode: Mode,
         startDir: File = File("presets/global").canonicalFile,
-        initialName: String = ""
+        initialName: String = "",
+        extensions: List<String> = listOf(".json", ".lsd", ".lsdset")
     ) {
         this.mode = mode
         currentDir = startDir.canonicalFile
         selectedFile = null
         filenameInput.set(initialName)
+        this.filterExts = extensions
         listingDir = null   // force refresh
         pendingOpen = true
     }
@@ -123,13 +125,14 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
 
     /**
      * Returns a sorted list: parent-dir entry first (if applicable), then
-     * subdirectories, then `.json` files.
+     * subdirectories, then matching files.
      */
     private fun buildListing(dir: File): List<File> {
         val entries = dir.listFiles() ?: return emptyList()
         val dirs  = entries.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
-        val files = entries.filter { it.isFile && it.name.endsWith(filterExt) }
-                           .sortedBy { it.name.lowercase() }
+        val files = entries.filter { file ->
+            file.isFile && filterExts.any { ext -> file.name.endsWith(ext) }
+        }.sortedBy { it.name.lowercase() }
         return dirs + files
     }
 
@@ -228,7 +231,8 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
         if (doConfirm) {
             val name = filenameInput.get().trim()
             if (name.isNotEmpty()) {
-                val target = File(currentDir, if (name.endsWith(filterExt)) name else "$name$filterExt")
+                val hasExt = filterExts.any { name.endsWith(it) }
+                val target = File(currentDir, if (hasExt) name else "$name${filterExts.first()}")
                 logger.info { "FileBrowser confirmed: ${target.absolutePath}" }
                 onConfirm(target)
                 ImGui.closeCurrentPopup()

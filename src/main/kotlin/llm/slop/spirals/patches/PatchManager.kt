@@ -84,6 +84,14 @@ object PatchManager {
                 }
                 logger.info { "Deck preset loaded and queued for main thread swap" }
             } catch (e: Exception) {
+                // Fallback for .lsd extension if the file passed doesn't have it but exists
+                if (!file.exists() && !file.name.endsWith(".lsd")) {
+                    val lsdFile = File(file.absolutePath + ".lsd")
+                    if (lsdFile.exists()) {
+                        loadDeckPresetAsync(lsdFile, isDeckA)
+                        return@runAsync
+                    }
+                }
                 logger.error(e) { "Failed to load deck preset from ${file.absolutePath}" }
             }
         }

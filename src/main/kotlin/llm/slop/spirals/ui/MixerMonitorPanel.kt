@@ -5,7 +5,7 @@ import imgui.flag.ImGuiCol
 import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.parameters.ModulatableParameter
-
+import llm.slop.spirals.patches.PlayQueueManager
 import llm.slop.spirals.models.toDto
 import llm.slop.spirals.models.applyDto
 
@@ -42,11 +42,15 @@ class MixerMonitorPanel(
 
         // --- Master Mixer Controls ---
         ImGui.pushStyleColor(ImGuiCol.ChildBg, ImGui.colorConvertFloat4ToU32(0.05f, 0.1f, 0.08f, 0.4f)) // Faint mint background
-        ImGui.beginChild("MasterControls", availW, 100f, true)
+        ImGui.beginChild("MasterControls", availW, 150f, true)
         
         // Crossfader (mapped display value from -1.0 to 1.0)
         drawFlatSlider("Mixer/crossfade", "Crossfader", mixer.crossfade, 0f, 1f, 80f, -1f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)) {
             "A <-- %.2f --> B".format(it)
+        }
+        if (ImGui.isItemActive()) {
+            mixer.isAutoFading = false
+            mixer.targetCrossfade = mixer.crossfade.baseValue
         }
 
         ImGui.columns(2, "masterMixerCols", false)
@@ -57,6 +61,15 @@ class MixerMonitorPanel(
         
         drawFlatSlider("Mixer/bloom", "Bloom", mixer.bloom, 0f, 1f, 50f, 0f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f))
         ImGui.nextColumn()
+
+        drawFlatSlider("Mixer/xfadeSpeed", "XFade Speed", mixer.xfadeSpeed, 0.001f, 1.0f, 50f, 0f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f))
+        ImGui.nextColumn()
+
+        drawFlatSlider("Mixer/setlistNext", "Next Trigger", mixer.setlistNext, 0f, 1f, 50f, 0f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f))
+        ImGui.nextColumn()
+
+        drawFlatSlider("Mixer/setlistPrev", "Prev Trigger", mixer.setlistPrev, 0f, 1f, 50f, 0f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f))
+        ImGui.nextColumn()
         
         ImGui.columns(1)
         
@@ -65,15 +78,6 @@ class MixerMonitorPanel(
         val modeIdx = mixer.mode.value.toInt().coerceIn(0, 4)
         ImGui.spacing()
         UITheme.captionColored(0.4f, 1.0f, 0.8f, 1.0f, "Blend Mode: ${modes[modeIdx]}")
-
-        ImGui.sameLine(ImGui.getWindowContentRegionMaxX() - 170f)
-        if (ImGui.button("< Prev", 80f, 0f)) {
-            advanceSetlist(-1)
-        }
-        ImGui.sameLine()
-        if (ImGui.button("Next >", 80f, 0f)) {
-            advanceSetlist(1)
-        }
         
         ImGui.endChild()
         ImGui.popStyleColor()
@@ -148,6 +152,13 @@ class MixerMonitorPanel(
         
         val endY = ImGui.getCursorScreenPosY()
         ImGui.setCursorScreenPos(startX, endY)
+        
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+
+        // --- Play Queue ---
+        PlayQueuePanel.draw(mixer)
     }
 
     fun drawFlatSlider(

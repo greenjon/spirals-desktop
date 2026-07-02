@@ -199,6 +199,13 @@ data class GlobalPatchDto(
     val setlistPrev: ParameterDto? = null
 )
 
+@Serializable
+data class PlaylistDto(
+    val version: Int = 1,
+    val name: String,
+    val items: List<String> // List of .lsd file names (relative to presets/decks)
+)
+
 // --- Extension Converters ---
 
 fun CvModulator.toDto(): ModulatorDto = ModulatorDto(

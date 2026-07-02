@@ -25,6 +25,7 @@ import imgui.glfw.ImGuiImplGlfw
 import llm.slop.spirals.parameters.ModulatableParameter
 import llm.slop.spirals.models.toDto
 import llm.slop.spirals.models.applyDto
+import llm.slop.spirals.patches.PlayQueueManager
 
 /**
  * Manages the ImGui overlay for desktop control.
@@ -126,7 +127,7 @@ class UIManager(private val windowHandle: Long) {
         onTriggerExitFlow = { triggerExitFlow() },
         onOpenSettings = { pendingOpenSettings = true },
         onOpenAudioEngineMonitor = { pendingOpenAudioEngineMonitor = true },
-        onOpenSetlist = { pendingOpenSetlist = true }
+        onOpenPlaylistEditor = { pendingOpenPlaylistEditor = true }
     )
 
     // Phase 2 — Deck preset browsers (replaces flat ImGui.combo)
@@ -134,7 +135,7 @@ class UIManager(private val windowHandle: Long) {
     private val deckBBrowser = DeckPresetBrowser("B")
 
     // Phase 3b — Setlist panel
-    private var pendingOpenSetlist = false
+    private var pendingOpenPlaylistEditor = false
 
     private var lastNextMidiCcHigh = false
     private var lastPrevMidiCcHigh = false
@@ -306,7 +307,11 @@ class UIManager(private val windowHandle: Long) {
         }
         val totalDelta = midiCcDelta + cvDelta + keyDelta
         if (totalDelta != 0) {
-            projectManager.advanceSetlist(totalDelta)
+            if (totalDelta > 0) {
+                PlayQueueManager.triggerNext(mixer)
+            } else {
+                projectManager.advanceSetlist(totalDelta)
+            }
         }
 
         pendingFontSize?.let { newSize ->
@@ -345,9 +350,9 @@ class UIManager(private val windowHandle: Long) {
                 ImGui.openPopup("No MIDI Devices Connected##midi_warning")
                 popupManager.pendingOpenMidiWarningPopup = false
             }
-            if (pendingOpenSetlist) {
-                SetlistPanel.open()
-                pendingOpenSetlist = false
+            if (pendingOpenPlaylistEditor) {
+                PlaylistPanel.open()
+                pendingOpenPlaylistEditor = false
             }
             drawLayout(mixer, displayWidth, displayHeight)
 
@@ -398,16 +403,9 @@ class UIManager(private val windowHandle: Long) {
                 llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, false)
             }
 
-            SetlistPanel.draw(
-                currentFile  = projectManager.currentGlobalPatchFile,
-                isDirty      = llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer),
-                onLoad       = { file -> projectManager.performLoadFromSetlist(file) },
-                onLoadDirty  = { file ->
-                    projectManager.pendingSetlistFile = file
-                    projectManager.pendingProjectAction = ProjectManager.PendingProjectAction.LOAD_SETLIST
-                    popupManager.pendingOpenConfirmPopup = true
-                }
-            )
+            PlaylistPanel.draw()
+
+            PlayQueuePanel.drawPopups()
         }
 
         ImGui.render()
@@ -458,7 +456,10 @@ class UIManager(private val windowHandle: Long) {
 
     private fun loadDeckPreset(presetName: String, deck: Deck, isDeckA: Boolean) {
         if (presetName == "None") return
-        val file = File("presets/decks/$presetName.json")
+        var file = File("presets/decks/$presetName.lsd")
+        if (!file.exists()) {
+            file = File("presets/decks/$presetName.json")
+        }
         if (file.exists()) {
             llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, isDeckA)
         }
@@ -487,7 +488,7 @@ class UIManager(private val windowHandle: Long) {
             llm.slop.spirals.patches.PatchManager.activePresetB = name
             llm.slop.spirals.patches.PatchManager.cachedDtoB = dto
         }
-        val file = File("presets/decks/$name.json")
+        val file = File("presets/decks/$name.lsd")
         llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name, resolvedTags)
     }
 

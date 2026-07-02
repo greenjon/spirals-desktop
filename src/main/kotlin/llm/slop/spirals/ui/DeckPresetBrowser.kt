@@ -278,7 +278,7 @@ class DeckPresetBrowser(
     // ── Preset scanning ───────────────────────────────────────────────────────
 
     /**
-     * Reads all `.json` files from `presets/decks/`, deserialises just enough
+     * Reads all `.lsd` and `.json` files from `presets/decks/`, deserialises just enough
      * to extract the `tags` field, and rebuilds [allPresets] and [allTags].
      *
      * This runs on the render (main) thread — file I/O is acceptable here
@@ -289,7 +289,7 @@ class DeckPresetBrowser(
         val dir = File("presets/decks")
         if (!dir.exists()) dir.mkdirs()
 
-        val files = dir.listFiles { _, name -> name.endsWith(".json") }
+        val files = dir.listFiles { _, name -> name.endsWith(".lsd") || name.endsWith(".json") }
             ?.sortedBy { it.nameWithoutExtension.lowercase() }
             ?: emptyList()
 
