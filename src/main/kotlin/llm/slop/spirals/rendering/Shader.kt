@@ -18,31 +18,56 @@ class Shader(vertexSource: String, fragmentSource: String) {
     private val uniformLocationCache = mutableMapOf<String, Int>()
 
     init {
-        // Compile vertex shader
-        vertexId = compileShader(GL_VERTEX_SHADER, vertexSource)
-        
-        // Compile fragment shader
-        fragmentId = compileShader(GL_FRAGMENT_SHADER, fragmentSource)
-        
-        // Link program
-        programId = glCreateProgram()
-        glAttachShader(programId, vertexId)
-        glAttachShader(programId, fragmentId)
-        glLinkProgram(programId)
-        
-        // Check link status
-        if (glGetProgrami(programId, GL_LINK_STATUS) == GL_FALSE) {
-            val log = glGetProgramInfoLog(programId)
-            throw RuntimeException("Shader program linking failed:\n$log")
+        var vId = 0
+        var fId = 0
+        var pId = 0
+        try {
+            // Compile vertex shader
+            vId = compileShader(GL_VERTEX_SHADER, vertexSource)
+            
+            // Compile fragment shader
+            fId = compileShader(GL_FRAGMENT_SHADER, fragmentSource)
+            
+            // Link program
+            pId = glCreateProgram()
+            if (pId == 0) {
+                throw RuntimeException("Failed to create shader program object.")
+            }
+            glAttachShader(pId, vId)
+            glAttachShader(pId, fId)
+            glLinkProgram(pId)
+            
+            // Check link status
+            if (glGetProgrami(pId, GL_LINK_STATUS) == GL_FALSE) {
+                val log = glGetProgramInfoLog(pId)
+                throw RuntimeException("Shader program linking failed:\n$log")
+            }
+            
+            // Validate program
+            glValidateProgram(pId)
+            if (glGetProgrami(pId, GL_VALIDATE_STATUS) == GL_FALSE) {
+                logger.warn { "Shader program validation warning:\n${glGetProgramInfoLog(pId)}" }
+            }
+            
+            vertexId = vId
+            fragmentId = fId
+            programId = pId
+            logger.debug { "Created shader program $programId" }
+        } catch (e: Exception) {
+            // Clean up whatever was created to prevent OpenGL leaks on failure
+            if (pId != 0) {
+                if (vId != 0) glDetachShader(pId, vId)
+                if (fId != 0) glDetachShader(pId, fId)
+                glDeleteProgram(pId)
+            }
+            if (vId != 0) {
+                glDeleteShader(vId)
+            }
+            if (fId != 0) {
+                glDeleteShader(fId)
+            }
+            throw e
         }
-        
-        // Validate program
-        glValidateProgram(programId)
-        if (glGetProgrami(programId, GL_VALIDATE_STATUS) == GL_FALSE) {
-            logger.warn { "Shader program validation warning:\n${glGetProgramInfoLog(programId)}" }
-        }
-        
-        logger.debug { "Created shader program $programId" }
     }
 
     /**

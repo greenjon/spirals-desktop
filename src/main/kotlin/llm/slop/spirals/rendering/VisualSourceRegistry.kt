@@ -34,8 +34,22 @@ object VisualSourceRegistry {
         }
     """.trimIndent()
 
-    fun loadAll() {
+    /**
+     * Disposes of all loaded master sources, deleting their shaders and FBOs.
+     */
+    fun disposeAll() {
+        for (source in availableSources) {
+            try {
+                source.dispose()
+            } catch (e: Exception) {
+                logger.error(e) { "Error disposing visual source: ${source.displayName}" }
+            }
+        }
         availableSources.clear()
+    }
+
+    fun loadAll() {
+        disposeAll()
         
         val sourcesDir = File("presets/sources")
         if (!sourcesDir.exists()) {
@@ -92,7 +106,8 @@ object VisualSourceRegistry {
                     displayName = meta.name,
                     shader = shader,
                     parameters = parameters,
-                    hasFeedback = meta.feedback
+                    hasFeedback = meta.feedback,
+                    ownsShader = true // Master instance owns the shader
                 )
                 availableSources.add(dynamicSource)
                 logger.info { "Loaded dynamic visual source: ${meta.name} (${meta.id})" }

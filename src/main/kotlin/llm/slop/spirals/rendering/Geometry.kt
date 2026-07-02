@@ -117,6 +117,17 @@ object Geometry {
     }
 
     /**
+     * Deletes the secondary VAO. MUST be called while the secondary OpenGL context is current!
+     */
+    fun deleteSecondaryVAO() {
+        if (secondaryFullscreenQuadVAO != 0) {
+            glDeleteVertexArrays(secondaryFullscreenQuadVAO)
+            secondaryFullscreenQuadVAO = 0
+            logger.debug { "Deleted secondary fullscreen quad VAO" }
+        }
+    }
+
+    /**
      * Resets the secondary VAO reference. Call this when the secondary window context is destroyed.
      */
     fun resetSecondaryContext() {

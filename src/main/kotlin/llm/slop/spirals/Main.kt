@@ -296,6 +296,7 @@ fun main() {
     deckA.dispose()
     deckB.dispose()
     mixer.dispose()
+    llm.slop.spirals.rendering.VisualSourceRegistry.disposeAll()
     Geometry.dispose()
 
     // Dispose UI
@@ -351,8 +352,12 @@ private fun createSecondaryWindow(primaryWindow: Long): Long {
 
 private fun destroySecondaryWindow(win: Long) {
     if (win != 0L) {
+        val mainContext = glfwGetCurrentContext()
+        glfwMakeContextCurrent(win)
+        Geometry.deleteSecondaryVAO()
+        glfwMakeContextCurrent(mainContext)
+
         glfwDestroyWindow(win)
-        Geometry.resetSecondaryContext()
         logger.info { "Destroyed secondary window" }
     }
 }

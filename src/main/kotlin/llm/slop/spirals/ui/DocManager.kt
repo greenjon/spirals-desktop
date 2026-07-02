@@ -70,22 +70,27 @@ object DocManager {
 
     private fun extractFromJar(jarUrl: URL) {
         val connection = jarUrl.openConnection() as JarURLConnection
+        connection.useCaches = false
         val jarFile: JarFile = connection.jarFile
-        val entries = jarFile.entries()
+        try {
+            val entries = jarFile.entries()
 
-        while (entries.hasMoreElements()) {
-            val entry = entries.nextElement()
-            if (entry.name.startsWith("$RESOURCE_DIR/") && !entry.isDirectory) {
-                val relativePath = entry.name.substring(RESOURCE_DIR.length + 1)
-                val destFile = File(localDocsDir, relativePath)
-                destFile.parentFile.mkdirs()
+            while (entries.hasMoreElements()) {
+                val entry = entries.nextElement()
+                if (entry.name.startsWith("$RESOURCE_DIR/") && !entry.isDirectory) {
+                    val relativePath = entry.name.substring(RESOURCE_DIR.length + 1)
+                    val destFile = File(localDocsDir, relativePath)
+                    destFile.parentFile.mkdirs()
 
-                jarFile.getInputStream(entry).use { input ->
-                    FileOutputStream(destFile).use { output ->
-                        input.copyTo(output)
+                    jarFile.getInputStream(entry).use { input ->
+                        FileOutputStream(destFile).use { output ->
+                            input.copyTo(output)
+                        }
                     }
                 }
             }
+        } finally {
+            jarFile.close()
         }
     }
 

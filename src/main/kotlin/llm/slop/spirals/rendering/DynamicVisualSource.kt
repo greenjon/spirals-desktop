@@ -23,13 +23,29 @@ data class SourceMeta(
     val feedback: Boolean = false
 )
 
+/**
+ * DynamicVisualSource represents a visual generator driven by a custom fragment shader.
+ *
+ * SHADER OWNERSHIP MODEL:
+ * Shaders are relatively heavy, stateless OpenGL program objects. Creating and compiling them for every
+ * cloned instance (e.g., inside each Deck) is unnecessary and wasteful. Therefore, we use a shared
+ * shader ownership model:
+ * 1. The "master" instances of DynamicVisualSource loaded and managed by [VisualSourceRegistry] are the exclusive
+ *    owners of their [shader] objects. For these master instances, [ownsShader] is set to `true`.
+ * 2. When a deck clones a master instance (via [clone]), the clone references the same [shader] instance
+ *    but has [ownsShader] set to `false`.
+ * 3. Calling [dispose] on a master instance will delete the underlying OpenGL shader program because it owns it.
+ *    Calling [dispose] on a cloned instance will release any local resources (like feedback FBOs) but will NOT
+ *    dispose of the shared [shader], as it does not own it.
+ */
 class DynamicVisualSource(
     val id: String,
     val displayName: String,
     val shader: Shader,
     override val parameters: LinkedHashMap<String, ModulatableParameter>,
     override val globalAlpha: ModulatableParameter = ModulatableParameter(1.0f),
-    val hasFeedback: Boolean = false
+    val hasFeedback: Boolean = false,
+    val ownsShader: Boolean = false // Only the master instances in the registry own the shader
 ) : VisualSource {
     var fb1: FBO? = null
     var fb2: FBO? = null
@@ -47,6 +63,9 @@ class DynamicVisualSource(
         fb2?.dispose()
         fb1 = null
         fb2 = null
+        if (ownsShader) {
+            shader.dispose()
+        }
     }
 
     override fun clear() {
@@ -65,7 +84,8 @@ class DynamicVisualSource(
             shader = this.shader,
             parameters = clonedParams,
             globalAlpha = this.globalAlpha.clone(),
-            hasFeedback = this.hasFeedback
+            hasFeedback = this.hasFeedback,
+            ownsShader = false // Cloned instances do not own the shared shader
         )
     }
 }
