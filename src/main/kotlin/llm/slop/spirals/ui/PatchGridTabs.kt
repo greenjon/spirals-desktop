@@ -160,7 +160,7 @@ object PatchGridTabs {
         val mandala = activeSource as? Mandala
 
         if (mandala != null) {
-            // ── View ──────────────────────────────────────────────────────────
+            // -- View ----------------------------------------------------------
             drawSubGroupContent(deckLabel, "View", state) {
                 PatchGridRenderer.drawParamRow("Zoom",     "$deckLabel/View/Zoom",   mandala.parameters["Zoom"]!!,     state, labelColW, mixer, gridStartX, 0, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
                 PatchGridRenderer.drawParamRow("Rotate Z", "$deckLabel/View/RotateZ", mandala.parameters["Rotate Z"]!!, state, labelColW, mixer, gridStartX, 1, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
@@ -174,7 +174,7 @@ object PatchGridTabs {
                 }
             }
 
-            // ── Geometry ──────────────────────────────────────────────────────
+            // -- Geometry ------------------------------------------------------
             drawSubGroupContent(deckLabel, "Geometry", state) {
                 var row = 0
                 PatchGridRenderer.drawParamRow("Lobe Count",    "$deckLabel/Geometry/Lobes",       mandala.parameters["Lobes"]!!,         state, labelColW, mixer, gridStartX, row++, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
@@ -210,7 +210,7 @@ object PatchGridTabs {
                 }
             }
 
-            // ── Color ─────────────────────────────────────────────────────────
+            // -- Color ---------------------------------------------------------
             drawSubGroupContent(deckLabel, "Color", state) {
                 PatchGridRenderer.drawParamRow("Thickness",  "$deckLabel/Color/Thickness",  mandala.parameters["Thickness"]!!,  state, labelColW, mixer, gridStartX, 0, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
                 PatchGridRenderer.drawParamRow("Hue Offset", "$deckLabel/Color/HueOffset",  mandala.parameters["Hue Offset"]!!, state, labelColW, mixer, gridStartX, 1, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
@@ -219,7 +219,7 @@ object PatchGridTabs {
                 PatchGridRenderer.drawParamRow("Gain",       "$deckLabel/Color/Gain",       mandala.globalAlpha,                state, labelColW, mixer, gridStartX, 4, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
             }
 
-            // ── Background ────────────────────────────────────────────────────
+            // -- Background ----------------------------------------------------
             drawSubGroupContent(deckLabel, "Background", state) {
                 PatchGridRenderer.drawParamRow("Bg Style",    "$deckLabel/Background/Style",    mandala.parameters["Bg Style"]!!,    state, labelColW, mixer, gridStartX, 0, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
                 PatchGridRenderer.drawParamRow("Bg Feedback", "$deckLabel/Background/Feedback", mandala.parameters["Bg Feedback"]!!, state, labelColW, mixer, gridStartX, 1, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
@@ -258,7 +258,7 @@ object PatchGridTabs {
             }
         }
 
-        // ── Feedback (always present for every deck source) ───────────────────
+        // -- Feedback (always present for every deck source) -------------------
         drawSubGroupContent(deckLabel, "Feedback", state) {
             PatchGridRenderer.drawParamRow("Feedback",     "$deckLabel/FB/Decay",    deck.fbDecay,    state, labelColW, mixer, gridStartX, 0, getCvColumns, getColumnOffset, getCvColor, onPushUndo)
             PatchGridRenderer.drawParamRow("FB Gain",      "$deckLabel/FB/Gain",     deck.fbGain,     state, labelColW, mixer, gridStartX, 1, getCvColumns, getColumnOffset, getCvColor, onPushUndo)

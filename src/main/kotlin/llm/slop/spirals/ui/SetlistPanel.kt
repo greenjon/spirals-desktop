@@ -13,7 +13,7 @@ import java.io.File
  * ordering control, e.g. `01_Intro.json`, `02_Build.json`).
  *
  * Clicking a row fires [onLoad] with the chosen [File].  The caller is
- * responsible for the "unsaved changes" guard — [onLoad] is only invoked
+ * responsible for the "unsaved changes" guard -- [onLoad] is only invoked
  * after the guard has been satisfied (or there are no unsaved changes).
  *
  * The panel is rendered as a collapsible `ImGui.beginPopupModal` triggered
@@ -25,12 +25,12 @@ object SetlistPanel {
 
     private val presetsDir = File("presets/global")
 
-    // ── State ─────────────────────────────────────────────────────────────────
+    // -- State -----------------------------------------------------------------
 
     private var pendingOpen = false
     private var entries: List<File> = emptyList()
 
-    // ── Public API ────────────────────────────────────────────────────────────
+    // -- Public API ------------------------------------------------------------
 
     /** Schedule the panel to open on the next [draw] call. */
     fun open() {
@@ -61,7 +61,7 @@ object SetlistPanel {
      *                      and there are no unsaved changes, or after the caller has
      *                      handled the unsaved-changes guard.
      * @param onLoadDirty   Called with the chosen [File] when the user clicks a row
-     *                      but [isDirty] is true — the caller should show the
+     *                      but [isDirty] is true -- the caller should show the
      *                      "unsaved changes" confirm popup and then call [onLoad].
      */
     fun draw(
@@ -94,7 +94,7 @@ object SetlistPanel {
         }
 
         ImGui.spacing()
-        ImGui.textDisabled("presets/global/  —  click a project to load it")
+        ImGui.textDisabled("presets/global/  --  click a project to load it")
         ImGui.separator()
 
         // Scrollable list
@@ -134,13 +134,13 @@ object SetlistPanel {
         ImGui.endPopup()
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // -- Private helpers -------------------------------------------------------
 
     private const val POPUP_ID = "Setlist###setlistPanel"
 
     /**
      * Reads `presets/global/` and rebuilds [entries] sorted alphabetically.
-     * Numeric prefixes (`01_`, `02_`, …) give the VJ full ordering control.
+     * Numeric prefixes (`01_`, `02_`, ...) give the VJ full ordering control.
      */
     private fun scan() {
         if (!presetsDir.exists()) presetsDir.mkdirs()

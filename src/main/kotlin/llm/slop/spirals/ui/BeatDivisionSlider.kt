@@ -97,7 +97,7 @@ object BeatDivisionSlider {
 
         val rangeSpan = maxLimit - minLimit
 
-        // ─── ROW 1: Labels ───
+        // --- ROW 1: Labels ---
         if (isRandomizable) {
             ImGui.setCursorScreenPos(textBoxesStartX, startY + 2f)
             UITheme.captionColored(0.6f, 0.6f, 0.6f, 0.7f, "Min")
@@ -121,7 +121,7 @@ object BeatDivisionSlider {
             UITheme.captionColored(0.6f, 0.6f, 0.6f, 0.7f, "Current")
         }
 
-        // ─── ROW 2: Widgets ───
+        // --- ROW 2: Widgets ---
         val row2Y = startY + 18f
 
         // Render name of variable beside the die, to its left, sharing vertical center
@@ -193,7 +193,7 @@ object BeatDivisionSlider {
             dl.addCircleFilled(centerX + offset, centerYBtn + offset, dotRadius, spotColor)
         }
 
-        // ─── Combo dropdowns instead of text inputs ───
+        // --- Combo dropdowns instead of text inputs ---
         if (isRandomizable) {
             // Min combo
             val minIdx = ImInt(currentMin.toInt().coerceIn(0, subdivisionLabels.size - 1))
@@ -233,7 +233,7 @@ object BeatDivisionSlider {
             ImGui.popItemWidth()
         }
 
-        // ─── Dragging & Slider Render ───
+        // --- Dragging & Slider Render ---
         val mousePressed = ImGui.isMouseClicked(0)
         val mouseDown = ImGui.isMouseDown(0)
 

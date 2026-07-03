@@ -37,12 +37,12 @@ class DeckControlPanel(
         val menuBtnW = 50f
         val browserBtnW = (fixedWidth - menuBtnW - ImGui.getStyle().itemSpacing.x).coerceAtLeast(50f)
 
-        // ── Preset browser trigger button ─────────────────────────────────────
+        // -- Preset browser trigger button -------------------------------------
         if (ImGui.button("$displayName##presetBtn_$label", browserBtnW, 0f)) {
             browser.open()
         }
 
-        // ── Menu button ───────────────────────────────────────────────────────
+        // -- Menu button -------------------------------------------------------
         var openDeleteConfirm = false
 
         ImGui.sameLine()
@@ -62,7 +62,7 @@ class DeckControlPanel(
 
             if (ImGui.menuItem("Save")) {
                 if (activePreset != null) onSaveDeck(activePreset, deck, isDeckA)
-                else browser.open()   // no active preset → open browser to save as new
+                else browser.open()   // no active preset -> open browser to save as new
             }
             if (ImGui.menuItem("Save As...")) {
                 browser.open()        // browser's built-in Save As modal handles tags
@@ -79,7 +79,7 @@ class DeckControlPanel(
 
         if (openDeleteConfirm) ImGui.openPopup("delete_deck_preset_popup_$label")
 
-        // ── Delete confirmation modal ─────────────────────────────────────────
+        // -- Delete confirmation modal -----------------------------------------
         if (ImGui.beginPopupModal("delete_deck_preset_popup_$label", ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text("Permanently delete '$activePreset'?")
             ImGui.spacing()

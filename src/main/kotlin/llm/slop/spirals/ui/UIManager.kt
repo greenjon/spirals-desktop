@@ -129,7 +129,7 @@ class UIManager(private val windowHandle: Long) {
         onOpenAudioEngineMonitor = { pendingOpenAudioEngineMonitor = true }
     )
 
-    // Phase 2 — Deck preset browsers (replaces flat ImGui.combo)
+    // Phase 2 -- Deck preset browsers (replaces flat ImGui.combo)
     private val deckABrowser = DeckPresetBrowser("A")
     private val deckBBrowser = DeckPresetBrowser("B")
 
@@ -424,7 +424,7 @@ class UIManager(private val windowHandle: Long) {
 
 
     /**
-     * Phase 2: deck preset "Load File…" now opens the ImGui file browser
+     * Phase 2: deck preset "Load File..." now opens the ImGui file browser
      * pointed at `presets/decks/` instead of `java.awt.FileDialog`.
      *
      * The browser is shared with the global project browser but uses a

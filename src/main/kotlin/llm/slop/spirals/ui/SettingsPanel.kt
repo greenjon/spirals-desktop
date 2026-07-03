@@ -40,12 +40,12 @@ object SettingsPanel {
 
         if (!ImGui.beginPopupModal(POPUP_ID, flags)) return
 
-        // ── Width anchor — ensures the modal is never narrower than MODAL_W ──
-        ImGui.dummy(MODAL_W - 32f, 1f)   // 32 = 2 × default window padding
+        // -- Width anchor -- ensures the modal is never narrower than MODAL_W --
+        ImGui.dummy(MODAL_W - 32f, 1f)   // 32 = 2 x default window padding
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Fonts section
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         ImGui.spacing()
         UITheme.h2("Fonts")
         ImGui.separator()
@@ -71,14 +71,14 @@ object SettingsPanel {
                 "H1 ${(currentSize * t.multH1).toInt()}  px"
             )
 
-            // Right: [–]  15 px  [+]  (vertically centred in the row)
+            // Right: [-]  15 px  [+]  (vertically centred in the row)
             ImGui.tableSetColumnIndex(1)
             ImGui.spacing()
 
             val canDecrease = currentSize > MIN_SIZE
             val canIncrease = currentSize < MAX_SIZE
 
-            // Dim the – button when at minimum
+            // Dim the - button when at minimum
             if (!canDecrease) ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.35f)
             if (ImGui.button("  -  ##dec") && canDecrease)
                 onSizeChanged(currentSize - STEP)
@@ -99,9 +99,9 @@ object SettingsPanel {
             ImGui.endTable()
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Audio Engine Settings
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         ImGui.spacing()
         UITheme.h2("Audio")
         ImGui.separator()
@@ -128,9 +128,9 @@ object SettingsPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Video Settings
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         UITheme.h2("Video")
         ImGui.separator()
         ImGui.spacing()
@@ -151,9 +151,9 @@ object SettingsPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Interface Settings
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         UITheme.h2("Interface")
         ImGui.separator()
         ImGui.spacing()
@@ -175,9 +175,9 @@ object SettingsPanel {
         ImGui.separator()
         ImGui.spacing()
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Setlist & Live Mode Settings
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         UITheme.h2("Setlist & Live Mode")
         ImGui.separator()
         ImGui.spacing()

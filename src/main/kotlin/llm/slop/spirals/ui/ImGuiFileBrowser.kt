@@ -27,7 +27,7 @@ import java.io.File
  * ```
  *
  * Thread safety: all `java.io.File` calls happen on the render (main) thread,
- * which is correct — they must never run on the JACK audio thread.
+ * which is correct -- they must never run on the JACK audio thread.
  */
 class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
 
@@ -35,7 +35,7 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
 
     enum class Mode { LOAD, SAVE }
 
-    // ── State ─────────────────────────────────────────────────────────────────
+    // -- State -----------------------------------------------------------------
 
     internal var mode: Mode = Mode.LOAD
     private var currentDir: File = File("presets/global").canonicalFile
@@ -50,7 +50,7 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
     private var listing: List<File> = emptyList()
     private var listingDir: File? = null   // which dir the listing was built for
 
-    // ── Public API ────────────────────────────────────────────────────────────
+    // -- Public API ------------------------------------------------------------
 
     /**
      * Schedule the browser to open on the next [draw] call.
@@ -113,7 +113,7 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
         ImGui.endPopup()
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // -- Private helpers -------------------------------------------------------
 
     private fun popupId() = if (mode == Mode.SAVE) "Save Project###$id" else "Load Project###$id"
 
@@ -201,7 +201,7 @@ class ImGuiFileBrowser(private val id: String = "##fileBrowser") {
                 filenameInput.set(entry.nameWithoutExtension)
                 // We can't call onConfirm here (no closure), so we just pre-select;
                 // the confirm button logic below will fire on the same frame via
-                // the flag approach — but double-click confirm is handled in drawButtons.
+                // the flag approach -- but double-click confirm is handled in drawButtons.
                 pendingDoubleClickConfirm = true
             }
         }

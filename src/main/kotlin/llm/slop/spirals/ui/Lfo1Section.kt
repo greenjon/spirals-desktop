@@ -119,7 +119,7 @@ object Lfo1Section {
 
             ImGui.spacing()
 
-            // ── Unit Selection Dropdown (Time/Beat) if applicable ──
+            // -- Unit Selection Dropdown (Time/Beat) if applicable --
             if (isGen) {
                 UITheme.body("LFO 1 Unit:")
                 ImGui.sameLine(0f, 10f)
@@ -138,7 +138,7 @@ object Lfo1Section {
 
         ImGui.spacing()
 
-        // ── DC Offset ─────────────────────────────────────────────
+        // -- DC Offset ---------------------------------------------
         CustomRangeSlider.drawCustomRangeSlider(
             idPrefix = existing.id,
             label = "DC Offset",
@@ -195,7 +195,7 @@ object Lfo1Section {
         )
         ImGui.spacing()
 
-        // ── Amplitude ─────────────────────────────────────────────
+        // -- Amplitude ---------------------------------------------
         CustomRangeSlider.drawCustomRangeSlider(
             idPrefix = existing.id,
             label = "Amplitude",
@@ -256,7 +256,7 @@ object Lfo1Section {
             return
         }
 
-        // ── Subdivision (Beat / S&H) ─────────────────────────────
+        // -- Subdivision (Beat / S&H) -----------------------------
         if (isBeat || isSnh || (isGen && existing.genUnit == GenUnit.BEAT)) {
             val subdivisionOptions = BeatDivisionSlider.subdivisionOptions
             val subdivisionLabels = BeatDivisionSlider.subdivisionLabels
@@ -327,7 +327,7 @@ object Lfo1Section {
             ImGui.spacing()
         }
 
-        // ── LFO Period / Speed ───────────────────────────────────
+        // -- LFO Period / Speed -----------------------------------
         if (isLfo || (isGen && existing.genUnit == GenUnit.TIME)) {
             val formatFunc: (Float) -> String = { v -> TimeUtils.formatPeriod(v) }
             val parseFunc: (String) -> Float? = { s -> TimeUtils.parsePeriod(s) }
@@ -395,7 +395,7 @@ object Lfo1Section {
             ImGui.spacing()
         }
 
-        // ── Phase Offset ─────────────────────────────────────────
+        // -- Phase Offset -----------------------------------------
         CustomRangeSlider.drawCustomRangeSlider(
             idPrefix = existing.id,
             label = if (isGen) "LFO 1 Phase" else "Phase Offset",
@@ -452,7 +452,7 @@ object Lfo1Section {
         )
         ImGui.spacing()
 
-        // ── Morph Slider ──
+        // -- Morph Slider --
         CustomRangeSlider.drawCustomRangeSlider(
             idPrefix = existing.id + "_morph",
             label = if (isGen) "LFO 1 Morph" else "Morph",
@@ -509,7 +509,7 @@ object Lfo1Section {
         )
         ImGui.spacing()
 
-        // ── Hold Slider ──
+        // -- Hold Slider --
         CustomRangeSlider.drawCustomRangeSlider(
             idPrefix = existing.id + "_hold",
             label = if (isGen) "LFO 1 Hold" else "Hold",
@@ -566,7 +566,7 @@ object Lfo1Section {
         )
         ImGui.spacing()
 
-        // ── Slew / Slope Slider (only if not Random) ──
+        // -- Slew / Slope Slider (only if not Random) --
         if (existing.waveform != Waveform.RANDOM) {
             CustomRangeSlider.drawCustomRangeSlider(
                 idPrefix = existing.id,

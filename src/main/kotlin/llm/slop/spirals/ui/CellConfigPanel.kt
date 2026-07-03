@@ -143,14 +143,14 @@ object CellConfigPanel {
         val combinedVal = llm.slop.spirals.cv.getCombinedEffectiveValue(activeMods, isBipolar)
         activeHistory?.add(combinedVal)
 
-        // ── Unified Oscilloscope ─────────────────────────────────
+        // -- Unified Oscilloscope ---------------------------------
         OscilloscopeDrawer.drawOscilloscope(param, themeColor, activeHistory)
 
         ImGui.spacing()
         ImGui.separator()
         ImGui.spacing()
 
-        // ── Modulators ───────────────────────────────────────────
+        // -- Modulators -------------------------------------------
         for ((idx, existing) in modsToDraw.withIndex()) {
             ImGui.pushID(existing.id)
             

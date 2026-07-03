@@ -23,18 +23,18 @@ import java.io.File
  * the user can attach tags when saving a new preset.
  */
 class DeckPresetBrowser(
-    /** Unique suffix used to namespace ImGui IDs — pass "A" or "B". */
+    /** Unique suffix used to namespace ImGui IDs -- pass "A" or "B". */
     private val deckLabel: String
 ) {
     private val logger = KotlinLogging.logger {}
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    // ── Popup state ───────────────────────────────────────────────────────────
+    // -- Popup state -----------------------------------------------------------
 
     private var pendingOpen = false
 
-    // ── Scan results ──────────────────────────────────────────────────────────
+    // -- Scan results ----------------------------------------------------------
 
     data class PresetEntry(
         val name: String,
@@ -45,18 +45,18 @@ class DeckPresetBrowser(
     private var allPresets: List<PresetEntry> = emptyList()
     private var allTags: List<String> = emptyList()
 
-    // ── Filter state ──────────────────────────────────────────────────────────
+    // -- Filter state ----------------------------------------------------------
 
     private val searchInput = ImString(64)
     private val activeTags = mutableSetOf<String>()
 
-    // ── Save-As state (Phase 2c) ──────────────────────────────────────────────
+    // -- Save-As state (Phase 2c) ----------------------------------------------
 
     private var showSaveAs = false
     private val saveAsName = ImString(64)
     private val saveAsTags = ImString(128)   // comma-separated
 
-    // ── Public API ────────────────────────────────────────────────────────────
+    // -- Public API ------------------------------------------------------------
 
     /** Schedule the browser to open on the next [draw] call. */
     fun open() {
@@ -111,7 +111,7 @@ class DeckPresetBrowser(
         ImGui.endPopup()
     }
 
-    // ── Private drawing helpers ───────────────────────────────────────────────
+    // -- Private drawing helpers -----------------------------------------------
 
     private fun drawSearchBar() {
         ImGui.text("Search:")
@@ -148,7 +148,7 @@ class DeckPresetBrowser(
         }
         // Clear tags button
         if (activeTags.isNotEmpty()) {
-            if (ImGui.button("✕ Clear##clearTags$deckLabel")) {
+            if (ImGui.button("X Clear##clearTags$deckLabel")) {
                 activeTags.clear()
             }
         }
@@ -264,7 +264,7 @@ class DeckPresetBrowser(
         ImGui.endPopup()
     }
 
-    // ── Filtering ─────────────────────────────────────────────────────────────
+    // -- Filtering -------------------------------------------------------------
 
     private fun filteredPresets(): List<PresetEntry> {
         val query = searchInput.get().trim().lowercase()
@@ -275,13 +275,13 @@ class DeckPresetBrowser(
         }
     }
 
-    // ── Preset scanning ───────────────────────────────────────────────────────
+    // -- Preset scanning -------------------------------------------------------
 
     /**
      * Reads all `.lsd` and `.json` files from `presets/decks/`, deserialises just enough
      * to extract the `tags` field, and rebuilds [allPresets] and [allTags].
      *
-     * This runs on the render (main) thread — file I/O is acceptable here
+     * This runs on the render (main) thread -- file I/O is acceptable here
      * because it only happens on explicit user action (open / refresh), not
      * every frame.
      */

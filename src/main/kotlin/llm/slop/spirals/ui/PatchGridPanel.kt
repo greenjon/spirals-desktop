@@ -118,7 +118,7 @@ object PatchGridPanel {
                     PatchGridRenderer.drawParamRow("Deck A Source", "Deck A/FB/Source",   mixer.deckA.sourceSelect, state, labelColW, mixer, gridStartX, 0, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("Deck B Source", "Deck B/FB/Source",   mixer.deckB.sourceSelect, state, labelColW, mixer, gridStartX, 1, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer, gridStartX, 2, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow("master α",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 3, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    PatchGridRenderer.drawParamRow("master Alpha",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 3, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer, gridStartX, 4, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("setlist prev", "Mixer/setlistPrev", mixer.setlistPrev, state, labelColW, mixer, gridStartX, 5, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("setlist next", "Mixer/setlistNext", mixer.setlistNext, state, labelColW, mixer, gridStartX, 6, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
@@ -132,7 +132,7 @@ object PatchGridPanel {
         ImGui.endChild()
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // -- Helpers --------------------------------------------------------------
 
     private fun drawColumnHeaders(labelColW: Float, state: PatchGridState, mixer: Mixer) {
         val dl = ImGui.getWindowDrawList()

@@ -68,7 +68,7 @@ object AssetBrowserPanel {
         val mainWidth = width - sidebarWidth
 
         if (ImGui.beginMenuBar()) {
-            if (ImGui.smallButton(if (showSidebar) "◀" else "▶")) {
+            if (ImGui.smallButton(if (showSidebar) "<" else ">")) {
                 showSidebar = !showSidebar
             }
             ImGui.sameLine()
@@ -137,46 +137,64 @@ object AssetBrowserPanel {
         }
         
         // Node 2: Playlists
-        val playlistsFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.SpanAvailWidth or
-            (if (currentView is LibraryView.PlaylistsRoot) ImGuiTreeNodeFlags.Selected else 0)
+        val isPlaylistsActive = currentView is LibraryView.PlaylistsRoot || currentView is LibraryView.SpecificPlaylist
+        val playlistsFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.OpenOnDoubleClick or ImGuiTreeNodeFlags.SpanAvailWidth or
+            (if (isPlaylistsActive) ImGuiTreeNodeFlags.Selected else 0)
         val playlistsOpened = ImGui.treeNodeEx("Playlists", playlistsFlags)
-        if (ImGui.isItemClicked()) {
+        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) {
             currentView = LibraryView.PlaylistsRoot
         }
         if (playlistsOpened) {
-            val playlistAssets = FileSystemManager.scanDirectory(FileSystemManager.getPlaylistsRoot())
-                .filter { it.type == AssetType.PLAYLIST }
-            
-            playlistAssets.forEachIndexed { index, asset ->
+            drawPlaylistsSidebarTree(FileSystemManager.getPlaylistsRoot())
+            ImGui.treePop()
+        }
+        
+        // Node 3: Patches
+        val patchesRoot = FileSystemManager.getPatchesRoot()
+        val isPatchesActive = currentView is LibraryView.Patches
+        val patchesFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.OpenOnDoubleClick or ImGuiTreeNodeFlags.SpanAvailWidth or
+            (if (isPatchesActive) ImGuiTreeNodeFlags.Selected else 0)
+        
+        val patchesOpened = ImGui.treeNodeEx("Patches", patchesFlags)
+        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) {
+            currentView = LibraryView.Patches(patchesRoot)
+            refreshAssets()
+        }
+        if (patchesOpened) {
+            drawPatchesFolderTree(patchesRoot)
+            ImGui.treePop()
+        }
+    }
+    
+    private fun drawPlaylistsSidebarTree(root: File) {
+        val items = FileSystemManager.scanDirectory(root)
+        items.forEach { asset ->
+            if (asset.type == AssetType.FOLDER) {
+                val flags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.OpenOnDoubleClick or ImGuiTreeNodeFlags.SpanAvailWidth
+                val opened = ImGui.treeNodeEx("[D] ${asset.name}##sidebar_${asset.path}", flags)
+                if (opened) {
+                    drawPlaylistsSidebarTree(File(asset.path))
+                    ImGui.treePop()
+                }
+            } else if (asset.type == AssetType.PLAYLIST) {
                 val isPlaylistSelected = (currentView as? LibraryView.SpecificPlaylist)?.playlistFile?.absolutePath == asset.path
                 val itemFlags = ImGuiTreeNodeFlags.Leaf or ImGuiTreeNodeFlags.SpanAvailWidth or
                     (if (isPlaylistSelected) ImGuiTreeNodeFlags.Selected else 0)
                 
-                val itemOpened = ImGui.treeNodeEx("📋 ${asset.displayName}", itemFlags)
-                if (ImGui.isItemClicked()) {
+                val itemOpened = ImGui.treeNodeEx("[L] ${asset.displayName}##sidebar_${asset.path}", itemFlags)
+                if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) {
                     currentView = LibraryView.SpecificPlaylist(File(asset.path))
                 }
                 
-                // Support drag & drop target on specific playlist
                 if (ImGui.beginDragDropTarget()) {
                     val payload = ImGui.acceptDragDropPayload<String>("ASSET_ITEM")
                     if (payload != null) {
-                        val droppedFile = File(payload)
-                        if (droppedFile.extension.lowercase() in listOf("patch", "lsd", "json")) {
-                            PlaylistManager.loadPlaylist(File(asset.path)).onSuccess { playlist ->
-                                PlaylistManager.insertPatch(playlist, payload, playlist.patches.size).onSuccess {
-                                    PlaylistManager.savePlaylist(playlist).onSuccess {
-                                        logger.info { "Added patch ${droppedFile.name} to playlist ${asset.displayName} via sidebar drag-drop" }
-                                    }
-                                }
-                            }
-                        }
+                        handlePatchDropOnPlaylist(payload, File(asset.path))
                     }
                     ImGui.endDragDropTarget()
                 }
 
-                // Right-click context menu
-                if (ImGui.beginPopupContextItem("sidebar_playlist_context_menu_$index")) {
+                if (ImGui.beginPopupContextItem("sidebar_playlist_context_menu_${asset.path}")) {
                     if (ImGui.menuItem("Add to Queue")) {
                         PlayQueueManager.appendPlaylistToQueue(File(asset.path))
                     }
@@ -187,24 +205,25 @@ object AssetBrowserPanel {
                     ImGui.treePop()
                 }
             }
-            ImGui.treePop()
         }
-        
-        // Node 3: Patches
-        val patchesRoot = FileSystemManager.getPatchesRoot()
-        val isPatchesSelected = currentView is LibraryView.Patches && 
-            (currentView as LibraryView.Patches).currentDir.absolutePath == patchesRoot.absolutePath
-        val patchesFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.SpanAvailWidth or
-            (if (isPatchesSelected) ImGuiTreeNodeFlags.Selected else 0)
-        
-        val patchesOpened = ImGui.treeNodeEx("Patches", patchesFlags)
-        if (ImGui.isItemClicked()) {
-            currentView = LibraryView.Patches(patchesRoot)
-            refreshAssets()
-        }
-        if (patchesOpened) {
-            drawPatchesFolderTree(patchesRoot)
-            ImGui.treePop()
+    }
+    
+    private fun handlePatchDropOnPlaylist(patchPath: String, playlistFile: File) {
+        val droppedFile = File(patchPath)
+        if (droppedFile.extension.lowercase() in listOf("patch", "lsd", "json")) {
+            val playlistToModify = if (activePlaylistData?.filePath == playlistFile.absolutePath) {
+                activePlaylistData
+            } else {
+                PlaylistManager.loadPlaylist(playlistFile).getOrNull()
+            }
+            
+            playlistToModify?.let { playlist ->
+                PlaylistManager.insertPatch(playlist, patchPath, playlist.patches.size).onSuccess {
+                    PlaylistManager.savePlaylist(playlist).onSuccess {
+                        logger.info { "Added patch ${droppedFile.name} to playlist ${playlist.name} via sidebar drag-drop" }
+                    }
+                }
+            }
         }
     }
     
@@ -217,8 +236,8 @@ object AssetBrowserPanel {
             val nodeFlags = if (isSelected) flags or ImGuiTreeNodeFlags.Selected else flags
             val finalFlags = if (hasChildren) nodeFlags else nodeFlags or ImGuiTreeNodeFlags.Leaf
             
-            val opened = ImGui.treeNodeEx("📁 ${subDir.name}", finalFlags)
-            if (ImGui.isItemClicked()) {
+            val opened = ImGui.treeNodeEx("[D] ${subDir.name}##folder_${subDir.absolutePath}", finalFlags)
+            if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) {
                 currentView = LibraryView.Patches(subDir)
                 refreshAssets()
             }
@@ -265,7 +284,7 @@ object AssetBrowserPanel {
         
         PlayQueueManager.queue.forEachIndexed { index, file ->
             val isActive = index == PlayQueueManager.activeIndex
-            val label = "${index + 1}. 🎨 ${file.nameWithoutExtension}${if (isActive) " →" else ""}"
+            val label = "${index + 1}. [P] ${file.nameWithoutExtension}${if (isActive) " ->" else ""}"
             
             if (isActive) {
                 ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 1.0f, 0.8f, 1.0f) // Mint green for active
@@ -378,7 +397,7 @@ object AssetBrowserPanel {
             val resolvedFile = PlaylistManager.resolvePatch(patchPath)
             val exists = resolvedFile.exists()
             val displayName = resolvedFile.nameWithoutExtension.ifBlank { patchPath }
-            val label = "${index + 1}. ${if (exists) "🎨" else "⚠"} $displayName${if (!exists) " (missing)" else ""}"
+            val label = "${index + 1}. ${if (exists) "[P]" else "[!]" } $displayName${if (!exists) " (missing)" else ""}"
             
             if (!exists) {
                 ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.3f, 0.3f, 1f)
@@ -486,7 +505,7 @@ object AssetBrowserPanel {
 
     private fun drawPatchesView(currentDir: File, mixer: Mixer) {
         // Header Row
-        if (ImGui.button("🔄 Refresh Folder")) {
+        if (ImGui.button("Refresh Folder")) {
             refreshAssets()
         }
         ImGui.sameLine()
@@ -504,13 +523,15 @@ object AssetBrowserPanel {
         filteredAssets.forEachIndexed { index, asset ->
             ImGui.pushID(index)
             
-            val label = "🎨 ${asset.displayName}"
-            val isSelected = false
+            val label = "[P] ${asset.displayName}"
+            val isSelected = selectedAsset == asset
             
-            val selected = ImGui.selectable(label, isSelected)
+            if (ImGui.selectable(label, isSelected)) {
+                selectedAsset = asset
+            }
             
-            // Left-click: Instantly load the patch to the inactive deck (>50% crossfader).
-            if (selected) {
+            // Double-click: Load the patch to the inactive deck (>50% crossfader).
+            if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
                 val targetIsA = mixer.crossfade.value > 0.5f
                 logger.info { "Loading patch ${asset.name} to inactive deck ${if (targetIsA) "A" else "B"}" }
                 PatchManager.loadDeckPresetAsync(File(asset.path), targetIsA)

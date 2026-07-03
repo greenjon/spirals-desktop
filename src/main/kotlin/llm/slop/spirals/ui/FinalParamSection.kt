@@ -249,7 +249,7 @@ object FinalParamSection {
         if (!randomizeBaseActive) {
             ImGui.beginDisabled()
         }
-        if (ImGui.button("🎲 Randomize Initial Value", ImGui.getContentRegionAvailX(), 30f)) {
+        if (ImGui.button("Rand Randomize Initial Value", ImGui.getContentRegionAvailX(), 30f)) {
             param.randomizeBaseValue()
         }
         if (!randomizeBaseActive) {

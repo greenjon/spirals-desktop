@@ -20,5 +20,5 @@ data class AssetItem(
     val errorMessage: String? = null
 ) {
     val displayName: String
-        get() = if (isValid) name else "⚠ $name"
+        get() = if (isValid) name else "[!] $name"
 }

@@ -16,7 +16,7 @@ import java.util.Properties
  * ImFont at the correct pixel size. Call [loadFonts] once during ImGui
  * initialisation (before the backend renders the first frame). Call
  * [rebuildFonts] to hot-reload all fonts after the user changes sizes in the
- * Settings panel – the backend will upload the new atlas texture on the next
+ * Settings panel -- the backend will upload the new atlas texture on the next
  * frame automatically via imgui-java's GL3 renderer.
  *
  * Usage:
@@ -32,13 +32,13 @@ object UITheme {
 
     private val settingsFile = File("spirals-settings.properties")
 
-    // ── Semantic Levels ───────────────────────────────────────────────────────
+    // -- Semantic Levels -------------------------------------------------------
 
     enum class FontLevel { H1, H2, H3, BODY, CAPTION, CODE }
 
     enum class SetlistTransitionBehavior { PROMPT, AUTO_DISCARD, AUTO_SAVE }
 
-    // ── Mutable sizing knobs (user-tweakable from Settings later) ─────────────
+    // -- Mutable sizing knobs (user-tweakable from Settings later) -------------
 
     /** Base pixel size at which BODY text is rendered. All others are derived. */
     var baseSize: Float = 20f
@@ -181,7 +181,7 @@ object UITheme {
     var multCaption: Float = 0.85f
     var multCode:    Float = 1.00f   // code always body-sized but different face
 
-    // ── Loaded fonts (initialised by loadFonts) ───────────────────────────────
+    // -- Loaded fonts (initialised by loadFonts) -------------------------------
 
     private lateinit var fontH1:      ImFont
     private lateinit var fontH2:      ImFont
@@ -194,20 +194,20 @@ object UITheme {
     var isLoaded: Boolean = false
         private set
 
-    // ── Font resource paths (classpath-relative, inside resources/fonts/) ─────
+    // -- Font resource paths (classpath-relative, inside resources/fonts/) -----
 
     private const val INTER_REGULAR = "/fonts/Inter-Regular.ttf"
     private const val INTER_MEDIUM  = "/fonts/Inter-Medium.ttf"
     private const val INTER_BOLD    = "/fonts/Inter-Bold.ttf"
     private const val JETBRAINS     = "/fonts/JetBrainsMono-Regular.ttf"
 
-    // ── Initialisation ────────────────────────────────────────────────────────
+    // -- Initialisation --------------------------------------------------------
 
     /**
      * Loads all six font levels into ImGui's font atlas.
      * Must be called after [ImGui.createContext] but before the GL3 backend
      * initialises (i.e. before [imguiGl3.init]), or after a [rebuildFonts]
-     * cycle (atlas clear → reload → GL3 re-upload).
+     * cycle (atlas clear -> reload -> GL3 re-upload).
      *
      * imgui-java's GL3 backend will call [ImFontAtlas.build] and upload the
      * texture automatically on the first render call after init.
@@ -243,7 +243,7 @@ object UITheme {
 
         isLoaded = true
         logger.info {
-            "UITheme fonts loaded — base=${baseSize}px  " +
+            "UITheme fonts loaded -- base=${baseSize}px  " +
             "H1=${(baseSize * multH1).toInt()}  H2=${(baseSize * multH2).toInt()}  " +
             "H3=${(baseSize * multH3).toInt()}  Body=${(baseSize * multBody).toInt()}  " +
             "Caption=${(baseSize * multCaption).toInt()}  Code=${(baseSize * multCode).toInt()}"
@@ -266,7 +266,7 @@ object UITheme {
         logger.info { "UITheme fonts rebuilt at baseSize=$baseSize" }
     }
 
-    // ── Core rendering primitive ──────────────────────────────────────────────
+    // -- Core rendering primitive ----------------------------------------------
 
     /** Resolve a [FontLevel] to its loaded [ImFont]. Falls back to the ImGui
      *  default font if [loadFonts] has not been called yet. */
@@ -281,7 +281,7 @@ object UITheme {
 
     /**
      * Pushes [level]'s font, executes [block], then pops. Safe to call before
-     * [loadFonts] — falls back to the current ImGui default font gracefully.
+     * [loadFonts] -- falls back to the current ImGui default font gracefully.
      */
     inline fun <T> withFont(level: FontLevel, block: () -> T): T {
         val font = fontFor(level)
@@ -298,7 +298,7 @@ object UITheme {
     @Deprecated("Use withFont(FontLevel, block) instead", ReplaceWith("withFont(level, block)"))
     inline fun <T> withScale(scaleMultiplier: Float, block: () -> T): T = block()
 
-    // ── Semantic text helpers ─────────────────────────────────────────────────
+    // -- Semantic text helpers -------------------------------------------------
 
     fun h1(text: String)      = withFont(FontLevel.H1)      { ImGui.text(text) }
     fun h2(text: String)      = withFont(FontLevel.H2)      { ImGui.text(text) }
@@ -307,7 +307,7 @@ object UITheme {
     fun caption(text: String) = withFont(FontLevel.CAPTION) { ImGui.textDisabled(text) }
     fun code(text: String)    = withFont(FontLevel.CODE)    { ImGui.text(text) }
 
-    // ── Coloured variants ─────────────────────────────────────────────────────
+    // -- Coloured variants -----------------------------------------------------
 
     fun h1Colored(r: Float, g: Float, b: Float, a: Float, text: String) =
         withFont(FontLevel.H1) { ImGui.textColored(r, g, b, a, text) }

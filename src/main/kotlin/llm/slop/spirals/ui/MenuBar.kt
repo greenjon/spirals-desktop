@@ -77,7 +77,7 @@ class MenuBar(
             if (!isAudioActive && UITheme.audioEngineEnabled) {
                 ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.6f, 0.0f, 1.0f) // orange warning
             }
-            val audioEngineLabel = if (!isAudioActive && UITheme.audioEngineEnabled) "Audio Engine ⚠" else "Audio Engine"
+            val audioEngineLabel = if (!isAudioActive && UITheme.audioEngineEnabled) "Audio Engine [!]" else "Audio Engine"
             if (ImGui.menuItem(audioEngineLabel)) {
                 onOpenAudioEngineMonitor()
             }

@@ -51,16 +51,16 @@ object AudioEnginePanel {
 
         if (!ImGui.beginPopupModal(POPUP_ID, flags)) return
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Header: Title & Info
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         UITheme.h2("Audio Engine Monitor")
         ImGui.separator()
         ImGui.spacing()
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // 2-Column Area
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         if (ImGui.beginTable("##audio_layout_table", 2)) {
             ImGui.tableNextColumn()
 
@@ -155,7 +155,7 @@ object AudioEnginePanel {
 
             ImGui.spacing()
             
-            // ── New Beat Detection UI ──
+            // -- New Beat Detection UI --
             UITheme.h3("Auto Beat Detection")
             ImGui.spacing()
             
@@ -344,9 +344,9 @@ object AudioEnginePanel {
         ImGui.separator()
         ImGui.spacing()
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         // Footer: Close Button
-        // ─────────────────────────────────────────────────────────────────────
+        // ---------------------------------------------------------------------
         val closeW = 120f
         ImGui.setCursorPosX((MODAL_W - 32f - closeW) * 0.5f + ImGui.getWindowContentRegionMinX())
         if (ImGui.button("Close", closeW, 0f)) {
