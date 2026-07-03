@@ -395,10 +395,6 @@ class UIManager(private val windowHandle: Long) {
             deckBFileBrowser.draw { file ->
                 llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, false)
             }
-
-
-
-            PlayQueuePanel.drawPopups()
         }
 
         ImGui.render()
