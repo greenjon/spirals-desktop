@@ -167,16 +167,21 @@ class MixerMonitorPanel(
 
         val startY = ImGui.getCursorPosY()
         val cellW = (width - 10f) / 3f
-        val cellH = (height - 30f) / 3f
+        val cellH = ((height - 30f) / 3f) * 0.75f
 
         // Column 1: Labels/Selectables
         val labels = listOf("Move", "Copy", "Swap")
+        val style = ImGui.getStyle()
+        val oldAlignX = style.getSelectableTextAlignX()
+        val oldAlignY = style.getSelectableTextAlignY()
+        style.setSelectableTextAlign(oldAlignX, 0.5f)
+
         for (i in 0..2) {
-            if (ImGui.selectable(labels[i], utilityMode == i, 0, cellW, cellH * 0.8f)) {
+            if (ImGui.selectable(labels[i], utilityMode == i, 0, cellW, cellH)) {
                 utilityMode = i
             }
-            if (i < 2) ImGui.spacing()
         }
+        style.setSelectableTextAlign(oldAlignX, oldAlignY)
 
         ImGui.sameLine(cellW + 5f)
         ImGui.setCursorPosY(startY)
