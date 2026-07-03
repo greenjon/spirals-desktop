@@ -134,51 +134,55 @@ class MixerMonitorPanel(
         val endY = ImGui.getCursorScreenPosY()
         ImGui.setCursorScreenPos(startX, endY)
 
-        ImGui.spacing()
-        ImGui.separator()
-        ImGui.spacing()
-
-        // --- Deck C / Preview Monitor ---
+        // --- Deck C / Preview Monitor (Aligned to Lower Left) ---
         val previewMode = UITheme.previewModeEnabled
         val previewLabel = if (previewMode) "PREVIEW MONITOR" else "DECK C MONITOR"
         
-        UITheme.h2("Deck C")
+        // Push Deck C monitor to the bottom of the panel
+        val contentHeightRemaining = ImGui.getContentRegionAvailY()
+        val deckCHeightNeeded = subH + ImGui.getFrameHeightWithSpacing() * 2f + 20f
+        
+        if (contentHeightRemaining > deckCHeightNeeded) {
+            ImGui.setCursorPosY(ImGui.getCursorPosY() + (contentHeightRemaining - deckCHeightNeeded))
+        }
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+        
+        // Row 1: Monitor Label and Toggle
+        UITheme.body(previewLabel)
         ImGui.sameLine(halfW - 60f)
         if (ImGui.checkbox("Preview Mode", UITheme.previewModeEnabled)) {
             UITheme.previewModeEnabled = !UITheme.previewModeEnabled
             UITheme.saveSettings()
         }
 
+        // Row 2: Preset Info and Copy Buttons
         val activePresetC = llm.slop.spirals.patches.PatchManager.activePresetC ?: "None"
         val isDirtyC = llm.slop.spirals.patches.PatchManager.isDeckDirty(mixer.deckC, false)
         val displayNameC = if (isDirtyC) "$activePresetC *" else activePresetC
         UITheme.body("Preset: $displayNameC")
-
-        val prevStartX = ImGui.getCursorScreenPosX()
-        val prevStartY = ImGui.getCursorScreenPosY()
         
-        // Render Deck C preview at 16:9, but maybe a bit smaller than master?
-        // Let's make it the same width as Deck A/B monitors.
-        ImGui.image(mixer.deckC.getOutputTexture(), halfW, subH, 0f, 1f, 1f, 0f)
-
-        val dlPreview = ImGui.getWindowDrawList()
-        val overlayHPreview = ImGui.calcTextSize(previewLabel).y + 6f
-        dlPreview.addRectFilled(prevStartX, prevStartY, prevStartX + halfW, prevStartY + overlayHPreview, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 0.6f))
-        
-        ImGui.setCursorScreenPos(prevStartX + 10f, prevStartY + 3f)
-        UITheme.captionColored(1.0f, 0.8f, 0.4f, 1.0f, previewLabel) // Gold-ish text
-
-        // Buttons for Deck C
-        ImGui.setCursorScreenPos(prevStartX + halfW + 10f, prevStartY)
-        if (ImGui.button("Copy to A##copyCToA", 80f, 25f)) {
+        ImGui.sameLine(halfW + 10f)
+        if (ImGui.button("Copy to A##copyCToA", 70f, 22f)) {
             val dto = mixer.deckC.toDto("Deck C")
             mixer.deckA.applyDto(dto)
         }
-        ImGui.setCursorScreenPos(prevStartX + halfW + 10f, prevStartY + 30f)
-        if (ImGui.button("Copy to B##copyCToB", 80f, 25f)) {
+        ImGui.sameLine(halfW + 85f)
+        if (ImGui.button("Copy to B##copyCToB", 70f, 22f)) {
             val dto = mixer.deckC.toDto("Deck C")
             mixer.deckB.applyDto(dto)
         }
+
+        val imgX = ImGui.getCursorScreenPosX()
+        val imgY = ImGui.getCursorScreenPosY()
+        
+        ImGui.image(mixer.deckC.getOutputTexture(), halfW, subH, 0f, 1f, 1f, 0f)
+
+        val deckCColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.5f, 1f)
+        val dlPreview = ImGui.getWindowDrawList()
+        dlPreview.addRect(imgX - 1f, imgY - 1f, imgX + halfW + 1f, imgY + subH + 1f, deckCColor, 0f, 0, 2f)
     }
 
     fun drawFlatSlider(
