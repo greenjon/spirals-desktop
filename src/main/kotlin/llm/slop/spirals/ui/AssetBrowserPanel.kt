@@ -66,38 +66,45 @@ object AssetBrowserPanel {
     fun draw(width: Float, height: Float, mixer: Mixer) {
         val sidebarWidth = if (showSidebar) width * 0.25f else 0f
         val mainWidth = width - sidebarWidth
-        
-        // Header with toggle button
-        ImGui.text("Asset Browser")
-        ImGui.sameLine()
-        if (ImGui.smallButton(if (showSidebar) "◀" else "▶")) {
-            showSidebar = !showSidebar
+
+        if (ImGui.beginMenuBar()) {
+            if (ImGui.smallButton(if (showSidebar) "◀" else "▶")) {
+                showSidebar = !showSidebar
+            }
+            ImGui.sameLine()
+            UITheme.AssetBrowserMode.entries.forEach { mode ->
+                val active = UITheme.assetBrowserMode == mode
+                if (active) ImGui.pushStyleColor(ImGuiCol.Button, 0.35f, 0.35f, 0.35f, 1f)
+                if (ImGui.smallButton(mode.name.lowercase().replaceFirstChar { it.uppercase() })) {
+                    UITheme.assetBrowserMode = mode
+                    UITheme.saveSettings()
+                }
+                if (active) ImGui.popStyleColor()
+                ImGui.sameLine()
+            }
+
+            val viewLabel = when (val view = currentView) {
+                is LibraryView.Queue -> "Queue"
+                is LibraryView.PlaylistsRoot -> "Playlists"
+                is LibraryView.SpecificPlaylist -> "Playlist: ${view.playlistFile.nameWithoutExtension}"
+                is LibraryView.Patches -> "Patches: ${view.currentDir.name}"
+            }
+            ImGui.textDisabled("($viewLabel)")
+            ImGui.endMenuBar()
         }
-        ImGui.sameLine()
-        if (ImGui.smallButton(if (UITheme.assetManagerHalfHeight) "↕ Full" else "↕ Half")) {
-            UITheme.assetManagerHalfHeight = !UITheme.assetManagerHalfHeight
-            UITheme.saveSettings()
-        }
-        ImGui.sameLine()
-        val viewLabel = when (val view = currentView) {
-            is LibraryView.Queue -> "Queue"
-            is LibraryView.PlaylistsRoot -> "Playlists"
-            is LibraryView.SpecificPlaylist -> "Playlist: ${view.playlistFile.nameWithoutExtension}"
-            is LibraryView.Patches -> "Patches: ${view.currentDir.name}"
-        }
-        ImGui.textDisabled("($viewLabel)")
-        
-        ImGui.separator()
-        
+
+        if (UITheme.assetBrowserMode == UITheme.AssetBrowserMode.HIDE) return
+
         // Two-column layout
+        val contentH = ImGui.getContentRegionAvailY() - 5f
         if (showSidebar) {
-            ImGui.beginChild("AssetSidebar", sidebarWidth - 5f, height - 60f, true)
+            ImGui.beginChild("AssetSidebar", sidebarWidth - 5f, contentH, true)
             drawNavigationSidebar()
             ImGui.endChild()
             ImGui.sameLine()
         }
-        
-        ImGui.beginChild("AssetMain", mainWidth, height - 60f, true)
+
+        ImGui.beginChild("AssetMain", mainWidth, contentH, true)
         drawMainContent(mixer)
         ImGui.endChild()
     }

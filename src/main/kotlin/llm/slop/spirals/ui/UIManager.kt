@@ -543,43 +543,42 @@ class UIManager(private val windowHandle: Long) {
         val libraryW = displayWidth * 0.70f
         val rightW = displayWidth - libraryW
 
-        if (UITheme.assetManagerHalfHeight) {
-            val halfH = contentH * 0.5f
+        val assetBrowserH = when (UITheme.assetBrowserMode) {
+            UITheme.AssetBrowserMode.FULL -> contentH
+            UITheme.AssetBrowserMode.HALF -> contentH * 0.5f
+            UITheme.AssetBrowserMode.HIDE -> 32f
+        }
 
-            // Top Left: Patch Grid (30% width)
+        if (UITheme.assetBrowserMode != UITheme.AssetBrowserMode.FULL) {
+            val topH = contentH - assetBrowserH
             val leftW = displayWidth * 0.3f
+
             ImGui.setNextWindowPos(0f, menuBarH)
-            ImGui.setNextWindowSize(leftW, halfH)
+            ImGui.setNextWindowSize(leftW, topH)
             if (ImGui.begin("Patch Grid", noDecorate)) {
                 PatchGridPanel.draw(currentMixer!!, patchState)
             }
             ImGui.end()
 
-            // Top Middle: Cell Config (40% width)
             val middleW = libraryW - leftW
             ImGui.setNextWindowPos(leftW, menuBarH)
-            ImGui.setNextWindowSize(middleW, halfH)
+            ImGui.setNextWindowSize(middleW, topH)
             if (ImGui.begin("Cell Config", noDecorate)) {
                 CellConfigPanel.draw(patchState, currentMixer!!)
             }
             ImGui.end()
-
-            // Bottom: Asset Browser
-            ImGui.setNextWindowPos(0f, menuBarH + halfH)
-            ImGui.setNextWindowSize(libraryW, contentH - halfH)
-            if (ImGui.begin("Asset Browser", noDecorate)) {
-                AssetBrowserPanel.draw(libraryW, contentH - halfH, currentMixer!!)
-            }
-            ImGui.end()
-        } else {
-            // Full height Unified Media Library (70% width)
-            ImGui.setNextWindowPos(0f, menuBarH)
-            ImGui.setNextWindowSize(libraryW, contentH)
-            if (ImGui.begin("Asset Browser", noDecorate)) {
-                AssetBrowserPanel.draw(libraryW, contentH, currentMixer!!)
-            }
-            ImGui.end()
         }
+
+        // Asset Browser
+        val assetBrowserPosH = if (UITheme.assetBrowserMode == UITheme.AssetBrowserMode.FULL) menuBarH else (menuBarH + contentH - assetBrowserH)
+        ImGui.setNextWindowPos(0f, assetBrowserPosH)
+        ImGui.setNextWindowSize(libraryW, assetBrowserH)
+        val flags = (if (UITheme.assetBrowserMode == UITheme.AssetBrowserMode.HIDE) noDecorate or ImGuiWindowFlags.NoScrollbar else noDecorate) or
+                ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.MenuBar
+        if (ImGui.begin("Asset Browser", flags)) {
+            AssetBrowserPanel.draw(libraryW, assetBrowserH, currentMixer!!)
+        }
+        ImGui.end()
 
         // Right: Mixer / Monitor (30% width)
         ImGui.setNextWindowPos(libraryW, menuBarH)

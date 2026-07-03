@@ -61,7 +61,9 @@ object UITheme {
     var activeMidiProfile: String = "default"
     var setlistKeyTrigger: SetlistKeyTrigger = SetlistKeyTrigger.NONE
     var tooltipsEnabled: Boolean = true
-    var assetManagerHalfHeight: Boolean = false
+
+    enum class AssetBrowserMode { FULL, HALF, HIDE }
+    var assetBrowserMode: AssetBrowserMode = AssetBrowserMode.HALF
 
     init {
         loadSettings()
@@ -114,10 +116,16 @@ object UITheme {
                     tooltipsEnabled = savedTooltips
                     logger.info { "Loaded tooltipsEnabled from settings file: $tooltipsEnabled" }
                 }
-                val savedHalfHeight = props.getProperty("assetManagerHalfHeight")?.toBooleanStrictOrNull()
-                if (savedHalfHeight != null) {
-                    assetManagerHalfHeight = savedHalfHeight
-                    logger.info { "Loaded assetManagerHalfHeight from settings file: $assetManagerHalfHeight" }
+                val savedMode = props.getProperty("assetBrowserMode")
+                if (savedMode != null) {
+                    assetBrowserMode = try { AssetBrowserMode.valueOf(savedMode) } catch (e: Exception) { AssetBrowserMode.HALF }
+                    logger.info { "Loaded assetBrowserMode from settings file: $assetBrowserMode" }
+                } else {
+                    val savedHalfHeight = props.getProperty("assetManagerHalfHeight")?.toBooleanStrictOrNull()
+                    if (savedHalfHeight != null) {
+                        assetBrowserMode = if (savedHalfHeight) AssetBrowserMode.HALF else AssetBrowserMode.FULL
+                        logger.info { "Migrated assetManagerHalfHeight to assetBrowserMode: $assetBrowserMode" }
+                    }
                 }
                 val savedTransition = props.getProperty("setlistTransitionBehavior")
                 if (savedTransition != null) {
@@ -153,7 +161,7 @@ object UITheme {
             props.setProperty("backgroundVideoEnabled", backgroundVideoEnabled.toString())
             props.setProperty("autocollapseEnabled", autocollapseEnabled.toString())
             props.setProperty("tooltipsEnabled", tooltipsEnabled.toString())
-            props.setProperty("assetManagerHalfHeight", assetManagerHalfHeight.toString())
+            props.setProperty("assetBrowserMode", assetBrowserMode.name)
             props.setProperty("setlistTransitionBehavior", setlistTransitionBehavior.name)
             props.setProperty("activeMidiProfile", activeMidiProfile)
             props.setProperty("setlistKeyTrigger", setlistKeyTrigger.name)
