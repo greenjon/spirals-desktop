@@ -523,6 +523,13 @@ object AssetBrowserPanel {
         filteredAssets.forEachIndexed { index, asset ->
             ImGui.pushID(index)
             
+            // Preview button
+            if (ImGui.button(">##preview_$index", 24f, 24f)) {
+                logger.info { "Previewing patch ${asset.name} on Deck C" }
+                PatchManager.loadDeckPresetAsync(File(asset.path), isDeckA = false, isDeckC = true)
+            }
+            ImGui.sameLine()
+
             val label = "[P] ${asset.displayName}"
             val isSelected = selectedAsset == asset
             

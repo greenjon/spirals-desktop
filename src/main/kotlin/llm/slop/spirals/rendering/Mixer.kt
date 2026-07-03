@@ -10,6 +10,7 @@ import llm.slop.spirals.parameters.MeterType
 class Mixer(
     val deckA: Deck,
     val deckB: Deck,
+    val deckC: Deck,
     val width: Int = 1920,
     val height: Int = 1080
 ) {
@@ -86,5 +87,6 @@ class Mixer(
      */
     fun dispose() {
         masterFBO.dispose()
+        deckC.dispose()
     }
 }

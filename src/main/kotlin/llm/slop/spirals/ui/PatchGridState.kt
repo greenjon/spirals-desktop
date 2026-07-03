@@ -50,6 +50,7 @@ class PatchGridState {
     var activeTopTab: String = "Deck A"
     var activeDeckASubTab: String = "View"
     var activeDeckBSubTab: String = "View"
+    var activeDeckCSubTab: String = "View"
 
     fun select(cellId: PatchCellId, param: ModulatableParameter) {
         selectedCell = cellId

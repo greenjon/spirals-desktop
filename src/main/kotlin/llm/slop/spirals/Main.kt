@@ -106,8 +106,19 @@ fun main() {
     mandalaB.parameters["Hue Offset"]?.set(0.5f) // starting color offset for distinction
     val deckB = Deck(mandalaB)
 
+    // Create Deck C (for preview / live tweaking)
+    val recipeC = MandalaRatio(
+        id = "9999999999999999999", // generic ID
+        a = 3,
+        b = 3,
+        c = 3,
+        d = 3
+    )
+    val mandalaC = Mandala(recipeC)
+    val deckC = Deck(mandalaC)
+
     // Create Mixer
-    val mixer = Mixer(deckA, deckB)
+    val mixer = Mixer(deckA, deckB, deckC)
     PatchManager.initializeDefault(mixer)
     GLDebug.checkErrors("Mixer and Decks initialization")
 
@@ -218,7 +229,11 @@ fun main() {
         deckB.update()
         renderer.renderDeck(deckB)
 
-        // 3. Update and composite Deck A & B in the Mixer
+        // 3. Update and Render Deck C (preview)
+        mixer.deckC.update()
+        renderer.renderDeck(mixer.deckC)
+
+        // 4. Update and composite Deck A & B in the Mixer
         mixer.update()
         renderer.renderMixer(mixer)
 
@@ -296,6 +311,7 @@ fun main() {
     blitShader.dispose()
     deckA.dispose()
     deckB.dispose()
+    deckC.dispose()
     mixer.dispose()
     llm.slop.spirals.rendering.VisualSourceRegistry.disposeAll()
     Geometry.dispose()

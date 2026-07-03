@@ -11,8 +11,8 @@ import kotlin.math.roundToInt
 object PatchGridTabs {
     fun drawTopTabs(state: PatchGridState) {
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 0f, 0f)
-        val tabs = listOf("Mixer", "Deck A", "Deck B")
-        val buttonWidth = 100f
+        val tabs = listOf("Mixer", "Deck A", "Deck B", "Deck C")
+        val buttonWidth = 80f
         tabs.forEachIndexed { i, tab ->
             if (i > 0) ImGui.sameLine()
             val isActive = state.activeTopTab == tab
@@ -20,6 +20,7 @@ object PatchGridTabs {
                 val activeCol = when (tab) {
                     "Deck A" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 1f)
                     "Deck B" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 1f)
+                    "Deck C" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.5f, 1f) // Emerald/Teal for Deck C
                     else     -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f)
                 }
                 ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        activeCol)
@@ -61,18 +62,36 @@ object PatchGridTabs {
             return
         }
 
-        val deck = if (state.activeTopTab == "Deck A") mixer.deckA else mixer.deckB
+        val deck = when (state.activeTopTab) {
+            "Deck A" -> mixer.deckA
+            "Deck B" -> mixer.deckB
+            "Deck C" -> mixer.deckC
+            else -> mixer.deckA
+        }
         val tabs = getDeckSubTabs(deck)
 
         if (tabs.isEmpty()) return
 
         // Auto-correct stale subtab value (e.g. after deck source changes)
-        val activeSubTab = if (state.activeTopTab == "Deck A") state.activeDeckASubTab else state.activeDeckBSubTab
-        if (activeSubTab !in tabs) {
-            if (state.activeTopTab == "Deck A") state.activeDeckASubTab = tabs.first()
-            else state.activeDeckBSubTab = tabs.first()
+        val activeSubTab = when (state.activeTopTab) {
+            "Deck A" -> state.activeDeckASubTab
+            "Deck B" -> state.activeDeckBSubTab
+            "Deck C" -> state.activeDeckCSubTab
+            else -> state.activeDeckASubTab
         }
-        val currentSubTab = if (state.activeTopTab == "Deck A") state.activeDeckASubTab else state.activeDeckBSubTab
+        if (activeSubTab !in tabs) {
+            when (state.activeTopTab) {
+                "Deck A" -> state.activeDeckASubTab = tabs.first()
+                "Deck B" -> state.activeDeckBSubTab = tabs.first()
+                "Deck C" -> state.activeDeckCSubTab = tabs.first()
+            }
+        }
+        val currentSubTab = when (state.activeTopTab) {
+            "Deck A" -> state.activeDeckASubTab
+            "Deck B" -> state.activeDeckBSubTab
+            "Deck C" -> state.activeDeckCSubTab
+            else -> state.activeDeckASubTab
+        }
 
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 0f, 0f)
         tabs.forEachIndexed { i, tab ->
@@ -92,8 +111,11 @@ object PatchGridTabs {
             UITheme.withFont(UITheme.FontLevel.BODY) { tw = ImGui.calcTextSize(tab).x }
             val btnW = (tw + 20f).coerceAtLeast(80f)
             if (ImGui.button(tab, btnW, 24f)) {
-                if (state.activeTopTab == "Deck A") state.activeDeckASubTab = tab
-                else state.activeDeckBSubTab = tab
+                when (state.activeTopTab) {
+                    "Deck A" -> state.activeDeckASubTab = tab
+                    "Deck B" -> state.activeDeckBSubTab = tab
+                    "Deck C" -> state.activeDeckCSubTab = tab
+                }
             }
             ImGui.popStyleColor(3)
         }
@@ -119,7 +141,12 @@ object PatchGridTabs {
         val isVisible = if (parentLabel == "Mixer") {
             state.activeTopTab == "Mixer"
         } else {
-            val activeSubTab = if (parentLabel == "Deck A") state.activeDeckASubTab else state.activeDeckBSubTab
+            val activeSubTab = when (parentLabel) {
+                "Deck A" -> state.activeDeckASubTab
+                "Deck B" -> state.activeDeckBSubTab
+                "Deck C" -> state.activeDeckCSubTab
+                else -> ""
+            }
             activeSubTab == label
         }
 

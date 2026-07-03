@@ -21,11 +21,14 @@ object PatchManager {
     val globalPatchQueue = ConcurrentLinkedQueue<GlobalPatchDto>()
     val deckAPatchQueue = ConcurrentLinkedQueue<DeckPatchDto>()
     val deckBPatchQueue = ConcurrentLinkedQueue<DeckPatchDto>()
+    val deckCPatchQueue = ConcurrentLinkedQueue<DeckPatchDto>()
 
     var activePresetA: String? = null
     var activePresetB: String? = null
+    var activePresetC: String? = null
     var cachedDtoA: DeckPatchDto? = null
     var cachedDtoB: DeckPatchDto? = null
+    var cachedDtoC: DeckPatchDto? = null
 
     var cachedGlobalDto: GlobalPatchDto? = null
     private var defaultGlobalPatchDto: GlobalPatchDto? = null
@@ -71,7 +74,7 @@ object PatchManager {
         }
     }
 
-    fun loadDeckPresetAsync(file: File, isDeckA: Boolean) {
+    fun loadDeckPresetAsync(file: File, isDeckA: Boolean, isDeckC: Boolean = false) {
         CompletableFuture.runAsync {
             try {
                 logger.info { "Loading deck preset from ${file.absolutePath} in background..." }
@@ -79,10 +82,10 @@ object PatchManager {
                 
                 val content = file.readText()
                 val dto = json.decodeFromString<DeckPatchDto>(content)
-                if (isDeckA) {
-                    deckAPatchQueue.offer(dto)
-                } else {
-                    deckBPatchQueue.offer(dto)
+                when {
+                    isDeckC -> deckCPatchQueue.offer(dto)
+                    isDeckA -> deckAPatchQueue.offer(dto)
+                    else -> deckBPatchQueue.offer(dto)
                 }
                 logger.info { "Deck preset loaded and queued for main thread swap" }
             } catch (e: Exception) {
@@ -95,7 +98,7 @@ object PatchManager {
                 
                 if (altFile != null && altFile.exists()) {
                     logger.info { "File not found or failed, trying alternative: ${altFile.name}" }
-                    loadDeckPresetAsync(altFile, isDeckA)
+                    loadDeckPresetAsync(altFile, isDeckA, isDeckC)
                     return@runAsync
                 }
 
@@ -177,6 +180,20 @@ object PatchManager {
                 logger.error(e) { "Error applying Deck B preset" }
             }
             deckBDto = deckBPatchQueue.poll()
+        }
+
+        // Poll deck C patch queue
+        var deckCDto = deckCPatchQueue.poll()
+        while (deckCDto != null) {
+            try {
+                mixer.deckC.applyDto(deckCDto)
+                activePresetC = deckCDto.name
+                cachedDtoC = deckCDto
+                logger.info { "Successfully applied Deck C preset: ${deckCDto.name}" }
+            } catch (e: Exception) {
+                logger.error(e) { "Error applying Deck C preset" }
+            }
+            deckCDto = deckCPatchQueue.poll()
         }
     }
 }

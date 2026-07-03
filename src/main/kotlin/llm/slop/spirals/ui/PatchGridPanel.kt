@@ -127,6 +127,8 @@ object PatchGridPanel {
                 PatchGridTabs.drawDeckGroupContent("Deck A", mixer.deckA, state, labelColW, mixer, gridStartX, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
             } else if (state.activeTopTab == "Deck B") {
                 PatchGridTabs.drawDeckGroupContent("Deck B", mixer.deckB, state, labelColW, mixer, gridStartX, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+            } else if (state.activeTopTab == "Deck C") {
+                PatchGridTabs.drawDeckGroupContent("Deck C", mixer.deckC, state, labelColW, mixer, gridStartX, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
             }
         }
         ImGui.endChild()
@@ -156,7 +158,7 @@ object PatchGridPanel {
         
         val btnHeight = ImGui.getFrameHeight()
         val spacing = 4f
-        val buttonsH = 3 * (btnHeight + spacing)
+        val buttonsH = 4 * (btnHeight + spacing)
         val headerH = (maxH + 5f).coerceAtLeast(buttonsH + 28f)
         
         // Reserve vertical space for headers
@@ -171,6 +173,7 @@ object PatchGridPanel {
             PatchGridUndo.pushUndoState(state, mixer)
             mixer.deckA.randomizeModulators()
             mixer.deckB.randomizeModulators()
+            mixer.deckC.randomizeModulators()
             listOf(mixer.crossfade, mixer.masterAlpha).forEach { param ->
                 val randomized = param.modulators.map { it.randomizeActiveValues() }
                 param.modulators.clear()
@@ -187,6 +190,11 @@ object PatchGridPanel {
         drawRandomizeRow("rand_deck_b", "Randomize Deck B", startX, startY + (btnHeight + spacing) * 2f, btnWidth, btnHeight, scale) {
             PatchGridUndo.pushUndoState(state, mixer)
             mixer.deckB.randomizeModulators()
+        }
+
+        drawRandomizeRow("rand_deck_c", "Randomize Deck C", startX, startY + (btnHeight + spacing) * 3f, btnWidth, btnHeight, scale) {
+            PatchGridUndo.pushUndoState(state, mixer)
+            mixer.deckC.randomizeModulators()
         }
         
         // Draw Top Tab Row at the bottom-left of the header area (just above the separator)

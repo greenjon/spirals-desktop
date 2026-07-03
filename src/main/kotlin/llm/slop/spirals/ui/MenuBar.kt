@@ -43,6 +43,25 @@ class MenuBar(
                     projectManager.saveGlobalPatch(mixer, true)
                 }
                 ImGui.separator()
+                if (ImGui.beginMenu("New Patch")) {
+                    if (ImGui.menuItem("To Deck A")) {
+                        mixer.deckA.reset()
+                        PatchManager.activePresetA = null
+                        PatchManager.cachedDtoA = null
+                    }
+                    if (ImGui.menuItem("To Deck B")) {
+                        mixer.deckB.reset()
+                        PatchManager.activePresetB = null
+                        PatchManager.cachedDtoB = null
+                    }
+                    if (ImGui.menuItem("To Deck C")) {
+                        mixer.deckC.reset()
+                        PatchManager.activePresetC = null
+                        PatchManager.cachedDtoC = null
+                    }
+                    ImGui.endMenu()
+                }
+                ImGui.separator()
                 if (ImGui.menuItem("Exit")) {
                     logger.info { "Exit clicked" }
                     onTriggerExitFlow()
