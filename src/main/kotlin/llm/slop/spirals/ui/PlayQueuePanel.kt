@@ -3,6 +3,7 @@ package llm.slop.spirals.ui
 import imgui.ImGui
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiWindowFlags
+import imgui.type.ImString
 import llm.slop.spirals.patches.PlayQueueManager
 import llm.slop.spirals.rendering.Mixer
 import java.io.File
@@ -13,11 +14,13 @@ import java.io.File
 object PlayQueuePanel {
     
     private val fileBrowser = ImGuiFileBrowser("queueFileBrowser")
+    private val saveQueueNameBuffer = ImString(256)
 
     fun drawPopups() {
         fileBrowser.draw { file ->
             PlayQueueManager.appendToQueue(file)
         }
+        drawSaveQueuePopup()
     }
     
     fun draw(mixer: Mixer) {
@@ -114,12 +117,39 @@ object PlayQueuePanel {
         
         if (PlayQueueManager.queue.isNotEmpty()) {
             if (ImGui.button("Save Queue as Playlist...", ImGui.getContentRegionAvailX(), 0f)) {
-                PlaylistPanel.openWithQueue(PlayQueueManager.queue)
+                ImGui.openPopup("SaveQueuePopup")
             }
             ImGui.spacing()
             if (ImGui.button("Clear Queue", ImGui.getContentRegionAvailX(), 0f)) {
                 PlayQueueManager.clearQueue()
             }
+        }
+    }
+
+    private fun drawSaveQueuePopup() {
+        if (ImGui.beginPopupModal("SaveQueuePopup", ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text("Save Queue as Playlist")
+            ImGui.separator()
+            ImGui.inputText("Playlist Name", saveQueueNameBuffer)
+            if (ImGui.button("Save", 120f, 0f)) {
+                val name = saveQueueNameBuffer.get().trim()
+                if (name.isNotBlank()) {
+                    PlaylistManager.createPlaylist(name, FileSystemManager.getPlaylistsRoot()).onSuccess { playlist ->
+                        PlayQueueManager.queue.forEach { queueFile ->
+                            PlaylistManager.insertPatch(playlist, queueFile.absolutePath, playlist.patches.size)
+                        }
+                        PlaylistManager.savePlaylist(playlist)
+                    }
+                }
+                saveQueueNameBuffer.set("")
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Cancel", 120f, 0f)) {
+                saveQueueNameBuffer.set("")
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
         }
     }
 }

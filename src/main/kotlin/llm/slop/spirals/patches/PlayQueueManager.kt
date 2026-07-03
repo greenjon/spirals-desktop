@@ -26,28 +26,51 @@ object PlayQueueManager {
     fun appendPlaylistToQueue(playlistFile: File) {
         try {
             val content = playlistFile.readText()
-            val dto = json.decodeFromString<PlaylistDto>(content)
-            dto.items.forEach { itemName ->
-                var deckFile = File("presets/decks/$itemName")
-                if (!deckFile.exists()) {
-                    val possible = listOf(itemName, "$itemName.lsd", "$itemName.json")
-                    var found = false
-                    for (p in possible) {
-                        val f = File("presets/decks/$p")
-                        if (f.exists()) {
-                            appendToQueue(f)
-                            found = true
-                            break
-                        }
-                    }
-                    if (!found) logger.warn { "Queue playlist item not found: $itemName" }
+            val items = if (content.trim().startsWith("{")) {
+                val dto = json.decodeFromString<PlaylistDto>(content)
+                dto.items
+            } else {
+                content.lines()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+            }
+            
+            items.forEach { itemName ->
+                val resolved = resolveQueueItem(itemName)
+                if (resolved != null) {
+                    appendToQueue(resolved)
                 } else {
-                    appendToQueue(deckFile)
+                    logger.warn { "Queue playlist item not found: $itemName" }
                 }
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to append playlist to queue: ${playlistFile.absolutePath}" }
         }
+    }
+
+    private fun resolveQueueItem(name: String): File? {
+        val f = File(name)
+        if (f.exists() && f.isFile) return f
+
+        val roots = listOf("presets/patches", "presets/decks")
+        for (root in roots) {
+            val rf = File(root, name)
+            if (rf.exists() && rf.isFile) return rf
+        }
+
+        // Try extensions
+        val extensions = listOf(".lsd", ".json", ".patch")
+        for (ext in extensions) {
+            val nameWithExt = if (name.endsWith(ext, ignoreCase = true)) name else "$name$ext"
+            val fExt = File(nameWithExt)
+            if (fExt.exists() && fExt.isFile) return fExt
+
+            for (root in roots) {
+                val rfExt = File(root, nameWithExt)
+                if (rfExt.exists() && rfExt.isFile) return rfExt
+            }
+        }
+        return null
     }
 
     fun appendToQueue(file: File) {

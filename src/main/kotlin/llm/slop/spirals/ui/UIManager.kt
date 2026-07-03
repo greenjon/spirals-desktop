@@ -127,7 +127,6 @@ class UIManager(private val windowHandle: Long) {
         onTriggerExitFlow = { triggerExitFlow() },
         onOpenSettings = { pendingOpenSettings = true },
         onOpenAudioEngineMonitor = { pendingOpenAudioEngineMonitor = true },
-        onOpenPlaylistEditor = { pendingOpenPlaylistEditor = true },
         onToggleAssetManagement = { showAssetManagementMode = !showAssetManagementMode }
     )
 
@@ -135,8 +134,6 @@ class UIManager(private val windowHandle: Long) {
     private val deckABrowser = DeckPresetBrowser("A")
     private val deckBBrowser = DeckPresetBrowser("B")
 
-    // Phase 3b — Setlist panel
-    private var pendingOpenPlaylistEditor = false
 
     private var lastNextMidiCcHigh = false
     private var lastPrevMidiCcHigh = false
@@ -358,10 +355,7 @@ class UIManager(private val windowHandle: Long) {
                 ImGui.openPopup("No MIDI Devices Connected##midi_warning")
                 popupManager.pendingOpenMidiWarningPopup = false
             }
-            if (pendingOpenPlaylistEditor) {
-                PlaylistPanel.open()
-                pendingOpenPlaylistEditor = false
-            }
+
             drawLayout(mixer, displayWidth, displayHeight)
 
             SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight, { newSize ->
@@ -411,7 +405,7 @@ class UIManager(private val windowHandle: Long) {
                 llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, false)
             }
 
-            PlaylistPanel.draw()
+
 
             PlayQueuePanel.drawPopups()
         }

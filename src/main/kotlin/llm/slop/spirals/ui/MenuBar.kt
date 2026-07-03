@@ -14,7 +14,6 @@ class MenuBar(
     private val onTriggerExitFlow: () -> Unit,
     private val onOpenSettings: () -> Unit,
     private val onOpenAudioEngineMonitor: () -> Unit,
-    private val onOpenPlaylistEditor: () -> Unit,
     private val onToggleAssetManagement: () -> Unit
 ) {
     private val logger = KotlinLogging.logger {}
@@ -87,9 +86,6 @@ class MenuBar(
                 ImGui.popStyleColor()
             }
 
-            if (ImGui.menuItem("Playlist Editor")) {
-                onOpenPlaylistEditor()
-            }
 
             if (ImGui.menuItem("Asset Manager (F3)")) {
                 onToggleAssetManagement()

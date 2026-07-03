@@ -45,6 +45,7 @@ object AssetBrowserPanel {
     private val newPlaylistNameBuffer = ImString(256)
     private val renamePlaylistBuffer = ImString(256)
     private var activePlaylistData: PlaylistManager.Playlist? = null
+    private val exportQueueNameBuffer = ImString(256)
     
     private fun getOrLoadPlaylist(file: File): PlaylistManager.Playlist? {
         val current = activePlaylistData
@@ -134,7 +135,7 @@ object AssetBrowserPanel {
             val playlistAssets = FileSystemManager.scanDirectory(FileSystemManager.getPlaylistsRoot())
                 .filter { it.type == AssetType.PLAYLIST }
             
-            playlistAssets.forEach { asset ->
+            playlistAssets.forEachIndexed { index, asset ->
                 val isPlaylistSelected = (currentView as? LibraryView.SpecificPlaylist)?.playlistFile?.absolutePath == asset.path
                 val itemFlags = ImGuiTreeNodeFlags.Leaf or ImGuiTreeNodeFlags.SpanAvailWidth or
                     (if (isPlaylistSelected) ImGuiTreeNodeFlags.Selected else 0)
@@ -160,6 +161,14 @@ object AssetBrowserPanel {
                         }
                     }
                     ImGui.endDragDropTarget()
+                }
+
+                // Right-click context menu
+                if (ImGui.beginPopupContextItem("sidebar_playlist_context_menu_$index")) {
+                    if (ImGui.menuItem("Add to Queue")) {
+                        PlayQueueManager.appendPlaylistToQueue(File(asset.path))
+                    }
+                    ImGui.endPopup()
                 }
                 
                 if (itemOpened) {
@@ -230,8 +239,9 @@ object AssetBrowserPanel {
         }
         ImGui.sameLine()
         if (ImGui.button("Export Queue")) {
-            PlaylistPanel.openWithQueue(PlayQueueManager.queue)
+            ImGui.openPopup("ExportQueuePopup")
         }
+        drawExportQueuePopup()
         
         ImGui.separator()
         ImGui.spacing()
@@ -530,6 +540,33 @@ object AssetBrowserPanel {
             }
             ImGui.sameLine()
             if (ImGui.button("Cancel", 120f, 0f)) {
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawExportQueuePopup() {
+        if (ImGui.beginPopupModal("ExportQueuePopup", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text("Export Queue as Playlist")
+            ImGui.separator()
+            ImGui.inputText("Playlist Name", exportQueueNameBuffer)
+            if (ImGui.button("Export", 120f, 0f)) {
+                val name = exportQueueNameBuffer.get().trim()
+                if (name.isNotBlank()) {
+                    PlaylistManager.createPlaylist(name, FileSystemManager.getPlaylistsRoot()).onSuccess { playlist ->
+                        PlayQueueManager.queue.forEach { queueFile ->
+                            PlaylistManager.insertPatch(playlist, queueFile.absolutePath, playlist.patches.size)
+                        }
+                        PlaylistManager.savePlaylist(playlist)
+                    }
+                }
+                exportQueueNameBuffer.set("")
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Cancel", 120f, 0f)) {
+                exportQueueNameBuffer.set("")
                 ImGui.closeCurrentPopup()
             }
             ImGui.endPopup()
