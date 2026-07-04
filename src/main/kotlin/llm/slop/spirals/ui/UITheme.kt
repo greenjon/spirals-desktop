@@ -36,7 +36,6 @@ object UITheme {
 
     enum class FontLevel { H1, H2, H3, BODY, CAPTION, CODE }
 
-    enum class SetlistTransitionBehavior { PROMPT, AUTO_DISCARD, AUTO_SAVE }
     enum class AutoVjDirtyBehavior { SKIP, AUTO_DISCARD, AUTO_SAVE }
 
     // -- Mutable sizing knobs (user-tweakable from Settings later) -------------
@@ -56,13 +55,15 @@ object UITheme {
     /** True if the main window should hide all UI overlay panels to show full video mix. */
     var cleanModeEnabled: Boolean = false
 
-    enum class SetlistKeyTrigger { NONE, ARROWS, PAGE_UP_DOWN, SPACE_BACKSPACE }
+    enum class QueueKeyTrigger { NONE, ARROWS, PAGE_UP_DOWN, SPACE_BACKSPACE }
 
-    var setlistTransitionBehavior: SetlistTransitionBehavior = SetlistTransitionBehavior.PROMPT
     var autoVjDirtyBehavior: AutoVjDirtyBehavior = AutoVjDirtyBehavior.AUTO_DISCARD
     var activeMidiProfile: String = "default"
-    var setlistKeyTrigger: SetlistKeyTrigger = SetlistKeyTrigger.NONE
+    var queueKeyTrigger: QueueKeyTrigger = QueueKeyTrigger.NONE
     var tooltipsEnabled: Boolean = true
+
+    enum class StartupBehavior { PREVIOUS_SESSION, EMPTY }
+    var startupBehavior: StartupBehavior = StartupBehavior.PREVIOUS_SESSION
 
     enum class AssetBrowserMode { FULL, HALF, HIDE }
     var assetBrowserMode: AssetBrowserMode = AssetBrowserMode.HALF
@@ -129,11 +130,6 @@ object UITheme {
                         logger.info { "Migrated assetManagerHalfHeight to assetBrowserMode: $assetBrowserMode" }
                     }
                 }
-                val savedTransition = props.getProperty("setlistTransitionBehavior")
-                if (savedTransition != null) {
-                    setlistTransitionBehavior = try { SetlistTransitionBehavior.valueOf(savedTransition) } catch (e: Exception) { SetlistTransitionBehavior.PROMPT }
-                    logger.info { "Loaded setlistTransitionBehavior from settings file: $setlistTransitionBehavior" }
-                }
                 val savedAutoVj = props.getProperty("autoVjDirtyBehavior")
                 if (savedAutoVj != null) {
                     autoVjDirtyBehavior = try { AutoVjDirtyBehavior.valueOf(savedAutoVj) } catch (e: Exception) { AutoVjDirtyBehavior.AUTO_DISCARD }
@@ -143,9 +139,14 @@ object UITheme {
                 if (savedProfile != null) {
                     activeMidiProfile = savedProfile
                 }
-                val savedKeyTrigger = props.getProperty("setlistKeyTrigger")
+                val savedKeyTrigger = props.getProperty("queueKeyTrigger")
                 if (savedKeyTrigger != null) {
-                    setlistKeyTrigger = try { SetlistKeyTrigger.valueOf(savedKeyTrigger) } catch (e: Exception) { SetlistKeyTrigger.NONE }
+                    queueKeyTrigger = try { QueueKeyTrigger.valueOf(savedKeyTrigger) } catch (e: Exception) { QueueKeyTrigger.NONE }
+                }
+                val savedStartup = props.getProperty("startupBehavior")
+                if (savedStartup != null) {
+                    startupBehavior = try { StartupBehavior.valueOf(savedStartup) } catch (e: Exception) { StartupBehavior.PREVIOUS_SESSION }
+                    logger.info { "Loaded startupBehavior from settings file: $startupBehavior" }
                 }
             } else {
                 logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, autocollapseEnabled: $autocollapseEnabled, tooltipsEnabled: $tooltipsEnabled" }
@@ -169,10 +170,10 @@ object UITheme {
             props.setProperty("autocollapseEnabled", autocollapseEnabled.toString())
             props.setProperty("tooltipsEnabled", tooltipsEnabled.toString())
             props.setProperty("assetBrowserMode", assetBrowserMode.name)
-            props.setProperty("setlistTransitionBehavior", setlistTransitionBehavior.name)
             props.setProperty("autoVjDirtyBehavior", autoVjDirtyBehavior.name)
             props.setProperty("activeMidiProfile", activeMidiProfile)
-            props.setProperty("setlistKeyTrigger", setlistKeyTrigger.name)
+            props.setProperty("queueKeyTrigger", queueKeyTrigger.name)
+            props.setProperty("startupBehavior", startupBehavior.name)
             settingsFile.outputStream().use { props.store(it, "Spirals Settings") }
             logger.info { "Saved settings to file" }
         } catch (e: Exception) {

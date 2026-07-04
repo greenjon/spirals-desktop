@@ -86,8 +86,8 @@ class DeckControlPanel(
             ImGui.text("Permanently delete '$activePreset'?")
             ImGui.spacing()
             if (ImGui.button("Delete", 80f, 0f)) {
-                var file = File("presets/decks/$activePreset.lsd")
-                if (!file.exists()) file = File("presets/decks/$activePreset.json")
+                var file = File("presets/patches/$activePreset.lsd")
+                if (!file.exists()) file = File("presets/patches/$activePreset.json")
                 if (file.exists()) file.delete()
                 onDeleteDeck(isDeckA)
                 ImGui.closeCurrentPopup()
@@ -138,6 +138,16 @@ class DeckControlPanel(
         
         ImGui.image(deck.getOutputTexture(), imgAvailW, imgAvailH, 0f, 1f, 1f, 0f)
         
+        ImGui.setCursorScreenPos(imgX, imgY)
+        ImGui.invisibleButton("##drag_source_$label", imgAvailW, imgAvailH)
+        
+        if (ImGui.beginDragDropSource()) {
+            val deckName = if (isDeckA) "A" else "B"
+            ImGui.setDragDropPayload("MONITOR_DRAG", deckName)
+            ImGui.text("Move Deck $deckName")
+            ImGui.endDragDropSource()
+        }
+        
         if (ImGui.beginDragDropTarget()) {
             val payload = ImGui.acceptDragDropPayload<String>("ASSET_ITEM")
             if (payload != null) {
@@ -151,6 +161,17 @@ class DeckControlPanel(
                         // For now, let's assume we need to trigger the popup
                         UIManager.triggerDeckDragDrop(file, deck, isDeckA, mixer)
                     }
+                }
+            }
+            val payloadMonitor = ImGui.acceptDragDropPayload<String>("MONITOR_DRAG")
+            if (payloadMonitor != null) {
+                val fromName = payloadMonitor
+                val toDeck = deck
+                val fromDeck = if (fromName == "A") mixer.deckA
+                               else if (fromName == "B") mixer.deckB
+                               else mixer.deckC
+                if (fromDeck !== toDeck) {
+                    PatchManager.moveDeck(mixer, fromDeck, toDeck)
                 }
             }
             ImGui.endDragDropTarget()

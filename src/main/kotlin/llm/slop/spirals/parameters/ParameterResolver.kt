@@ -15,8 +15,8 @@ object ParameterResolver {
         list.add("Mixer/crossfade" to mixer.crossfade)
         list.add("Mixer/masterAlpha" to mixer.masterAlpha)
         list.add("Mixer/bloom" to mixer.bloom)
-        list.add("Mixer/setlistPrev" to mixer.setlistPrev)
-        list.add("Mixer/setlistNext" to mixer.setlistNext)
+        list.add("Mixer/queuePrev" to mixer.queuePrev)
+        list.add("Mixer/queueNext" to mixer.queueNext)
         
         // Deck A and B
         for (deckLabel in listOf("Deck A", "Deck B")) {

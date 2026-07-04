@@ -76,14 +76,7 @@ class UIManager(private val windowHandle: Long) {
 
     private val patchState = PatchGridState()
 
-    private val projectManager: ProjectManager = ProjectManager(
-        onTriggerConfirmPopup = { popupManager.pendingOpenConfirmPopup = true },
-        onTriggerExit = { org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose(windowHandle, true) },
-        getMixer = { currentMixer }
-    )
-
     private val popupManager: PopupManager = PopupManager(
-        projectManager = projectManager,
         onTriggerExit = { org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose(windowHandle, true) },
         onSaveDeck = { name, deck, isDeckA -> saveDeckPreset(name, deck, isDeckA) },
         onExecuteDeckAction = { deck, isDeckA, action, targetPreset ->
@@ -122,7 +115,6 @@ class UIManager(private val windowHandle: Long) {
     )
 
     private val menuBar = MenuBar(
-        projectManager = projectManager,
         popupManager = popupManager,
         patchState = patchState,
         onTriggerExitFlow = { triggerExitFlow() },
@@ -204,9 +196,11 @@ class UIManager(private val windowHandle: Long) {
         onSaveDeck = { name, deck, isDeckA -> saveDeckPreset(name, deck, isDeckA) },
         onDeleteDeck = { isDeckA ->
             if (isDeckA) {
+                currentMixer?.deckA?.reset()
                 llm.slop.spirals.patches.PatchManager.activePresetA = null
                 llm.slop.spirals.patches.PatchManager.cachedDtoA = null
             } else {
+                currentMixer?.deckB?.reset()
                 llm.slop.spirals.patches.PatchManager.activePresetB = null
                 llm.slop.spirals.patches.PatchManager.cachedDtoB = null
             }
@@ -215,7 +209,6 @@ class UIManager(private val windowHandle: Long) {
 
     private val mixerMonitorPanel = MixerMonitorPanel(
         patchState = patchState,
-        advanceSetlist = { delta -> projectManager.advanceSetlist(delta) },
         drawDeckControls = { mixer, label, deck, width, height, isDeckA -> deckControlPanel.drawDeckControls(mixer, label, deck, width, height, isDeckA) },
         onUtilityAction = { mode, from, to ->
             val isDirty = PatchManager.isDeckDirty(to, currentMixer!!)
@@ -263,9 +256,7 @@ class UIManager(private val windowHandle: Long) {
         currentMixer = mixer
 
         // Update window title dynamically with project name and dirty status
-        val projectName = projectManager.currentGlobalPatchFile?.nameWithoutExtension ?: "Untitled"
-        val isDirty = llm.slop.spirals.patches.PatchManager.isGlobalPatchDirty(mixer)
-        val title = "Spirals Desktop - $projectName${if (isDirty) "*" else ""}"
+        val title = "Spirals Desktop"
         if (title != lastWindowTitle) {
             org.lwjgl.glfw.GLFW.glfwSetWindowTitle(windowHandle, title)
             lastWindowTitle = title
@@ -301,8 +292,8 @@ class UIManager(private val windowHandle: Long) {
                 }
                 patchState.midiLearnTarget = null
             } else {
-                val nextCc = llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/setlistNext")
-                val nextCh = llm.slop.spirals.midi.MidiMappingManager.getChannelForSpecial("Global/setlistNext")
+                val nextCc = llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/queueNext")
+                val nextCh = llm.slop.spirals.midi.MidiMappingManager.getChannelForSpecial("Global/queueNext")
                 if (nextCc != -1 && cc == nextCc && channel == nextCh) {
                     val valNow = llm.slop.spirals.midi.MidiEngine.getCcValue(channel, cc)
                     val isHigh = valNow > 0.5f
@@ -311,8 +302,8 @@ class UIManager(private val windowHandle: Long) {
                     }
                     lastNextMidiCcHigh = isHigh
                 }
-                val prevCc = llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/setlistPrev")
-                val prevCh = llm.slop.spirals.midi.MidiMappingManager.getChannelForSpecial("Global/setlistPrev")
+                val prevCc = llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/queuePrev")
+                val prevCh = llm.slop.spirals.midi.MidiMappingManager.getChannelForSpecial("Global/queuePrev")
                 if (prevCc != -1 && cc == prevCc && channel == prevCh) {
                     val valNow = llm.slop.spirals.midi.MidiEngine.getCcValue(channel, cc)
                     val isHigh = valNow > 0.5f
@@ -324,19 +315,19 @@ class UIManager(private val windowHandle: Long) {
             }
         }
 
-        val cvDelta = mixer.pollSetlistAdvance()
+        val cvDelta = mixer.pollQueueAdvance()
         var keyDelta = 0
         if (!ImGui.getIO().wantCaptureKeyboard) {
-            when (UITheme.setlistKeyTrigger) {
-                UITheme.SetlistKeyTrigger.ARROWS -> {
+            when (UITheme.queueKeyTrigger) {
+                UITheme.QueueKeyTrigger.ARROWS -> {
                     if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.LeftArrow))) keyDelta -= 1
                     if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.RightArrow))) keyDelta += 1
                 }
-                UITheme.SetlistKeyTrigger.PAGE_UP_DOWN -> {
+                UITheme.QueueKeyTrigger.PAGE_UP_DOWN -> {
                     if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.PageUp))) keyDelta -= 1
                     if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.PageDown))) keyDelta += 1
                 }
-                UITheme.SetlistKeyTrigger.SPACE_BACKSPACE -> {
+                UITheme.QueueKeyTrigger.SPACE_BACKSPACE -> {
                     if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.Backspace))) keyDelta -= 1
                     if (ImGui.isKeyPressed(ImGui.getKeyIndex(imgui.flag.ImGuiKey.Space))) keyDelta += 1
                 }
@@ -348,7 +339,7 @@ class UIManager(private val windowHandle: Long) {
             if (totalDelta > 0) {
                 PlayQueueManager.triggerNext(mixer)
             } else {
-                projectManager.advanceSetlist(totalDelta)
+                PlayQueueManager.triggerPrevious(mixer)
             }
         }
 
@@ -376,10 +367,7 @@ class UIManager(private val windowHandle: Long) {
                 AudioEnginePanel.open()
                 pendingOpenAudioEngineMonitor = false
             }
-            if (popupManager.pendingOpenConfirmPopup) {
-                ImGui.openPopup("Save Changes?##confirm")
-                popupManager.pendingOpenConfirmPopup = false
-            }
+
             if (popupManager.pendingOpenExitPopup) {
                 ImGui.openPopup("Exit Spirals?##confirm")
                 popupManager.pendingOpenExitPopup = false
@@ -397,12 +385,12 @@ class UIManager(private val windowHandle: Long) {
 
             AudioEnginePanel.draw(displayWidth, displayHeight)
 
-            popupManager.drawConfirmPopup(mixer, displayWidth, displayHeight)
+
             popupManager.drawExitPopup(mixer, displayWidth, displayHeight)
             popupManager.drawDeckConfirmPopups(mixer)
             popupManager.drawMidiWarningPopup(displayWidth, displayHeight)
 
-            projectManager.drawGlobalFileBrowser(mixer)
+
 
             deckABrowser.draw(
                 activePresetName = PatchManager.activePresetA,
@@ -486,7 +474,7 @@ class UIManager(private val windowHandle: Long) {
 
     /**
      * Phase 2: deck preset "Load File..." now opens the ImGui file browser
-     * pointed at `presets/decks/` instead of `java.awt.FileDialog`.
+     * pointed at `presets/patches/` instead of `java.awt.FileDialog`.
      *
      * The browser is shared with the global project browser but uses a
      * separate instance per deck so both decks can have independent state.
@@ -498,7 +486,7 @@ class UIManager(private val windowHandle: Long) {
         val browser = if (isDeckA) deckAFileBrowser else deckBFileBrowser
         browser.open(
             ImGuiFileBrowser.Mode.LOAD,
-            startDir = File("presets/decks").canonicalFile
+            startDir = File("presets/patches").canonicalFile
         )
     }
 
@@ -506,9 +494,9 @@ class UIManager(private val windowHandle: Long) {
 
     private fun loadDeckPreset(presetName: String, deck: Deck, isDeckA: Boolean) {
         if (presetName == "None") return
-        var file = File("presets/decks/$presetName.lsd")
+        var file = File("presets/patches/$presetName.lsd")
         if (!file.exists()) {
-            file = File("presets/decks/$presetName.json")
+            file = File("presets/patches/$presetName.json")
         }
         if (file.exists()) {
             llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, isDeckA)
@@ -549,7 +537,7 @@ class UIManager(private val windowHandle: Long) {
                 llm.slop.spirals.patches.PatchManager.cachedDtoC = dto
             }
         }
-        val file = File("presets/decks/$name.lsd")
+        val file = File("presets/patches/$name.lsd")
         llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name, resolvedTags)
     }
 

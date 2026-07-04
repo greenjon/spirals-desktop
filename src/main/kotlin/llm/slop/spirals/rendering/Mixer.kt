@@ -18,20 +18,20 @@ class Mixer(
     val masterFBO = FBO(width, height)
 
     // Blend parameters
-    val crossfade = ModulatableParameter(0.0f, meterType = MeterType.BIPOLAR) // 0.0 = Deck A, 1.0 = Deck B
+    val crossfade = ModulatableParameter(-1.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = MeterType.BIPOLAR) // -1.0 = Deck A, 1.0 = Deck B
     val mode = ModulatableParameter(4.0f) // 0 = ADD, 1 = SCREEN, 2 = MULT, 3 = MAX, 4 = XFADE
     val masterAlpha = ModulatableParameter(1.0f) // Master output gain
     val bloom = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
     val xfadeSpeed = ModulatableParameter(0.1f, minClamp = 0.001f, maxClamp = 1.0f)
 
-    @Volatile var targetCrossfade = 0.0f
+    @Volatile var targetCrossfade = -1.0f
     var isAutoFading = false
 
-    val setlistPrev = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
-    val setlistNext = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+    val queuePrev = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+    val queueNext = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
 
-    private var prevSetlistPrevVal = 0.0f
-    private var prevSetlistNextVal = 0.0f
+    private var prevQueuePrevVal = 0.0f
+    private var prevQueueNextVal = 0.0f
 
     /**
      * Evaluates mixer parameters.
@@ -57,28 +57,28 @@ class Mixer(
         masterAlpha.evaluate()
         bloom.evaluate()
         xfadeSpeed.evaluate()
-        setlistPrev.evaluate()
-        setlistNext.evaluate()
+        queuePrev.evaluate()
+        queueNext.evaluate()
     }
 
     /**
      * Evaluates if either parameter crossed the 0.5 threshold since the last frame.
-     * Returns +1 if setlistNext was triggered, -1 if setlistPrev was triggered, or 0.
+     * Returns +1 if queueNext was triggered, -1 if queuePrev was triggered, or 0.
      */
-    fun pollSetlistAdvance(): Int {
-        val nextVal = setlistNext.value
-        val prevVal = setlistPrev.value
+    fun pollQueueAdvance(): Int {
+        val nextVal = queueNext.value
+        val prevVal = queuePrev.value
 
         var delta = 0
-        if (prevSetlistNextVal < 0.5f && nextVal >= 0.5f) {
+        if (prevQueueNextVal < 0.5f && nextVal >= 0.5f) {
             delta += 1
         }
-        if (prevSetlistPrevVal < 0.5f && prevVal >= 0.5f) {
+        if (prevQueuePrevVal < 0.5f && prevVal >= 0.5f) {
             delta -= 1
         }
 
-        prevSetlistNextVal = nextVal
-        prevSetlistPrevVal = prevVal
+        prevQueueNextVal = nextVal
+        prevQueuePrevVal = prevVal
         return delta
     }
 

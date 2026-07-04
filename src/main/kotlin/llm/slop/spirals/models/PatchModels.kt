@@ -194,7 +194,8 @@ data class DeckPatchDto(
     val parameters: Map<String, ParameterDto>, // Visual source params
     val feedbackParameters: Map<String, ParameterDto>, // Feedback chain params
     val globalAlpha: ParameterDto,
-    val globalScale: ParameterDto? = null
+    val globalScale: ParameterDto? = null,
+    val isEmpty: Boolean = false
 )
 
 @Serializable
@@ -207,7 +208,7 @@ data class MandalaRecipeDto(
 
 @Serializable
 data class GlobalPatchDto(
-    val version: Int = 1,
+    val version: Int = 2,
     val name: String,
     val crossfade: ParameterDto,
     val masterAlpha: ParameterDto,
@@ -215,15 +216,29 @@ data class GlobalPatchDto(
     val deckA: DeckPatchDto,
     val deckB: DeckPatchDto,
     val bloom: ParameterDto? = null,
-    val setlistNext: ParameterDto? = null,
-    val setlistPrev: ParameterDto? = null
+    val queueNext: ParameterDto? = null,
+    val queuePrev: ParameterDto? = null
+)
+
+@Serializable
+data class SessionStateDto(
+    val version: Int = 2,
+    val deckA: DeckPatchDto,
+    val deckB: DeckPatchDto,
+    val deckC: DeckPatchDto,
+    val crossfade: ParameterDto,
+    val masterAlpha: ParameterDto,
+    val blendMode: Float,
+    val queue: List<String>,
+    val activeIndex: Int,
+    val isAutoVJEnabled: Boolean
 )
 
 @Serializable
 data class PlaylistDto(
     val version: Int = 1,
     val name: String,
-    val items: List<String> // List of .lsd file names (relative to presets/decks)
+    val items: List<String> // List of .lsd file names (relative to presets/patches)
 )
 
 // --- Extension Converters ---
@@ -360,11 +375,13 @@ fun Deck.toDto(name: String, tags: List<String> = emptyList()): DeckPatchDto {
         parameters = paramsMap,
         feedbackParameters = feedbackParamsMap,
         globalAlpha = source.globalAlpha.toDto(),
-        globalScale = ParameterDto(1.0f, 0.0f, 1.0f, false, emptyList())
+        globalScale = ParameterDto(1.0f, 0.0f, 1.0f, false, emptyList()),
+        isEmpty = isEmpty
     )
 }
 
 fun Deck.applyDto(dto: DeckPatchDto) {
+    this.isEmpty = dto.isEmpty
     dto.feedbackParameters["sourceSelect"]?.let { sourceSelect.applyDto(it) }
     
     // Select the active source dynamically based on sourceSelect parameter
@@ -439,17 +456,27 @@ fun Mixer.toDto(name: String): GlobalPatchDto = GlobalPatchDto(
     deckA = deckA.toDto("Deck A"),
     deckB = deckB.toDto("Deck B"),
     bloom = bloom.toDto(),
-    setlistNext = setlistNext.toDto(),
-    setlistPrev = setlistPrev.toDto()
+    queueNext = queueNext.toDto(),
+    queuePrev = queuePrev.toDto()
 )
 
+fun mapMonopolarToBipolar(dto: ParameterDto): ParameterDto {
+    val mapVal: (Float) -> Float = { it * 2f - 1f }
+    return dto.copy(
+        baseValue = mapVal(dto.baseValue),
+        baseMin = mapVal(dto.baseMin),
+        baseMax = mapVal(dto.baseMax)
+    )
+}
+
 fun Mixer.applyDto(dto: GlobalPatchDto) {
-    crossfade.applyDto(dto.crossfade)
+    val crossfadeDto = if (dto.version <= 1) mapMonopolarToBipolar(dto.crossfade) else dto.crossfade
+    crossfade.applyDto(crossfadeDto)
     masterAlpha.applyDto(dto.masterAlpha)
     mode.set(dto.blendMode)
     deckA.applyDto(dto.deckA)
     deckB.applyDto(dto.deckB)
     dto.bloom?.let { bloom.applyDto(it) }
-    dto.setlistNext?.let { setlistNext.applyDto(it) }
-    dto.setlistPrev?.let { setlistPrev.applyDto(it) }
+    dto.queueNext?.let { queueNext.applyDto(it) }
+    dto.queuePrev?.let { queuePrev.applyDto(it) }
 }

@@ -66,6 +66,15 @@ object PatchManager {
     }
 
     fun copyDeck(mixer: Mixer, from: Deck, to: Deck) {
+        if (from.isEmpty) {
+            to.reset()
+            when {
+                to === mixer.deckA -> { cachedDtoA = null; activePresetA = null }
+                to === mixer.deckB -> { cachedDtoB = null; activePresetB = null }
+                to === mixer.deckC -> { cachedDtoC = null; activePresetC = null }
+            }
+            return
+        }
         val fromDto = when {
             from === mixer.deckA -> cachedDtoA?.let { from.toDto(it.name) } ?: from.toDto("Deck A")
             from === mixer.deckB -> cachedDtoB?.let { from.toDto(it.name) } ?: from.toDto("Deck B")
@@ -260,5 +269,87 @@ object PatchManager {
             }
             deckCDto = deckCPatchQueue.poll()
         }
+    }
+
+    fun saveSession(mixer: Mixer) {
+        try {
+            val sessionFile = File("presets/last_session.json")
+            val parent = sessionFile.parentFile
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs()
+            }
+            
+            val deckADto = mixer.deckA.toDto(activePresetA ?: "Deck A")
+            val deckBDto = mixer.deckB.toDto(activePresetB ?: "Deck B")
+            val deckCDto = mixer.deckC.toDto(activePresetC ?: "Deck C")
+            
+            val session = SessionStateDto(
+                deckA = deckADto,
+                deckB = deckBDto,
+                deckC = deckCDto,
+                crossfade = mixer.crossfade.toDto(),
+                masterAlpha = mixer.masterAlpha.toDto(),
+                blendMode = mixer.mode.baseValue,
+                queue = PlayQueueManager.queue.map { it.absolutePath },
+                activeIndex = PlayQueueManager.activeIndex,
+                isAutoVJEnabled = PlayQueueManager.isAutoVJEnabled
+            )
+            
+            val content = json.encodeToString(session)
+            sessionFile.writeText(content)
+            logger.info { "Successfully saved session state to ${sessionFile.name}" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to save session state" }
+        }
+    }
+
+    fun loadSession(mixer: Mixer) {
+        try {
+            val sessionFile = File("presets/last_session.json")
+            if (!sessionFile.exists()) {
+                logger.info { "No previous session file found." }
+                return
+            }
+            val content = sessionFile.readText()
+            val session = json.decodeFromString<SessionStateDto>(content)
+            
+            val crossfadeDto = if (session.version <= 1) llm.slop.spirals.models.mapMonopolarToBipolar(session.crossfade) else session.crossfade
+            mixer.crossfade.applyDto(crossfadeDto)
+            mixer.masterAlpha.applyDto(session.masterAlpha)
+            mixer.mode.set(session.blendMode)
+            
+            mixer.deckA.applyDto(session.deckA)
+            mixer.deckB.applyDto(session.deckB)
+            mixer.deckC.applyDto(session.deckC)
+            
+            activePresetA = if (session.deckA.isEmpty) null else session.deckA.name
+            cachedDtoA = if (session.deckA.isEmpty) null else session.deckA
+            
+            activePresetB = if (session.deckB.isEmpty) null else session.deckB.name
+            cachedDtoB = if (session.deckB.isEmpty) null else session.deckB
+            
+            activePresetC = if (session.deckC.isEmpty) null else session.deckC.name
+            cachedDtoC = if (session.deckC.isEmpty) null else session.deckC
+            
+            val files = session.queue.map { File(it) }.filter { it.exists() }
+            PlayQueueManager.restoreSessionQueue(files, session.activeIndex, session.isAutoVJEnabled)
+            logger.info { "Successfully loaded session state from ${sessionFile.name}" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to load session state" }
+        }
+    }
+
+    fun startEmpty(mixer: Mixer) {
+        mixer.deckA.reset()
+        mixer.deckB.reset()
+        mixer.deckC.reset()
+        activePresetA = null
+        cachedDtoA = null
+        activePresetB = null
+        cachedDtoB = null
+        activePresetC = null
+        cachedDtoC = null
+        PlayQueueManager.clearQueue()
+        logger.info { "Started application empty" }
     }
 }

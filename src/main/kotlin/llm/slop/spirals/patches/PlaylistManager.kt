@@ -31,15 +31,11 @@ object PlaylistManager {
             lines.forEach { itemName ->
                 var deckFile = File(itemName)
                 if (!deckFile.exists()) {
-                    deckFile = File("presets/decks/$itemName")
-                }
-                if (!deckFile.exists()) {
                     deckFile = File("presets/patches/$itemName")
                 }
                 if (!deckFile.exists()) {
                     val possible = listOf(
                         itemName, "$itemName.lsd", "$itemName.json",
-                        "presets/decks/$itemName.lsd", "presets/decks/$itemName.json",
                         "presets/patches/$itemName.lsd", "presets/patches/$itemName.json"
                     )
                     var found = false

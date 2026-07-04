@@ -12,6 +12,8 @@ class Deck(
     val width: Int = 1920,
     val height: Int = 1080
 ) {
+    var isEmpty: Boolean = false
+
     // FBO for rendering the clean visual source output
     val cleanFBO = FBO(width, height)
 
@@ -59,6 +61,7 @@ class Deck(
     }
 
     fun reset() {
+        isEmpty = true
         sourceSelect.reset()
         availableSources.forEach { src ->
             src.parameters.values.forEach { it.reset() }
@@ -75,6 +78,11 @@ class Deck(
         fbMode.reset()
         source.clear()
         updateSourceSelection()
+
+        // Clear FBOs to prevent rendering stale feedback
+        fb1.clear(0f, 0f, 0f, 0f)
+        fb2.clear(0f, 0f, 0f, 0f)
+        cleanFBO.clear(0f, 0f, 0f, 0f)
     }
 
     /**

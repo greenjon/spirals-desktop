@@ -8,7 +8,6 @@ import mu.KotlinLogging
 import llm.slop.spirals.midi.MidiEngine
 
 class MenuBar(
-    private val projectManager: ProjectManager,
     private val popupManager: PopupManager,
     private val patchState: PatchGridState,
     private val onTriggerExitFlow: () -> Unit,
@@ -20,29 +19,6 @@ class MenuBar(
     fun draw(mixer: Mixer) {
         if (ImGui.beginMainMenuBar()) {
             if (ImGui.beginMenu("File")) {
-                if (ImGui.menuItem("New Project")) {
-                    if (PatchManager.isGlobalPatchDirty(mixer)) {
-                        projectManager.pendingProjectAction = ProjectManager.PendingProjectAction.NEW
-                        popupManager.pendingOpenConfirmPopup = true
-                    } else {
-                        projectManager.performNewProject(mixer)
-                    }
-                }
-                if (ImGui.menuItem("Load Project...")) {
-                    if (PatchManager.isGlobalPatchDirty(mixer)) {
-                        projectManager.pendingProjectAction = ProjectManager.PendingProjectAction.LOAD
-                        popupManager.pendingOpenConfirmPopup = true
-                    } else {
-                        projectManager.performLoadProject()
-                    }
-                }
-                if (ImGui.menuItem("Save Project")) {
-                    projectManager.saveGlobalPatch(mixer, false)
-                }
-                if (ImGui.menuItem("Save Project As...")) {
-                    projectManager.saveGlobalPatch(mixer, true)
-                }
-                ImGui.separator()
                 if (ImGui.beginMenu("New Patch")) {
                     if (ImGui.menuItem("To Deck A")) {
                         mixer.deckA.reset()

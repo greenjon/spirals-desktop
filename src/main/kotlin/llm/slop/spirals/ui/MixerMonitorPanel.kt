@@ -11,7 +11,6 @@ import llm.slop.spirals.patches.PatchManager
 
 class MixerMonitorPanel(
     private val patchState: PatchGridState,
-    private val advanceSetlist: (Int) -> Unit,
     private val drawDeckControls: (Mixer, String, Deck, Float, Float, Boolean) -> Unit,
     private val onUtilityAction: (Int, Deck, Deck) -> Unit, // (mode: 0=Move, 1=Copy, 2=Swap, from, to)
     private val onSaveDeck: (Deck, Boolean, Boolean) -> Unit
@@ -38,7 +37,7 @@ class MixerMonitorPanel(
         ImGui.beginChild("MasterControls", availW, 55f, true)
         
         // Crossfader (mapped display value from -1.0 to 1.0)
-        drawFlatSlider("Mixer/crossfade", "Crossfader", mixer.crossfade, 0f, 1f, 80f, -1f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)) {
+        drawFlatSlider("Mixer/crossfade", "Crossfader", mixer.crossfade, -1f, 1f, 80f, -1f, 1f, ImGui.colorConvertFloat4ToU32(0.4f, 1.0f, 0.8f, 1f)) {
             ""
         }
         if (ImGui.isItemActive()) {
@@ -190,12 +189,32 @@ class MixerMonitorPanel(
         
         ImGui.image(mixer.deckC.getOutputTexture(), halfW, subH, 0f, 1f, 1f, 0f)
 
+        ImGui.setCursorScreenPos(imgX, imgY)
+        ImGui.invisibleButton("##drag_source_C", halfW, subH)
+
+        if (ImGui.beginDragDropSource()) {
+            ImGui.setDragDropPayload("MONITOR_DRAG", "C")
+            ImGui.text("Move Deck C")
+            ImGui.endDragDropSource()
+        }
+
         if (ImGui.beginDragDropTarget()) {
             val payload = ImGui.acceptDragDropPayload<String>("ASSET_ITEM")
             if (payload != null) {
                 val file = java.io.File(payload)
                 if (file.extension.lowercase() in listOf("patch", "lsd", "json")) {
                     PatchManager.loadDeckPresetAsync(file, isDeckA = false, isDeckC = true)
+                }
+            }
+            val payloadMonitor = ImGui.acceptDragDropPayload<String>("MONITOR_DRAG")
+            if (payloadMonitor != null) {
+                val fromName = payloadMonitor
+                val toDeck = mixer.deckC
+                val fromDeck = if (fromName == "A") mixer.deckA
+                               else if (fromName == "B") mixer.deckB
+                               else mixer.deckC
+                if (fromDeck !== toDeck) {
+                    PatchManager.moveDeck(mixer, fromDeck, toDeck)
                 }
             }
             ImGui.endDragDropTarget()
@@ -237,19 +256,26 @@ class MixerMonitorPanel(
         ImGui.spacing()
         
         // Rows 2-4: Action Buttons
-        ImGui.beginGroup()
-        if (ImGui.button("A > B", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckB)
-        if (ImGui.button("B > A", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckA)
-        if (ImGui.button("C > A", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckA)
-        ImGui.endGroup()
+        if (utilityMode == 2) {
+            val fullW = width - 5f
+            if (ImGui.button("A + B", fullW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckB)
+            if (ImGui.button("B+C", fullW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckC)
+            if (ImGui.button("C + A", fullW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckA)
+        } else {
+            ImGui.beginGroup()
+            if (ImGui.button("A > B", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckB)
+            if (ImGui.button("B > A", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckA)
+            if (ImGui.button("C > A", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckA)
+            ImGui.endGroup()
 
-        ImGui.sameLine(0f, 5f)
+            ImGui.sameLine(0f, 5f)
 
-        ImGui.beginGroup()
-        if (ImGui.button("A > C", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckC)
-        if (ImGui.button("B > C", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckC)
-        if (ImGui.button("C > B", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckB)
-        ImGui.endGroup()
+            ImGui.beginGroup()
+            if (ImGui.button("A > C", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckC)
+            if (ImGui.button("B > C", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckC)
+            if (ImGui.button("C > B", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckB)
+            ImGui.endGroup()
+        }
 
         ImGui.endChild()
     }
@@ -288,6 +314,11 @@ class MixerMonitorPanel(
             if (ImGui.isItemClicked(0)) {
                 patchState.midiLearnTarget = MidiLearnTarget.BaseValueSlider(paramKey, label, param, min, max)
             }
+        } else if (ImGui.isItemActive()) {
+            val mouseX = ImGui.getIO().mousePos.x
+            val pct = ((mouseX - barStartX) / barW).coerceIn(0f, 1f)
+            val newValue = min + pct * (max - min)
+            param.set(newValue)
         }
 
         val valueRange = max - min
@@ -327,15 +358,35 @@ class MixerMonitorPanel(
         // Fill mapping slider value
         val currentDisplayVal = displayMin + if (valueRange > 0f) ((param.baseValue - min) / valueRange) * displayRange else 0f
         val pct = if (valueRange > 0f) ((param.baseValue - min) / valueRange).coerceIn(0f, 1f) else 0f
-        val fillWidth = barW * pct
 
-        if (fillWidth > 0f) {
-            dl.addRectFilled(
-                barStartX, barScreenY,
-                barStartX + fillWidth, barScreenY + barH,
-                themeColor,
-                3f
-            )
+        val isBipolar = min < 0f
+        if (isBipolar && valueRange > 0f) {
+            val centerPct = ((0f - min) / valueRange).coerceIn(0f, 1f)
+            val startX = barStartX + barW * centerPct
+            val endX = barStartX + barW * pct
+            val x1 = minOf(startX, endX)
+            val x2 = maxOf(startX, endX)
+            if (x2 > x1) {
+                dl.addRectFilled(
+                    x1, barScreenY,
+                    x2, barScreenY + barH,
+                    themeColor,
+                    3f
+                )
+            }
+            // Draw a subtle vertical line at the center to mark the zero point
+            val zeroCol = ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.8f)
+            dl.addLine(startX, barScreenY - 1f, startX, barScreenY + barH + 1f, zeroCol, 1.5f)
+        } else {
+            val fillWidth = barW * pct
+            if (fillWidth > 0f) {
+                dl.addRectFilled(
+                    barStartX, barScreenY,
+                    barStartX + fillWidth, barScreenY + barH,
+                    themeColor,
+                    3f
+                )
+            }
         }
 
         // MIDI mapped indicator

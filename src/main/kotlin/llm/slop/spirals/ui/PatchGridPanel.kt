@@ -120,8 +120,8 @@ object PatchGridPanel {
                     PatchGridRenderer.drawParamRow("crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer, gridStartX, 2, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("master Alpha",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 3, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     PatchGridRenderer.drawParamRow("bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer, gridStartX, 4, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow("setlist prev", "Mixer/setlistPrev", mixer.setlistPrev, state, labelColW, mixer, gridStartX, 5, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow("setlist next", "Mixer/setlistNext", mixer.setlistNext, state, labelColW, mixer, gridStartX, 6, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    PatchGridRenderer.drawParamRow("queue prev", "Mixer/queuePrev", mixer.queuePrev, state, labelColW, mixer, gridStartX, 5, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    PatchGridRenderer.drawParamRow("queue next", "Mixer/queueNext", mixer.queueNext, state, labelColW, mixer, gridStartX, 6, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                 }
             } else if (state.activeTopTab == "Deck A") {
                 PatchGridTabs.drawDeckGroupContent("Deck A", mixer.deckA, state, labelColW, mixer, gridStartX, ::getCvColumns, ::getColumnOffset, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }

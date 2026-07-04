@@ -23,8 +23,8 @@ object PlayQueueManager {
     var activeIndex = -1
         private set
 
-    fun appendPlaylistToQueue(playlistFile: File) {
-        try {
+    fun parsePlaylist(playlistFile: File): List<File> {
+        return try {
             val content = playlistFile.readText()
             val items = if (content.trim().startsWith("{")) {
                 val dto = json.decodeFromString<PlaylistDto>(content)
@@ -35,16 +35,62 @@ object PlayQueueManager {
                     .filter { it.isNotEmpty() && !it.startsWith("#") }
             }
             
-            items.forEach { itemName ->
+            items.mapNotNull { itemName ->
                 val resolved = resolveQueueItem(itemName)
-                if (resolved != null) {
-                    appendToQueue(resolved)
-                } else {
+                if (resolved == null) {
                     logger.warn { "Queue playlist item not found: $itemName" }
                 }
+                resolved
             }
         } catch (e: Exception) {
-            logger.error(e) { "Failed to append playlist to queue: ${playlistFile.absolutePath}" }
+            logger.error(e) { "Failed to parse playlist: ${playlistFile.absolutePath}" }
+            emptyList()
+        }
+    }
+
+    fun appendPlaylistToQueue(playlistFile: File) {
+        val files = parsePlaylist(playlistFile)
+        queue.addAll(files)
+        logger.info { "Appended playlist to queue: ${playlistFile.name} (${files.size} items)" }
+    }
+
+    fun playNow(file: File, mixer: Mixer) {
+        clearQueue()
+        appendToQueue(file)
+        triggerNext(mixer)
+    }
+
+    fun playPlaylistNow(playlistFile: File, mixer: Mixer) {
+        clearQueue()
+        val files = parsePlaylist(playlistFile)
+        if (files.isNotEmpty()) {
+            queue.addAll(files)
+            logger.info { "Replaced queue with playlist: ${playlistFile.name} (${files.size} items)" }
+            triggerNext(mixer)
+        }
+    }
+
+    fun insertAfterCurrent(file: File) {
+        val insertIndex = if (activeIndex in queue.indices) activeIndex + 1 else 0
+        if (insertIndex <= queue.size) {
+            queue.add(insertIndex, file)
+            logger.info { "Inserted after current (at $insertIndex): ${file.name}" }
+        } else {
+            appendToQueue(file)
+        }
+    }
+
+    fun insertPlaylistAfterCurrent(playlistFile: File) {
+        val files = parsePlaylist(playlistFile)
+        if (files.isNotEmpty()) {
+            val insertIndex = if (activeIndex in queue.indices) activeIndex + 1 else 0
+            if (insertIndex <= queue.size) {
+                queue.addAll(insertIndex, files)
+                logger.info { "Inserted playlist after current (at $insertIndex): ${playlistFile.name} (${files.size} items)" }
+            } else {
+                queue.addAll(files)
+                logger.info { "Appended playlist to queue: ${playlistFile.name} (${files.size} items)" }
+            }
         }
     }
 
@@ -52,7 +98,7 @@ object PlayQueueManager {
         val f = File(name)
         if (f.exists() && f.isFile) return f
 
-        val roots = listOf("presets/patches", "presets/decks")
+        val roots = listOf("presets/patches")
         for (root in roots) {
             val rf = File(root, name)
             if (rf.exists() && rf.isFile) return rf
@@ -114,8 +160,8 @@ object PlayQueueManager {
         }
         
         // Determine which deck is inactive
-        // crossfade 0.0 = Deck A, 1.0 = Deck B
-        val targetIsA = mixer.crossfade.value > 0.5f
+        // crossfade -1.0 = Deck A, 1.0 = Deck B
+        val targetIsA = mixer.crossfade.value > 0.0f
         val targetDeck = if (targetIsA) mixer.deckA else mixer.deckB
         
         val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
@@ -129,7 +175,7 @@ object PlayQueueManager {
                     val activeName = if (targetIsA) PatchManager.activePresetA else PatchManager.activePresetB
                     val saveName = activeName ?: "AutoVJ_${if (targetIsA) "A" else "B"}_${System.currentTimeMillis()}"
                     logger.info { "AutoVJ: Autosaving dirty deck to $saveName" }
-                    PatchManager.saveDeckPresetAsync(File("presets/decks/$saveName.lsd"), targetDeck, saveName)
+                    PatchManager.saveDeckPresetAsync(File("presets/patches/$saveName.lsd"), targetDeck, saveName)
                     // We can't wait for async save here easily, but we've captured the state
                 }
                 llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_DISCARD -> {
@@ -146,12 +192,64 @@ object PlayQueueManager {
         PatchManager.loadDeckPresetAsync(file, targetIsA)
         
         // Start auto-fade to the target deck
-        mixer.targetCrossfade = if (targetIsA) 0.0f else 1.0f
+        mixer.targetCrossfade = if (targetIsA) -1.0f else 1.0f
         mixer.isAutoFading = true
     }
     
     fun clearQueue() {
         queue.clear()
         activeIndex = -1
+    }
+
+    fun restoreSessionQueue(files: List<File>, activeIdx: Int, autoVJ: Boolean) {
+        queue.clear()
+        queue.addAll(files)
+        activeIndex = activeIdx
+        isAutoVJEnabled = autoVJ
+    }
+
+    fun triggerPrevious(mixer: Mixer) {
+        if (queue.isEmpty()) return
+        
+        val prevIndex = activeIndex - 1
+        if (prevIndex < 0) {
+            logger.info { "Start of queue reached." }
+            return
+        }
+        
+        // Determine which deck is inactive
+        // crossfade -1.0 = Deck A, 1.0 = Deck B
+        val targetIsA = mixer.crossfade.value > 0.0f
+        val targetDeck = if (targetIsA) mixer.deckA else mixer.deckB
+        
+        val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
+        if (isDirty) {
+            when (llm.slop.spirals.ui.UITheme.autoVjDirtyBehavior) {
+                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.SKIP -> {
+                    logger.info { "AutoVJ: Skipping prev item because target deck is dirty" }
+                    return
+                }
+                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_SAVE -> {
+                    val activeName = if (targetIsA) PatchManager.activePresetA else PatchManager.activePresetB
+                    val saveName = activeName ?: "AutoVJ_${if (targetIsA) "A" else "B"}_${System.currentTimeMillis()}"
+                    logger.info { "AutoVJ: Autosaving dirty deck to $saveName" }
+                    PatchManager.saveDeckPresetAsync(File("presets/patches/$saveName.lsd"), targetDeck, saveName)
+                }
+                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_DISCARD -> {
+                    logger.info { "AutoVJ: Discarding changes on dirty deck" }
+                }
+            }
+        }
+
+        activeIndex = prevIndex
+        val file = queue[activeIndex]
+        
+        logger.info { "Triggering previous: ${file.name} to Deck ${if (targetIsA) "A" else "B"}" }
+        
+        PatchManager.loadDeckPresetAsync(file, targetIsA)
+        
+        // Start auto-fade to the target deck
+        mixer.targetCrossfade = if (targetIsA) -1.0f else 1.0f
+        mixer.isAutoFading = true
     }
 }

@@ -185,7 +185,7 @@ class DeckPresetBrowser(
         if (filtered.isEmpty() && allPresets.isNotEmpty()) {
             ImGui.textDisabled("No presets match the current filter.")
         } else if (allPresets.isEmpty()) {
-            ImGui.textDisabled("No presets found in presets/decks/")
+            ImGui.textDisabled("No presets found in presets/patches/")
         }
 
         ImGui.endChild()
@@ -278,7 +278,7 @@ class DeckPresetBrowser(
     // -- Preset scanning -------------------------------------------------------
 
     /**
-     * Reads all `.lsd` and `.json` files from `presets/decks/`, deserialises just enough
+     * Reads all `.lsd` and `.json` files from `presets/patches/`, deserialises just enough
      * to extract the `tags` field, and rebuilds [allPresets] and [allTags].
      *
      * This runs on the render (main) thread -- file I/O is acceptable here
@@ -286,7 +286,7 @@ class DeckPresetBrowser(
      * every frame.
      */
     private fun scanPresets() {
-        val dir = File("presets/decks")
+        val dir = File("presets/patches")
         if (!dir.exists()) dir.mkdirs()
 
         val files = dir.listFiles { _, name -> name.endsWith(".lsd") || name.endsWith(".json") }

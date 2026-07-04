@@ -188,19 +188,32 @@ object SettingsPanel {
         ImGui.spacing()
 
         // ---------------------------------------------------------------------
-        // Setlist & Live Mode Settings
+        // Startup Settings
         // ---------------------------------------------------------------------
-        UITheme.h2("Setlist & Live Mode")
+        UITheme.h2("Startup")
         ImGui.separator()
         ImGui.spacing()
 
-        val behaviors = UITheme.SetlistTransitionBehavior.values()
-        val behaviorNames = behaviors.map { it.name }.toTypedArray()
-        val currentBehaviorIdx = imgui.type.ImInt(UITheme.setlistTransitionBehavior.ordinal)
-        if (ImGui.combo("Transition Behavior", currentBehaviorIdx, behaviorNames)) {
-            UITheme.setlistTransitionBehavior = behaviors[currentBehaviorIdx.get()]
+        val startupBehaviors = UITheme.StartupBehavior.values()
+        val startupOptions = arrayOf("Restore Previous Session", "Start Empty")
+        val currentStartupIdx = imgui.type.ImInt(UITheme.startupBehavior.ordinal)
+        if (ImGui.combo("Startup Behavior", currentStartupIdx, startupOptions)) {
+            UITheme.startupBehavior = startupBehaviors[currentStartupIdx.get()]
             UITheme.saveSettings()
         }
+        ImGui.spacing()
+        UITheme.caption("Choose whether to load the previous session (active deck contents and play queue)")
+        UITheme.caption("or start with empty decks and queue.")
+
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+
+        // ---------------------------------------------------------------------
+        // Queue & Live Mode Settings
+        // ---------------------------------------------------------------------
+        UITheme.h2("Queue & Live Mode")
+        ImGui.separator()
         ImGui.spacing()
 
         val autoVjBehaviors = UITheme.AutoVjDirtyBehavior.values()
@@ -212,11 +225,11 @@ object SettingsPanel {
         }
         ImGui.spacing()
 
-        val triggers = UITheme.SetlistKeyTrigger.values()
+        val triggers = UITheme.QueueKeyTrigger.values()
         val triggerNames = triggers.map { it.name }.toTypedArray()
-        val currentTriggerIdx = imgui.type.ImInt(UITheme.setlistKeyTrigger.ordinal)
+        val currentTriggerIdx = imgui.type.ImInt(UITheme.queueKeyTrigger.ordinal)
         if (ImGui.combo("Keyboard Trigger", currentTriggerIdx, triggerNames)) {
-            UITheme.setlistKeyTrigger = triggers[currentTriggerIdx.get()]
+            UITheme.queueKeyTrigger = triggers[currentTriggerIdx.get()]
             UITheme.saveSettings()
         }
         ImGui.spacing()
@@ -240,18 +253,18 @@ object SettingsPanel {
         }
         ImGui.spacing()
 
-        val nextCc = imgui.type.ImInt(llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/setlistNext"))
+        val nextCc = imgui.type.ImInt(llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/queueNext"))
         if (ImGui.inputInt("Next CC", nextCc)) {
             val newVal = nextCc.get().coerceIn(-1, 127)
-            llm.slop.spirals.midi.MidiMappingManager.addMapping("Global/setlistNext", newVal)
+            llm.slop.spirals.midi.MidiMappingManager.addMapping("Global/queueNext", newVal)
             llm.slop.spirals.midi.MidiMappingManager.saveActiveProfile()
         }
         ImGui.spacing()
 
-        val prevCc = imgui.type.ImInt(llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/setlistPrev"))
+        val prevCc = imgui.type.ImInt(llm.slop.spirals.midi.MidiMappingManager.getCcForSpecial("Global/queuePrev"))
         if (ImGui.inputInt("Prev CC", prevCc)) {
             val newVal = prevCc.get().coerceIn(-1, 127)
-            llm.slop.spirals.midi.MidiMappingManager.addMapping("Global/setlistPrev", newVal)
+            llm.slop.spirals.midi.MidiMappingManager.addMapping("Global/queuePrev", newVal)
             llm.slop.spirals.midi.MidiMappingManager.saveActiveProfile()
         }
         ImGui.spacing()

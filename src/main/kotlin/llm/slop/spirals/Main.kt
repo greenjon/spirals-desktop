@@ -25,8 +25,7 @@ fun main() {
     logger.info { "Starting Spirals Desktop..." }
 
     // Ensure preset directories exist
-    java.io.File("presets/decks").mkdirs()
-    java.io.File("presets/global").mkdirs()
+    java.io.File("presets/patches").mkdirs()
     java.io.File("presets/playlists").mkdirs()
     java.io.File("presets/midi").mkdirs()
 
@@ -120,6 +119,11 @@ fun main() {
     // Create Mixer
     val mixer = Mixer(deckA, deckB, deckC)
     PatchManager.initializeDefault(mixer)
+    if (UITheme.startupBehavior == UITheme.StartupBehavior.EMPTY) {
+        PatchManager.startEmpty(mixer)
+    } else {
+        PatchManager.loadSession(mixer)
+    }
     GLDebug.checkErrors("Mixer and Decks initialization")
 
     logger.info { "Rendering components initialized" }
@@ -294,6 +298,7 @@ fun main() {
 
     // Cleanup
     logger.info { "Shutting down..." }
+    PatchManager.saveSession(mixer)
     llm.slop.spirals.audio.MidiJackWatchdog.stop()
     AudioEngine.stop()
     llm.slop.spirals.midi.MidiEngine.close()

@@ -36,6 +36,9 @@ class DeckUtilityTest {
         every { mixer.deckB } returns deckB
         every { mixer.deckC } returns mockk()
 
+        every { deckA.isEmpty } returns false
+        every { deckB.isEmpty } returns false
+        
         val dtoA = mockk<DeckPatchDto>()
         every { dtoA.name } returns "Patch A"
         every { deckA.toDto(any(), any()) } returns dtoA
@@ -57,6 +60,9 @@ class DeckUtilityTest {
         every { mixer.deckA } returns deckA
         every { mixer.deckB } returns deckB
         every { mixer.deckC } returns mockk()
+
+        every { deckA.isEmpty } returns false
+        every { deckB.isEmpty } returns false
 
         val dtoA = mockk<DeckPatchDto>()
         every { dtoA.name } returns "Patch A"

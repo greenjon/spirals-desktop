@@ -304,6 +304,9 @@ class Renderer {
      * Renders a Deck's visual source and updates its ping-pong feedback loop.
      */
     fun renderDeck(deck: Deck) {
+        if (deck.isEmpty) {
+            return
+        }
         // 1. Render clean source image
         render(deck.source, deck.cleanFBO)
 
@@ -413,7 +416,7 @@ class Renderer {
 
         // Set mix uniforms
         mixerShader.setUniform("uMode", mixer.mode.value.toInt())
-        mixerShader.setUniform("uBalance", mixer.crossfade.value)
+        mixerShader.setUniform("uBalance", (mixer.crossfade.value + 1.0f) / 2.0f)
         mixerShader.setUniform("uAlpha", mixer.masterAlpha.value)
         mixerShader.setUniform("uBloom", mixer.bloom.value)
 
