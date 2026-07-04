@@ -37,6 +37,7 @@ object UITheme {
     enum class FontLevel { H1, H2, H3, BODY, CAPTION, CODE }
 
     enum class SetlistTransitionBehavior { PROMPT, AUTO_DISCARD, AUTO_SAVE }
+    enum class AutoVjDirtyBehavior { SKIP, AUTO_DISCARD, AUTO_SAVE }
 
     // -- Mutable sizing knobs (user-tweakable from Settings later) -------------
 
@@ -58,6 +59,7 @@ object UITheme {
     enum class SetlistKeyTrigger { NONE, ARROWS, PAGE_UP_DOWN, SPACE_BACKSPACE }
 
     var setlistTransitionBehavior: SetlistTransitionBehavior = SetlistTransitionBehavior.PROMPT
+    var autoVjDirtyBehavior: AutoVjDirtyBehavior = AutoVjDirtyBehavior.AUTO_DISCARD
     var activeMidiProfile: String = "default"
     var setlistKeyTrigger: SetlistKeyTrigger = SetlistKeyTrigger.NONE
     var tooltipsEnabled: Boolean = true
@@ -132,6 +134,11 @@ object UITheme {
                     setlistTransitionBehavior = try { SetlistTransitionBehavior.valueOf(savedTransition) } catch (e: Exception) { SetlistTransitionBehavior.PROMPT }
                     logger.info { "Loaded setlistTransitionBehavior from settings file: $setlistTransitionBehavior" }
                 }
+                val savedAutoVj = props.getProperty("autoVjDirtyBehavior")
+                if (savedAutoVj != null) {
+                    autoVjDirtyBehavior = try { AutoVjDirtyBehavior.valueOf(savedAutoVj) } catch (e: Exception) { AutoVjDirtyBehavior.AUTO_DISCARD }
+                    logger.info { "Loaded autoVjDirtyBehavior from settings file: $autoVjDirtyBehavior" }
+                }
                 val savedProfile = props.getProperty("activeMidiProfile")
                 if (savedProfile != null) {
                     activeMidiProfile = savedProfile
@@ -163,6 +170,7 @@ object UITheme {
             props.setProperty("tooltipsEnabled", tooltipsEnabled.toString())
             props.setProperty("assetBrowserMode", assetBrowserMode.name)
             props.setProperty("setlistTransitionBehavior", setlistTransitionBehavior.name)
+            props.setProperty("autoVjDirtyBehavior", autoVjDirtyBehavior.name)
             props.setProperty("activeMidiProfile", activeMidiProfile)
             props.setProperty("setlistKeyTrigger", setlistKeyTrigger.name)
             settingsFile.outputStream().use { props.store(it, "Spirals Settings") }

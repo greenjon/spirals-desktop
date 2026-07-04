@@ -143,7 +143,14 @@ class DeckControlPanel(
             if (payload != null) {
                 val file = File(payload)
                 if (file.extension.lowercase() in listOf("patch", "lsd", "json")) {
-                    PatchManager.loadDeckPresetAsync(file, isDeckA)
+                    val isDirty = PatchManager.isDeckDirty(deck, mixer)
+                    if (!isDirty) {
+                        PatchManager.loadDeckPresetAsync(file, isDeckA, deck === mixer.deckC)
+                    } else {
+                        // Pass this to UIManager via a new callback or use PopupManager directly if we can
+                        // For now, let's assume we need to trigger the popup
+                        UIManager.triggerDeckDragDrop(file, deck, isDeckA, mixer)
+                    }
                 }
             }
             ImGui.endDragDropTarget()

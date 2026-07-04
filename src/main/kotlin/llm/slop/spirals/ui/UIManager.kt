@@ -116,7 +116,7 @@ class UIManager(private val windowHandle: Long) {
                         }
                     }
                 }
-                PopupManager.PendingDeckAction.NONE -> {}
+                else -> {}
             }
         }
     )
@@ -144,6 +144,7 @@ class UIManager(private val windowHandle: Long) {
 
 
     init {
+        instance = this
         logger.info { "Initializing ImGui..." }
         ImGui.createContext()
         val io = ImGui.getIO()
@@ -215,7 +216,47 @@ class UIManager(private val windowHandle: Long) {
     private val mixerMonitorPanel = MixerMonitorPanel(
         patchState = patchState,
         advanceSetlist = { delta -> projectManager.advanceSetlist(delta) },
-        drawDeckControls = { mixer, label, deck, width, height, isDeckA -> deckControlPanel.drawDeckControls(mixer, label, deck, width, height, isDeckA) }
+        drawDeckControls = { mixer, label, deck, width, height, isDeckA -> deckControlPanel.drawDeckControls(mixer, label, deck, width, height, isDeckA) },
+        onUtilityAction = { mode, from, to ->
+            val isDirty = PatchManager.isDeckDirty(to, currentMixer!!)
+            if (!isDirty) {
+                when (mode) {
+                    0 -> PatchManager.moveDeck(currentMixer!!, from, to)
+                    1 -> PatchManager.copyDeck(currentMixer!!, from, to)
+                    2 -> PatchManager.swapDecks(currentMixer!!, from, to)
+                }
+            } else {
+                when (to) {
+                    currentMixer?.deckA -> {
+                        popupManager.pendingDeckActionA = when(mode) { 0 -> PopupManager.PendingDeckAction.MOVE; 1 -> PopupManager.PendingDeckAction.COPY; else -> PopupManager.PendingDeckAction.SWAP }
+                        popupManager.pendingDeckUtilitySourceA = from
+                    }
+                    currentMixer?.deckB -> {
+                        popupManager.pendingDeckActionB = when(mode) { 0 -> PopupManager.PendingDeckAction.MOVE; 1 -> PopupManager.PendingDeckAction.COPY; else -> PopupManager.PendingDeckAction.SWAP }
+                        popupManager.pendingDeckUtilitySourceB = from
+                    }
+                    currentMixer?.deckC -> {
+                        popupManager.pendingDeckActionC = when(mode) { 0 -> PopupManager.PendingDeckAction.MOVE; 1 -> PopupManager.PendingDeckAction.COPY; else -> PopupManager.PendingDeckAction.SWAP }
+                        popupManager.pendingDeckUtilitySourceC = from
+                    }
+                }
+            }
+        },
+        onSaveDeck = { deck, isDeckA ->
+            val activeName = when {
+                deck === currentMixer?.deckA -> PatchManager.activePresetA
+                deck === currentMixer?.deckB -> PatchManager.activePresetB
+                deck === currentMixer?.deckC -> PatchManager.activePresetC
+                else -> null
+            }
+            if (activeName != null) {
+                saveDeckPreset(activeName, deck, isDeckA)
+            } else {
+                if (deck === currentMixer?.deckA) deckABrowser.open()
+                else if (deck === currentMixer?.deckB) deckBBrowser.open()
+                // Deck C save-as could be added here if needed
+            }
+        }
     )
 
     fun render(mixer: Mixer, displayWidth: Float, displayHeight: Float) {
@@ -358,7 +399,7 @@ class UIManager(private val windowHandle: Long) {
 
             popupManager.drawConfirmPopup(mixer, displayWidth, displayHeight)
             popupManager.drawExitPopup(mixer, displayWidth, displayHeight)
-            popupManager.drawDeckConfirmPopups(mixer.deckA, mixer.deckB)
+            popupManager.drawDeckConfirmPopups(mixer)
             popupManager.drawMidiWarningPopup(displayWidth, displayHeight)
 
             projectManager.drawGlobalFileBrowser(mixer)
@@ -422,6 +463,25 @@ class UIManager(private val windowHandle: Long) {
         popupManager.pendingOpenExitPopup = true
     }
 
+    companion object {
+        private var instance: UIManager? = null
+
+        fun triggerDeckDragDrop(file: File, deck: Deck, isDeckA: Boolean, mixer: Mixer) {
+            val ui = instance ?: return
+            val isDeckC = deck === mixer.deckC
+            if (isDeckC) {
+                ui.popupManager.pendingDeckActionC = PopupManager.PendingDeckAction.DRAG_DROP
+                ui.popupManager.pendingDeckSourceFileC = file
+            } else if (isDeckA) {
+                ui.popupManager.pendingDeckActionA = PopupManager.PendingDeckAction.DRAG_DROP
+                ui.popupManager.pendingDeckSourceFileA = file
+            } else {
+                ui.popupManager.pendingDeckActionB = PopupManager.PendingDeckAction.DRAG_DROP
+                ui.popupManager.pendingDeckSourceFileB = file
+            }
+        }
+    }
+
 
 
     /**
@@ -463,20 +523,31 @@ class UIManager(private val windowHandle: Long) {
     private fun saveDeckPreset(name: String, deck: Deck, isDeckA: Boolean, tags: List<String>? = null) {
         if (name.isBlank()) return
 
-        // Preserve existing tags when overwriting unless the caller explicitly supplies new ones
+        // Restore existing tags when overwriting unless the caller explicitly supplies new ones
         val resolvedTags = tags ?: run {
-            val cached = if (isDeckA) llm.slop.spirals.patches.PatchManager.cachedDtoA
-                         else        llm.slop.spirals.patches.PatchManager.cachedDtoB
+            val cached = when {
+                deck === currentMixer?.deckA -> llm.slop.spirals.patches.PatchManager.cachedDtoA
+                deck === currentMixer?.deckB -> llm.slop.spirals.patches.PatchManager.cachedDtoB
+                deck === currentMixer?.deckC -> llm.slop.spirals.patches.PatchManager.cachedDtoC
+                else -> null
+            }
             cached?.tags ?: emptyList()
         }
 
         val dto = deck.toDto(name, resolvedTags)
-        if (isDeckA) {
-            llm.slop.spirals.patches.PatchManager.activePresetA = name
-            llm.slop.spirals.patches.PatchManager.cachedDtoA = dto
-        } else {
-            llm.slop.spirals.patches.PatchManager.activePresetB = name
-            llm.slop.spirals.patches.PatchManager.cachedDtoB = dto
+        when {
+            deck === currentMixer?.deckA -> {
+                llm.slop.spirals.patches.PatchManager.activePresetA = name
+                llm.slop.spirals.patches.PatchManager.cachedDtoA = dto
+            }
+            deck === currentMixer?.deckB -> {
+                llm.slop.spirals.patches.PatchManager.activePresetB = name
+                llm.slop.spirals.patches.PatchManager.cachedDtoB = dto
+            }
+            deck === currentMixer?.deckC -> {
+                llm.slop.spirals.patches.PatchManager.activePresetC = name
+                llm.slop.spirals.patches.PatchManager.cachedDtoC = dto
+            }
         }
         val file = File("presets/decks/$name.lsd")
         llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name, resolvedTags)

@@ -525,8 +525,13 @@ object AssetBrowserPanel {
             
             // Preview button
             if (ImGui.button(">##preview_$index", 24f, 24f)) {
-                logger.info { "Previewing patch ${asset.name} on Deck C" }
-                PatchManager.loadDeckPresetAsync(File(asset.path), isDeckA = false, isDeckC = true)
+                val isDirty = PatchManager.isDeckDirty(mixer.deckC, mixer)
+                if (!isDirty) {
+                    logger.info { "Previewing patch ${asset.name} on Deck C" }
+                    PatchManager.loadDeckPresetAsync(File(asset.path), isDeckA = false, isDeckC = true)
+                } else {
+                    UIManager.triggerDeckDragDrop(File(asset.path), mixer.deckC, false, mixer)
+                }
             }
             ImGui.sameLine()
 
@@ -540,8 +545,15 @@ object AssetBrowserPanel {
             // Double-click: Load the patch to the inactive deck (>50% crossfader).
             if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
                 val targetIsA = mixer.crossfade.value > 0.5f
-                logger.info { "Loading patch ${asset.name} to inactive deck ${if (targetIsA) "A" else "B"}" }
-                PatchManager.loadDeckPresetAsync(File(asset.path), targetIsA)
+                val targetDeck = if (targetIsA) mixer.deckA else mixer.deckB
+                val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
+                
+                if (!isDirty) {
+                    logger.info { "Loading patch ${asset.name} to inactive deck ${if (targetIsA) "A" else "B"}" }
+                    PatchManager.loadDeckPresetAsync(File(asset.path), targetIsA)
+                } else {
+                    UIManager.triggerDeckDragDrop(File(asset.path), targetDeck, targetIsA, mixer)
+                }
             }
             
             // Drag source: drag a patch

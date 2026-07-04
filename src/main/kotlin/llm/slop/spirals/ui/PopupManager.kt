@@ -19,13 +19,24 @@ class PopupManager(
     var pendingOpenMidiWarningPopup = false
 
     enum class PendingDeckAction {
-        NONE, NEW, LOAD_FILE, LOAD_PRESET
+        NONE, NEW, LOAD_FILE, LOAD_PRESET, DRAG_DROP, MOVE, COPY, SWAP
     }
     
     var pendingDeckActionA = PendingDeckAction.NONE
     var pendingDeckActionB = PendingDeckAction.NONE
+    var pendingDeckActionC = PendingDeckAction.NONE
+
     var pendingDeckTargetPresetA: String? = null
     var pendingDeckTargetPresetB: String? = null
+    var pendingDeckTargetPresetC: String? = null
+
+    var pendingDeckSourceFileA: java.io.File? = null
+    var pendingDeckSourceFileB: java.io.File? = null
+    var pendingDeckSourceFileC: java.io.File? = null
+
+    var pendingDeckUtilitySourceA: Deck? = null
+    var pendingDeckUtilitySourceB: Deck? = null
+    var pendingDeckUtilitySourceC: Deck? = null
 
     fun drawConfirmPopup(mixer: Mixer, displayW: Float, displayH: Float) {
         ImGui.setNextWindowPos(
@@ -166,74 +177,108 @@ class PopupManager(
         }
     }
 
-    fun drawDeckConfirmPopups(deckA: Deck, deckB: Deck) {
-        // Deck A Confirmation
-        if (pendingDeckActionA != PendingDeckAction.NONE) {
-            ImGui.openPopup("Save Changes Deck A?##confirm")
+    fun drawDeckConfirmPopups(mixer: Mixer) {
+        drawDeckPopup(mixer, mixer.deckA, true)
+        drawDeckPopup(mixer, mixer.deckB, false)
+        drawDeckPopup(mixer, mixer.deckC, false, isDeckC = true)
+    }
+
+    private fun drawDeckPopup(mixer: Mixer, deck: Deck, isDeckA: Boolean, isDeckC: Boolean = false) {
+        val action = when {
+            isDeckC -> pendingDeckActionC
+            isDeckA -> pendingDeckActionA
+            else -> pendingDeckActionB
         }
-        if (ImGui.beginPopupModal("Save Changes Deck A?##confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text("You have unsaved changes in Deck A. Save before proceeding?")
+        if (action == PendingDeckAction.NONE) return
+
+        val label = when {
+            isDeckC -> "Deck C"
+            isDeckA -> "Deck A"
+            else -> "Deck B"
+        }
+        val popupId = "Save Changes $label?##confirm"
+        ImGui.openPopup(popupId)
+
+        if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text("You have unsaved changes in $label. Save before proceeding?")
             ImGui.spacing()
+            
             if (ImGui.button("Save", 80f, 0f)) {
-                val activeName = PatchManager.activePresetA
-                if (activeName != null) {
-                    onSaveDeck(activeName, deckA, true)
-                } else {
-                    onSaveDeck("Untitled_A", deckA, true)
+                val activeName = when {
+                    isDeckC -> PatchManager.activePresetC
+                    isDeckA -> PatchManager.activePresetA
+                    else -> PatchManager.activePresetB
                 }
-                onExecuteDeckAction(deckA, true, pendingDeckActionA, pendingDeckTargetPresetA)
-                pendingDeckActionA = PendingDeckAction.NONE
-                pendingDeckTargetPresetA = null
+                onSaveDeck(activeName ?: "Untitled_${label.last()}", deck, isDeckA || isDeckC) // Note: UIManager handles Deck C mapping
+                executeAction(mixer, deck, isDeckA, isDeckC, action)
+                clearAction(isDeckA, isDeckC)
                 ImGui.closeCurrentPopup()
             }
             ImGui.sameLine()
             if (ImGui.button("Discard", 80f, 0f)) {
-                onExecuteDeckAction(deckA, true, pendingDeckActionA, pendingDeckTargetPresetA)
-                pendingDeckActionA = PendingDeckAction.NONE
-                pendingDeckTargetPresetA = null
+                executeAction(mixer, deck, isDeckA, isDeckC, action)
+                clearAction(isDeckA, isDeckC)
                 ImGui.closeCurrentPopup()
             }
             ImGui.sameLine()
             if (ImGui.button("Cancel", 80f, 0f)) {
-                pendingDeckActionA = PendingDeckAction.NONE
+                clearAction(isDeckA, isDeckC)
                 ImGui.closeCurrentPopup()
             }
             ImGui.endPopup()
+        }
+    }
+
+    private fun executeAction(mixer: Mixer, deck: Deck, isDeckA: Boolean, isDeckC: Boolean, action: PendingDeckAction) {
+        val targetPreset = when {
+            isDeckC -> pendingDeckTargetPresetC
+            isDeckA -> pendingDeckTargetPresetA
+            else -> pendingDeckTargetPresetB
+        }
+        val sourceFile = when {
+            isDeckC -> pendingDeckSourceFileC
+            isDeckA -> pendingDeckSourceFileA
+            else -> pendingDeckSourceFileB
+        }
+        val utilitySource = when {
+            isDeckC -> pendingDeckUtilitySourceC
+            isDeckA -> pendingDeckUtilitySourceA
+            else -> pendingDeckUtilitySourceB
         }
 
-        // Deck B Confirmation
-        if (pendingDeckActionB != PendingDeckAction.NONE) {
-            ImGui.openPopup("Save Changes Deck B?##confirm")
+        when (action) {
+            PendingDeckAction.DRAG_DROP -> {
+                sourceFile?.let { PatchManager.loadDeckPresetAsync(it, isDeckA, isDeckC) }
+            }
+            PendingDeckAction.MOVE -> {
+                utilitySource?.let { PatchManager.moveDeck(mixer, it, deck) }
+            }
+            PendingDeckAction.COPY -> {
+                utilitySource?.let { PatchManager.copyDeck(mixer, it, deck) }
+            }
+            PendingDeckAction.SWAP -> {
+                utilitySource?.let { PatchManager.swapDecks(mixer, it, deck) }
+            }
+            else -> onExecuteDeckAction(deck, isDeckA || isDeckC, action, targetPreset)
         }
-        
-        if (ImGui.beginPopupModal("Save Changes Deck B?##confirm", ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text("You have unsaved changes in Deck B. Save before proceeding?")
-            ImGui.spacing()
-            if (ImGui.button("Save", 80f, 0f)) {
-                val activeName = PatchManager.activePresetB
-                if (activeName != null) {
-                    onSaveDeck(activeName, deckB, false)
-                } else {
-                    onSaveDeck("Untitled_B", deckB, false)
-                }
-                onExecuteDeckAction(deckB, false, pendingDeckActionB, pendingDeckTargetPresetB)
-                pendingDeckActionB = PendingDeckAction.NONE
-                pendingDeckTargetPresetB = null
-                ImGui.closeCurrentPopup()
-            }
-            ImGui.sameLine()
-            if (ImGui.button("Discard", 80f, 0f)) {
-                onExecuteDeckAction(deckB, false, pendingDeckActionB, pendingDeckTargetPresetB)
-                pendingDeckActionB = PendingDeckAction.NONE
-                pendingDeckTargetPresetB = null
-                ImGui.closeCurrentPopup()
-            }
-            ImGui.sameLine()
-            if (ImGui.button("Cancel", 80f, 0f)) {
-                pendingDeckActionB = PendingDeckAction.NONE
-                ImGui.closeCurrentPopup()
-            }
-            ImGui.endPopup()
+    }
+
+    private fun clearAction(isDeckA: Boolean, isDeckC: Boolean) {
+        if (isDeckC) {
+            pendingDeckActionC = PendingDeckAction.NONE
+            pendingDeckTargetPresetC = null
+            pendingDeckSourceFileC = null
+            pendingDeckUtilitySourceC = null
+        } else if (isDeckA) {
+            pendingDeckActionA = PendingDeckAction.NONE
+            pendingDeckTargetPresetA = null
+            pendingDeckSourceFileA = null
+            pendingDeckUtilitySourceA = null
+        } else {
+            pendingDeckActionB = PendingDeckAction.NONE
+            pendingDeckTargetPresetB = null
+            pendingDeckSourceFileB = null
+            pendingDeckUtilitySourceB = null
         }
     }
 }

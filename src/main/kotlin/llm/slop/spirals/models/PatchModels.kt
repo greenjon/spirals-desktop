@@ -77,11 +77,20 @@ data class ModulatorDto(
         if (randomizeDcOffset != other.randomizeDcOffset) return false
         
         // Exclude instantaneous values from equality check if they are subject to randomization
-        if (!randomizeAmplitude && amplitude != other.amplitude) return false
-        if (!randomizeSubdivision && subdivision != other.subdivision) return false
-        if (!randomizePhaseOffset && phaseOffset != other.phaseOffset) return false
-        if (!randomizeSlope && slope != other.slope) return false
-        if (!randomizeDcOffset && dcOffset != other.dcOffset) return false
+        val isAmpRandom = randomizeAmplitude || amplitudeMin != other.amplitudeMin || amplitudeMax != other.amplitudeMax || amplitudeMin != amplitudeMax
+        if (!isAmpRandom && amplitude != other.amplitude) return false
+        
+        val isSubRandom = randomizeSubdivision || subdivisionMin != other.subdivisionMin || subdivisionMax != other.subdivisionMax || subdivisionMin != subdivisionMax
+        if (!isSubRandom && subdivision != other.subdivision) return false
+        
+        val isPhaseRandom = randomizePhaseOffset || phaseOffsetMin != other.phaseOffsetMin || phaseOffsetMax != other.phaseOffsetMax || phaseOffsetMin != phaseOffsetMax
+        if (!isPhaseRandom && phaseOffset != other.phaseOffset) return false
+        
+        val isSlopeRandom = randomizeSlope || slopeMin != other.slopeMin || slopeMax != other.slopeMax || slopeMin != slopeMax
+        if (!isSlopeRandom && slope != other.slope) return false
+        
+        val isDcRandom = randomizeDcOffset || dcOffsetMin != other.dcOffsetMin || dcOffsetMax != other.dcOffsetMax || dcOffsetMin != dcOffsetMax
+        if (!isDcRandom && dcOffset != other.dcOffset) return false
 
         return true
     }
@@ -110,11 +119,20 @@ data class ModulatorDto(
         result = 31 * result + randomizeSlope.hashCode()
         result = 31 * result + randomizeDcOffset.hashCode()
 
-        if (!randomizeAmplitude) result = 31 * result + amplitude.hashCode()
-        if (!randomizeSubdivision) result = 31 * result + subdivision.hashCode()
-        if (!randomizePhaseOffset) result = 31 * result + phaseOffset.hashCode()
-        if (!randomizeSlope) result = 31 * result + slope.hashCode()
-        if (!randomizeDcOffset) result = 31 * result + dcOffset.hashCode()
+        val isAmpRandom = randomizeAmplitude || amplitudeMin != amplitudeMax
+        if (!isAmpRandom) result = 31 * result + amplitude.hashCode()
+        
+        val isSubRandom = randomizeSubdivision || subdivisionMin != subdivisionMax
+        if (!isSubRandom) result = 31 * result + subdivision.hashCode()
+        
+        val isPhaseRandom = randomizePhaseOffset || phaseOffsetMin != phaseOffsetMax
+        if (!isPhaseRandom) result = 31 * result + phaseOffset.hashCode()
+        
+        val isSlopeRandom = randomizeSlope || slopeMin != slopeMax
+        if (!isSlopeRandom) result = 31 * result + slope.hashCode()
+        
+        val isDcRandom = randomizeDcOffset || dcOffsetMin != dcOffsetMax
+        if (!isDcRandom) result = 31 * result + dcOffset.hashCode()
         
         return result
     }
@@ -144,7 +162,8 @@ data class ParameterDto(
         if (modulators != other.modulators) return false
 
         // Exclude instantaneous baseValue from equality check if it is subject to randomization
-        if (!randomizeBase && baseValue != other.baseValue) return false
+        val isRandomized = randomizeBase || baseMin != other.baseMin || baseMax != other.baseMax || baseMin != baseMax
+        if (!isRandomized && baseValue != other.baseValue) return false
 
         return true
     }
@@ -158,7 +177,8 @@ data class ParameterDto(
         result = 31 * result + midiMapMax.hashCode()
         result = 31 * result + modulators.hashCode()
 
-        if (!randomizeBase) result = 31 * result + baseValue.hashCode()
+        val isRandomized = randomizeBase || baseMin != baseMax
+        if (!isRandomized) result = 31 * result + baseValue.hashCode()
 
         return result
     }

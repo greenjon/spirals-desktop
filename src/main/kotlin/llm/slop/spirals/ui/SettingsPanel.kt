@@ -191,6 +191,15 @@ object SettingsPanel {
         }
         ImGui.spacing()
 
+        val autoVjBehaviors = UITheme.AutoVjDirtyBehavior.values()
+        val autoVjBehaviorNames = autoVjBehaviors.map { it.name }.toTypedArray()
+        val currentAutoVjIdx = imgui.type.ImInt(UITheme.autoVjDirtyBehavior.ordinal)
+        if (ImGui.combo("AutoVJ Dirty Behavior", currentAutoVjIdx, autoVjBehaviorNames)) {
+            UITheme.autoVjDirtyBehavior = autoVjBehaviors[currentAutoVjIdx.get()]
+            UITheme.saveSettings()
+        }
+        ImGui.spacing()
+
         val triggers = UITheme.SetlistKeyTrigger.values()
         val triggerNames = triggers.map { it.name }.toTypedArray()
         val currentTriggerIdx = imgui.type.ImInt(UITheme.setlistKeyTrigger.ordinal)

@@ -12,7 +12,9 @@ import llm.slop.spirals.patches.PatchManager
 class MixerMonitorPanel(
     private val patchState: PatchGridState,
     private val advanceSetlist: (Int) -> Unit,
-    private val drawDeckControls: (Mixer, String, Deck, Float, Float, Boolean) -> Unit
+    private val drawDeckControls: (Mixer, String, Deck, Float, Float, Boolean) -> Unit,
+    private val onUtilityAction: (Int, Deck, Deck) -> Unit, // (mode: 0=Move, 1=Copy, 2=Swap, from, to)
+    private val onSaveDeck: (Deck, Boolean) -> Unit
 ) {
     private var utilityMode = 1 // 0=Move, 1=Copy, 2=Swap
 
@@ -89,6 +91,10 @@ class MixerMonitorPanel(
         
         ImGui.setCursorScreenPos(startX, presetY + 3f)
         UITheme.body("Preset: $displayNameA")
+        ImGui.sameLine()
+        if (ImGui.smallButton("Save##A")) {
+            onSaveDeck(mixer.deckA, true)
+        }
         
         val activePresetB = PatchManager.activePresetB ?: "None"
         val isDirtyB = PatchManager.isDeckDirty(mixer.deckB, mixer)
@@ -96,6 +102,10 @@ class MixerMonitorPanel(
         
         ImGui.setCursorScreenPos(deckBStartX, presetY + 3f)
         UITheme.body("Preset: $displayNameB")
+        ImGui.sameLine()
+        if (ImGui.smallButton("Save##B")) {
+            onSaveDeck(mixer.deckB, false)
+        }
         
         ImGui.spacing()
         
@@ -143,6 +153,10 @@ class MixerMonitorPanel(
         val displayNameC = if (isDirtyC) "$activePresetC *" else activePresetC
         ImGui.setCursorScreenPos(startX, row1Y + ImGui.getTextLineHeightWithSpacing())
         UITheme.body("Preset: $displayNameC")
+        ImGui.sameLine()
+        if (ImGui.smallButton("Save##C")) {
+            onSaveDeck(mixer.deckC, false) // Note: boolean isDeckA is overloaded for Deck C in some contexts, but here it's just a save trigger
+        }
         
         val imgX = ImGui.getCursorScreenPosX()
         val imgY = ImGui.getCursorScreenPosY()
@@ -197,40 +211,17 @@ class MixerMonitorPanel(
         
         // Rows 2-4: Action Buttons
         ImGui.beginGroup()
-        when (utilityMode) {
-            0 -> { // Move
-                if (ImGui.button("A > B", btnW, cellH)) PatchManager.moveDeck(mixer, mixer.deckA, mixer.deckB)
-                if (ImGui.button("B > A", btnW, cellH)) PatchManager.moveDeck(mixer, mixer.deckB, mixer.deckA)
-                if (ImGui.button("C > A", btnW, cellH)) PatchManager.moveDeck(mixer, mixer.deckC, mixer.deckA)
-            }
-            1 -> { // Copy
-                if (ImGui.button("A > B", btnW, cellH)) PatchManager.copyDeck(mixer, mixer.deckA, mixer.deckB)
-                if (ImGui.button("B > A", btnW, cellH)) PatchManager.copyDeck(mixer, mixer.deckB, mixer.deckA)
-                if (ImGui.button("C > A", btnW, cellH)) PatchManager.copyDeck(mixer, mixer.deckC, mixer.deckA)
-            }
-            2 -> { // Swap
-                if (ImGui.button("A + B", btnW, cellH)) PatchManager.swapDecks(mixer, mixer.deckA, mixer.deckB)
-                if (ImGui.button("B + C", btnW, cellH)) PatchManager.swapDecks(mixer, mixer.deckB, mixer.deckC)
-                if (ImGui.button("C + A", btnW, cellH)) PatchManager.swapDecks(mixer, mixer.deckC, mixer.deckA)
-            }
-        }
+        if (ImGui.button("A > B", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckB)
+        if (ImGui.button("B > A", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckA)
+        if (ImGui.button("C > A", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckA)
         ImGui.endGroup()
 
         ImGui.sameLine(0f, 5f)
 
         ImGui.beginGroup()
-        when (utilityMode) {
-            0 -> { // Move
-                if (ImGui.button("A > C", btnW, cellH)) PatchManager.moveDeck(mixer, mixer.deckA, mixer.deckC)
-                if (ImGui.button("B > C", btnW, cellH)) PatchManager.moveDeck(mixer, mixer.deckB, mixer.deckC)
-                if (ImGui.button("C > B", btnW, cellH)) PatchManager.moveDeck(mixer, mixer.deckC, mixer.deckB)
-            }
-            1 -> { // Copy
-                if (ImGui.button("A > C", btnW, cellH)) PatchManager.copyDeck(mixer, mixer.deckA, mixer.deckC)
-                if (ImGui.button("B > C", btnW, cellH)) PatchManager.copyDeck(mixer, mixer.deckB, mixer.deckC)
-                if (ImGui.button("C > B", btnW, cellH)) PatchManager.copyDeck(mixer, mixer.deckC, mixer.deckB)
-            }
-        }
+        if (ImGui.button("A > C", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckA, mixer.deckC)
+        if (ImGui.button("B > C", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckB, mixer.deckC)
+        if (ImGui.button("C > B", btnW, cellH)) onUtilityAction(utilityMode, mixer.deckC, mixer.deckB)
         ImGui.endGroup()
 
         ImGui.endChild()

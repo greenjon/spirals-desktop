@@ -113,12 +113,33 @@ object PlayQueueManager {
             return
         }
         
-        activeIndex = nextIndex
-        val file = queue[activeIndex]
-        
         // Determine which deck is inactive
         // crossfade 0.0 = Deck A, 1.0 = Deck B
         val targetIsA = mixer.crossfade.value > 0.5f
+        val targetDeck = if (targetIsA) mixer.deckA else mixer.deckB
+        
+        val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
+        if (isDirty) {
+            when (llm.slop.spirals.ui.UITheme.autoVjDirtyBehavior) {
+                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.SKIP -> {
+                    logger.info { "AutoVJ: Skipping next item because target deck is dirty" }
+                    return
+                }
+                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_SAVE -> {
+                    val activeName = if (targetIsA) PatchManager.activePresetA else PatchManager.activePresetB
+                    val saveName = activeName ?: "AutoVJ_${if (targetIsA) "A" else "B"}_${System.currentTimeMillis()}"
+                    logger.info { "AutoVJ: Autosaving dirty deck to $saveName" }
+                    PatchManager.saveDeckPresetAsync(File("presets/decks/$saveName.lsd"), targetDeck, saveName)
+                    // We can't wait for async save here easily, but we've captured the state
+                }
+                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_DISCARD -> {
+                    logger.info { "AutoVJ: Discarding changes on dirty deck" }
+                }
+            }
+        }
+
+        activeIndex = nextIndex
+        val file = queue[activeIndex]
         
         logger.info { "Triggering next: ${file.name} to Deck ${if (targetIsA) "A" else "B"}" }
         
