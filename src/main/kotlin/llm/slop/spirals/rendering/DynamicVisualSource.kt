@@ -38,7 +38,7 @@ data class SourceMeta(
  *    Calling [dispose] on a cloned instance will release any local resources (like feedback FBOs) but will NOT
  *    dispose of the shared [shader], as it does not own it.
  */
-class DynamicVisualSource(
+open class DynamicVisualSource(
     val id: String,
     val displayName: String,
     val shader: Shader,

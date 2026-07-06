@@ -136,12 +136,9 @@ object CVRegistry {
     fun getHistory(id: String): CvHistoryBuffer? = histories[id]
 
     /**
-     * Returns all registered CV source IDs.
+     * Returns all registered CV source IDs, sorted alphabetically.
      */
-    fun getSourceIds(): List<String> {
-        val hiddenCvs = setOf("lfo", "rand", "beat", "amp", "bass", "mid", "high", "onset", "accent")
-        return sources.keys().toList().filter { it.lowercase() !in hiddenCvs }.sorted()
-    }
+    fun getSourceIds(): List<String> = sources.keys().toList().sorted()
 
     /**
      * Updates all active CV sources and writes their values to their histories.

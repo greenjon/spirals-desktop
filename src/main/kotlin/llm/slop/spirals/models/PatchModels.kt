@@ -203,7 +203,8 @@ data class MandalaRecipeDto(
     val a: Int,
     val b: Int,
     val c: Int,
-    val d: Int
+    val d: Int,
+    val id: String? = null
 )
 
 @Serializable
@@ -353,7 +354,7 @@ fun ModulatableParameter.applyDto(dto: ParameterDto) {
     this.value = dto.baseValue
 }
 
-fun MandalaRatio.toDto(): MandalaRecipeDto = MandalaRecipeDto(a, b, c, d)
+fun MandalaRatio.toDto(): MandalaRecipeDto = MandalaRecipeDto(a, b, c, d, id)
 
 fun Deck.toDto(name: String, tags: List<String> = emptyList()): DeckPatchDto {
     val sourceName = if (source is llm.slop.spirals.rendering.DynamicVisualSource) (source as llm.slop.spirals.rendering.DynamicVisualSource).id else "Mandala"
@@ -399,15 +400,14 @@ fun Deck.applyDto(dto: DeckPatchDto) {
         val mandalaObj = source as Mandala
         val recipeDto = dto.recipe ?: MandalaRecipeDto(3, 3, 3, 3)
         // Recreate or lookup recipe
-        val recipe = MandalaLibrary.MandalaRatios.firstOrNull {
+        val recipe = dto.recipe?.id?.let { savedId ->
+            MandalaLibrary.MandalaRatios.firstOrNull { it.id == savedId }
+        } ?: MandalaLibrary.MandalaRatios.firstOrNull {
             it.a == recipeDto.a && it.b == recipeDto.b &&
             it.c == recipeDto.c && it.d == recipeDto.d
         } ?: MandalaRatio(
             id = "custom_${recipeDto.a}_${recipeDto.b}_${recipeDto.c}_${recipeDto.d}",
-            a = recipeDto.a,
-            b = recipeDto.b,
-            c = recipeDto.c,
-            d = recipeDto.d
+            a = recipeDto.a, b = recipeDto.b, c = recipeDto.c, d = recipeDto.d
         )
         mandalaObj.recipe = recipe
         

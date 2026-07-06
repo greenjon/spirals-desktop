@@ -42,3 +42,7 @@ imgui.ini
 # JVM Heap Dumps
 *.hprof
 
+# Junk / Runtime State
+junk.json
+old_cell.kt
+imgui.ini

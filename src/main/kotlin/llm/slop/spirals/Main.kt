@@ -75,12 +75,11 @@ fun main() {
     logger.info { "Initialization complete" }
 
     // Initialize rendering components
-    logger.info { "Loading shaders..." }
-    val blitShader = Shader.fromResources("shaders/blit.vert", "shaders/blit.frag")
-    GLDebug.checkErrors("Blit shader creation")
-
     logger.info { "Initializing Decks and Mixer..." }
     val renderer = Renderer()
+
+    val masterMandala = llm.slop.spirals.rendering.VisualSourceRegistry.availableSources.firstOrNull { it.id == "mandala" } as? Mandala
+        ?: throw RuntimeException("Mandala source not loaded from presets/sources/mandala")
 
     // Create Deck A with a 4-petal recipe (yellow-ish theme default)
     val recipeA = MandalaRatio(
@@ -90,7 +89,8 @@ fun main() {
         c = 14,
         d = 14
     )
-    val mandalaA = Mandala(recipeA)
+    val mandalaA = masterMandala.clone()
+    mandalaA.recipe = recipeA
     val deckA = Deck(mandalaA)
 
     // Create Deck B with a 3-petal recipe (shifted start hue)
@@ -101,7 +101,8 @@ fun main() {
         c = 11,
         d = 11
     )
-    val mandalaB = Mandala(recipeB)
+    val mandalaB = masterMandala.clone()
+    mandalaB.recipe = recipeB
     mandalaB.parameters["Hue Offset"]?.set(0.5f) // starting color offset for distinction
     val deckB = Deck(mandalaB)
 
@@ -113,7 +114,8 @@ fun main() {
         c = 3,
         d = 3
     )
-    val mandalaC = Mandala(recipeC)
+    val mandalaC = masterMandala.clone()
+    mandalaC.recipe = recipeC
     val deckC = Deck(mandalaC)
 
     // Create Mixer
@@ -250,12 +252,12 @@ fun main() {
             glEnable(GL_BLEND)
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
-            blitShader.bind()
+            renderer.blitShader.bind()
             glActiveTexture(GL_TEXTURE0)
             glBindTexture(GL_TEXTURE_2D, mixer.masterFBO.texture)
-            blitShader.setUniform("uTexture", 0)
+            renderer.blitShader.setUniform("uTexture", 0)
             Geometry.drawFullscreenQuad()
-            blitShader.unbind()
+            renderer.blitShader.unbind()
         }
         glBindVertexArray(0) // Ensure VAO is unbound for ImGui overlay rendering
 
@@ -282,12 +284,12 @@ fun main() {
             glEnable(GL_BLEND)
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
-            blitShader.bind()
+            renderer.blitShader.bind()
             glActiveTexture(GL_TEXTURE0)
             glBindTexture(GL_TEXTURE_2D, mixer.masterFBO.texture)
-            blitShader.setUniform("uTexture", 0)
+            renderer.blitShader.setUniform("uTexture", 0)
             Geometry.drawSecondaryFullscreenQuad()
-            blitShader.unbind()
+            renderer.blitShader.unbind()
 
             glfwSwapBuffers(secondaryWindow)
 
@@ -313,7 +315,6 @@ fun main() {
 
     // Dispose rendering resources
     renderer.dispose()
-    blitShader.dispose()
     deckA.dispose()
     deckB.dispose()
     deckC.dispose()

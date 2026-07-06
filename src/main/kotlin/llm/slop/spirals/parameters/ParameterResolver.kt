@@ -12,6 +12,7 @@ object ParameterResolver {
         // Mixer
         list.add("Deck A/FB/Source" to mixer.deckA.sourceSelect)
         list.add("Deck B/FB/Source" to mixer.deckB.sourceSelect)
+        list.add("Deck C/FB/Source" to mixer.deckC.sourceSelect)
         list.add("Mixer/crossfade" to mixer.crossfade)
         list.add("Mixer/masterAlpha" to mixer.masterAlpha)
         list.add("Mixer/bloom" to mixer.bloom)
@@ -19,9 +20,13 @@ object ParameterResolver {
         list.add("Mixer/queuePrev" to mixer.queuePrev)
         list.add("Mixer/queueNext" to mixer.queueNext)
         
-        // Deck A and B
-        for (deckLabel in listOf("Deck A", "Deck B")) {
-            val deck = if (deckLabel == "Deck A") mixer.deckA else mixer.deckB
+        // Deck A, B, and C
+        for (deckLabel in listOf("Deck A", "Deck B", "Deck C")) {
+            val deck = when (deckLabel) {
+                "Deck A" -> mixer.deckA
+                "Deck B" -> mixer.deckB
+                else -> mixer.deckC
+            }
             val mandala = deck.source as? Mandala
             
             if (mandala != null) {

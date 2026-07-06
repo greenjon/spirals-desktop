@@ -40,11 +40,16 @@ class Mixer(
 
     private var prevQueuePrevVal = 0.0f
     private var prevQueueNextVal = 0.0f
+    private var lastUpdateTimeNs: Long = System.nanoTime()
 
     /**
      * Evaluates mixer parameters.
      */
     fun update() {
+        val now = System.nanoTime()
+        val deltaTime = (now - lastUpdateTimeNs) / 1_000_000_000f
+        lastUpdateTimeNs = now
+
         if (isAutoFading) {
             val current = crossfade.baseValue
             if (kotlin.math.abs(current - targetCrossfade) < 0.001f) {
@@ -52,7 +57,7 @@ class Mixer(
                 isAutoFading = false
             } else {
                 val durationSec = xfadeSpeed.value.coerceAtLeast(0.1f)
-                val step = 2.0f / (durationSec * 60.0f)
+                val step = 2.0f * deltaTime / durationSec
                 if (current < targetCrossfade) {
                     crossfade.baseValue = (current + step).coerceAtMost(targetCrossfade)
                 } else {
@@ -96,6 +101,5 @@ class Mixer(
      */
     fun dispose() {
         masterFBO.dispose()
-        deckC.dispose()
     }
 }

@@ -3,6 +3,12 @@ package llm.slop.spirals.cv
 /**
  * A ring buffer to store the last N samples of a CV signal.
  * Optimized for zero-allocation access in the draw loop.
+ * 
+ * THREAD SAFETY WARNING: This class is designed for single-writer, single-reader scenarios.
+ * Writing to [add] and reading via [getAt] or [copyTo] concurrently from different threads
+ * is technically a data race on the `index` and `buffer` fields. For visualization usage (e.g.
+ * oscilloscopes), this is acceptable as the consequence is at most a single-sample transient visual artifact.
+ * For critical data processing, external synchronization is required.
  */
 class CvHistoryBuffer(val size: Int) {
     private val buffer = FloatArray(size)

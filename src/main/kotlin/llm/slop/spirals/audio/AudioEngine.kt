@@ -65,6 +65,17 @@ class BeatDetector {
     var settings = BeatDetectionSettings.balanced()
         private set
     
+    private class AnalysisSnapshot {
+        var fps: Float = 0f
+        var bgHistoryIndex: Int = 0
+        var bgHistoryCount: Int = 0
+    }
+
+    private val snapshot1 = AnalysisSnapshot()
+    private val snapshot2 = AnalysisSnapshot()
+    @Volatile
+    private var pendingSnapshot = snapshot1
+    
     // Pre-allocated circular buffer to store envelopes without allocating memory in real-time thread.
     // 8192 blocks of history is enough for ~8s of audio at normal JACK buffer sizes.
     private val maxEnvelopeBlocks = 8192
@@ -148,9 +159,11 @@ class BeatDetector {
                 blocksSinceLastAnalysis = 0
                 isCalculating = true
                 System.arraycopy(historyBuffer, 0, bgHistoryBuffer, 0, maxEnvelopeBlocks)
-                analysisTask.fps = fps
-                analysisTask.bgHistoryIndex = historyIndex
-                analysisTask.bgHistoryCount = historyCount
+                val nextSnapshot = if (pendingSnapshot === snapshot1) snapshot2 else snapshot1
+                nextSnapshot.fps = fps
+                nextSnapshot.bgHistoryIndex = historyIndex
+                nextSnapshot.bgHistoryCount = historyCount
+                pendingSnapshot = nextSnapshot
                 analysisExecutor.execute(analysisTask)
             }
         }
@@ -159,12 +172,13 @@ class BeatDetector {
     }
 
     private inner class AnalysisTask : Runnable {
-        @Volatile var fps: Float = 0f
-        @Volatile var bgHistoryIndex: Int = 0
-        @Volatile var bgHistoryCount: Int = 0
-
         override fun run() {
             try {
+                val snap = pendingSnapshot
+                val fps = snap.fps
+                val bgHistoryIndex = snap.bgHistoryIndex
+                val bgHistoryCount = snap.bgHistoryCount
+
                 val localSettings = settings
                 val mode = localSettings.mode
                 val floorBpm = localSettings.bpmSearchFloor.toFloat()
@@ -258,12 +272,15 @@ object AudioEngine {
     val beatDetector = BeatDetector()
 
     // Pre-allocated buffer for oscilloscope rendering of raw input samples
+    // KNOWN BENIGN DATA RACE: The index and buffer array in rawHistory are updated without
+    // synchronization. Since this is strictly used for real-time oscilloscope visualization in the UI,
+    // a minor data race is harmless and preferred over introducing locks or allocation.
     val rawHistory = CvHistoryBuffer(1024)
 
-    // Temporary processing buffers — resized only on JACK buffer-size change (rare)
-    private var lowBuffer  = FloatArray(8192)
-    private var midBuffer  = FloatArray(8192)
-    private var highBuffer = FloatArray(8192)
+    // Temporary processing buffers — sized to standard maximum JACK limits to guarantee no allocations.
+    private val lowBuffer  = FloatArray(16384)
+    private val midBuffer  = FloatArray(16384)
+    private val highBuffer = FloatArray(16384)
 
     // ── Flywheel state ──────────────────────────────────────────────────────
     private var totalSamplesProcessed = 0L
@@ -336,7 +353,10 @@ object AudioEngine {
      */
     private fun processAudio(buffer: FloatBuffer, nframes: Int, sampleRate: Float) {
         val currentTime = System.nanoTime()
-        totalSamplesProcessed += nframes
+
+        // Ensure nframes doesn't exceed our pre-allocated buffers
+        val safeFrames = nframes.coerceAtMost(lowBuffer.size)
+        totalSamplesProcessed += safeFrames
 
         // 1. Dynamic sample rate adjustment (rare)
         if (sampleRate != lastSampleRate) {
@@ -346,17 +366,13 @@ object AudioEngine {
             lastSampleRate = sampleRate
         }
 
-        // 2. Resize temp buffers only on JACK buffer-size change (rare)
-        if (lowBuffer.size < nframes) {
-            lowBuffer  = FloatArray(nframes)
-            midBuffer  = FloatArray(nframes)
-            highBuffer = FloatArray(nframes)
-        }
+        // 2. Buffer bounds safety check (removed allocation branch to enforce zero allocations)
+        // safeFrames handles bounds safety.
 
         // 3. Filter bank + raw history
         val startPos = buffer.position()
         val gain = inputGain
-        for (i in 0 until nframes) {
+        for (i in 0 until safeFrames) {
             val sample = buffer.get(startPos + i) * gain
             rawHistory.add(sample)
             lowBuffer[i]  = lowPass.process(sample)
@@ -365,12 +381,12 @@ object AudioEngine {
         }
 
         // 4. RMS amplitudes per band
-        val amp  = extractor.calculateRms(buffer, nframes) * gain
-        val bass = extractor.calculateRms(lowBuffer,  nframes)
-        val mid  = extractor.calculateRms(midBuffer,  nframes)
-        val high = extractor.calculateRms(highBuffer, nframes)
+        val amp  = extractor.calculateRms(buffer, safeFrames) * gain
+        val bass = extractor.calculateRms(lowBuffer,  safeFrames)
+        val mid  = extractor.calculateRms(midBuffer,  safeFrames)
+        val high = extractor.calculateRms(highBuffer, safeFrames)
 
-        val autoBpm = beatDetector.processBlock(amp, bass, mid, high, sampleRate, nframes)
+        val autoBpm = beatDetector.processBlock(amp, bass, mid, high, sampleRate, safeFrames)
 
         // 5. Onset-strength function: half-wave rectified multi-band spectral flux
         //    Weights favour bass/kick (×2) over mid (×0.8) and high (×0.3)
@@ -410,7 +426,7 @@ object AudioEngine {
         }
 
         // 7. Tick the flywheel (sample-accurate)
-        val deltaTimeSec = nframes.toDouble() / sampleRate.toDouble()
+        val deltaTimeSec = safeFrames.toDouble() / sampleRate.toDouble()
         if (currentState != SignalState.SILENT) {
             totalBeats += deltaTimeSec * (estimatedBpm / 60.0)
         }

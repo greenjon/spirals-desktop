@@ -40,14 +40,23 @@ src/main/kotlin/llm/slop/spirals/
 ├── cv/
 │   ├── CVRegistry.kt           — Singleton: all CV sources, beat sync, histories
 │   ├── CVSource.kt             — Interface: id, value, update()
-│   ├── MutableCVSource.kt      — Writable CV (audio signals)
 │   ├── BeatClock.kt            — Beat phase 0..1, JACK-synced
-│   ├── LFO.kt                  — Time-based oscillator
-│   ├── SampleAndHold.kt        — Random step with glide
+│   ├── Evaluators.kt           — Evaluators for CV, LFO, and S&H
+│   ├── GenCVSource.kt          — Writable CV for generators
 │   └── CvHistoryBuffer.kt      — Ring buffer (200 samples)
+├── midi/
+│   ├── MidiEngine.kt           — MIDI connection and event polling
+│   └── MidiMappingManager.kt   — Maps MIDI CC to UI/parameters
+├── models/
+│   └── PatchModels.kt          — Data models for patch serialization
 ├── parameters/
 │   └── Parameter.kt            — ModulatableParameter, CvModulator,
 │                                  ModulationOperator, Waveform, LfoSpeedMode
+├── patches/
+│   ├── PatchManager.kt         — Save/load patches, state management
+│   ├── PlayQueueManager.kt     — Manages deck playback queues
+│   ├── PlaylistManager.kt      — Manages saved setlists
+│   └── ClipboardManager.kt     — Copy/paste for patch elements
 ├── rendering/
 │   ├── Mandala.kt              — Mandala4Arm (recipe + full field docs),
 │   │                             Mandala (VisualSource with all params)
@@ -56,30 +65,33 @@ src/main/kotlin/llm/slop/spirals/
 │   ├── Mixer.kt                — Blends Deck A+B → masterFBO
 │   ├── Renderer.kt             — Per-frame: source → feedback → mix → blit
 │   ├── VisualSource.kt         — Interface (Mandala, future: video/3D)
+│   ├── VisualSourceRegistry.kt — Pluggable dynamic visual sources
+│   ├── DynamicVisualSource.kt  — Wraps loaded shaders
+│   ├── Shader.kt               — GLSL shader compilation/management
+│   ├── Geometry.kt             — Vertex buffers, basic shapes
 │   └── FBO.kt                  — OpenGL framebuffer wrapper
 ├── ui/
 │   ├── UIManager.kt            — Layout: PatchGrid (L 40%) | CellConfig (M 30%) | Mixer (R 30%)
 │   ├── PatchGridPanel.kt       — Modulation matrix: param rows × CV columns
 │   ├── CellConfigPanel.kt      — Edits one CvModulator with lazy real-time oscilloscope
 │   └── PatchGridState.kt       — Selection state (cell, param, modulator)
-└── ANDROID-REFERENCE/          — REMOVED (extracted into rendering/)
+└── utils/
+    └── TimeUtils.kt            — Timing utilities
 ```
 
 ## CV Sources (registered IDs)
 
 | ID | Type | Description |
 |----|------|-------------|
-| `amp` | Audio | Overall RMS amplitude |
-| `bass` | Audio | Low-frequency RMS |
-| `mid` | Audio | Mid-frequency RMS |
-| `high` | Audio | High-frequency RMS |
-| `bassFlux` | Audio | Bass spectral flux |
-| `onset` | Audio | Transient/onset pulse |
-| `accent` | Audio | Strong beat accent |
 | `bpm` | Audio | Detected tempo |
-| `beatPhase` | Generator | Beat phase 0→1 per beat |
-| `lfo` | Generator | Time-based oscillator |
-| `sampleAndHold` | Generator | Random step with glide |
+| `audio_amp` | Audio | Overall RMS amplitude |
+| `audio_bass` | Audio | Low-frequency RMS |
+| `audio_mid` | Audio | Mid-frequency RMS |
+| `audio_high` | Audio | High-frequency RMS |
+| `trigger_onset` | Audio | Transient/onset pulse |
+| `trigger_accent` | Audio | Strong beat accent |
+| `gen1` | Generator | Evaluated inline |
+| `BeatSine` | Generator | Evaluated inline |
 
 ## Modulation Math
 
@@ -111,7 +123,8 @@ Patch Grid columns: AMP BASS MID HIGH FLUX ONSET ACCENT BEAT LFO RAND
 ## Design Principles
 - **Zero-allocation audio thread** — pre-allocated buffers, no object creation in JACK callback
 - **VisualSource abstraction** — Deck is source-agnostic; video/3D sources slot in later
-- **Thread safety** — `@Volatile` beat anchor, `CopyOnWriteArrayList` for modulators
+- **VisualSourceRegistry** — pluggable dynamic visual sources (GLSL shaders loaded from presets/sources/)
+- **Thread safety** — `@Volatile` beat anchor, `CopyOnWriteArrayList` for modulators, `MidiEngine.receivedCcEvents` queue pattern
 - **Serializable patches** — `CvModulator` is `@Serializable`; save/load is Phase 5
 
 ## Build & Run
@@ -119,4 +132,5 @@ Patch Grid columns: AMP BASS MID HIGH FLUX ONSET ACCENT BEAT LFO RAND
 ./gradlew run          # development
 ./gradlew compileKotlin  # check for errors only
 ```
-**JACK must be running** before launch (visuals work without it; audio CVs stay at 0).
+**JACK or PipeWire must be running** before launch (visuals work without it; audio CVs stay at 0).
+Custom visual shaders are loaded from `presets/sources/`.

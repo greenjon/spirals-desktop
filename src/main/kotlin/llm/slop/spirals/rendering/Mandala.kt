@@ -57,8 +57,14 @@ typealias MandalaRatio = Mandala4Arm
  * Implements VisualSource for desktop rendering.
  */
 class Mandala(
+    id: String,
+    displayName: String,
+    shader: Shader,
+    parameters: LinkedHashMap<String, ModulatableParameter>,
+    hasFeedback: Boolean = false,
+    ownsShader: Boolean = false,
     recipe: MandalaRatio
-) : VisualSource {
+) : DynamicVisualSource(id, displayName, shader, parameters, hasFeedback = hasFeedback, ownsShader = ownsShader) {
 
     var recipe: MandalaRatio = recipe
         set(value) {
@@ -68,41 +74,6 @@ class Mandala(
                 updateDefaultHueSweep()
             }
         }
-
-    override val parameters = linkedMapOf(
-        "L1" to ModulatableParameter(0.4f).apply { baseMin = 0.3f; baseMax = 0.7f; randomizeBase = true },
-        "L2" to ModulatableParameter(0.3f).apply { baseMin = 0.1f; baseMax = 0.5f; randomizeBase = true },
-        "L3" to ModulatableParameter(0.2f).apply { baseMin = 0.0f; baseMax = 0.4f; randomizeBase = true },
-        "L4" to ModulatableParameter(0.1f).apply { baseMin = 0.0f; baseMax = 0.3f; randomizeBase = true },
-        "Zoom" to ModulatableParameter(0.125f),
-        "Rotate Z" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "Thickness" to ModulatableParameter(0.5f).apply { baseMin = 0.3f; baseMax = 0.7f; randomizeBase = true },
-        "Hue Offset" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS).apply { baseMin = 0.0f; baseMax = 1.0f; randomizeBase = true },
-        "Hue Sweep" to ModulatableParameter(0.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "Depth" to ModulatableParameter(0.35f).apply { baseMin = 0.2f; baseMax = 0.6f; randomizeBase = true },
-        "Lobes" to ModulatableParameter(recipe.petals.toFloat(), minClamp = 3.0f, maxClamp = 26.0f).apply { baseMin = 3.0f; baseMax = 26.0f; randomizeBase = true },
-        "Recipe Select" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f).apply { baseMin = 0.0f; baseMax = 1.0f; randomizeBase = true },
-        "Bg Style" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 2.0f),
-        "Bg Feedback" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f),
-        "Bg Hue" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "Bg Sat" to ModulatableParameter(0.8f, minClamp = 0.0f, maxClamp = 1.0f),
-        "Bg Val" to ModulatableParameter(0.5f, minClamp = 0.0f, maxClamp = 1.0f),
-        "Bg Sweep" to ModulatableParameter(0.2f, minClamp = 0.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "Bg Speed" to ModulatableParameter(0.2f, minClamp = 0.0f, maxClamp = 1.0f),
-        "Bg Zoom" to ModulatableParameter(1.0f, minClamp = 0.1f, maxClamp = 10.0f),
-        "3D Mode" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 4.0f),
-        "Sphere Wrap X" to ModulatableParameter(1.0f, minClamp = 0.1f, maxClamp = 4.0f).apply { baseMin = 0.5f; baseMax = 2.0f; randomizeBase = true },
-        "Sphere Wrap Y" to ModulatableParameter(1.0f, minClamp = 0.1f, maxClamp = 4.0f).apply { baseMin = 0.5f; baseMax = 2.0f; randomizeBase = true },
-        "Mirror Group" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 2.0f).apply { baseMin = 0.0f; baseMax = 2.0f; randomizeBase = true },
-        "Permute XY" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f).apply { baseMin = 0.0f; baseMax = 1.0f; randomizeBase = true },
-        "Permute YZ" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f).apply { baseMin = 0.0f; baseMax = 1.0f; randomizeBase = true },
-        "Permute ZX" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f).apply { baseMin = 0.0f; baseMax = 1.0f; randomizeBase = true },
-        "Rotate Y" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "Rotate X" to ModulatableParameter(0.0f, minClamp = -1.0f, maxClamp = 1.0f, meterType = llm.slop.spirals.parameters.MeterType.ENDLESS),
-        "3D Persp" to ModulatableParameter(0.5f, minClamp = 0.0f, maxClamp = 1.0f).apply { baseMin = 0.3f; baseMax = 0.7f; randomizeBase = true },
-        "Harmonic Lock" to ModulatableParameter(1.0f, minClamp = 0.0f, maxClamp = 1.0f).apply { baseMin = 0.0f; baseMax = 1.0f; randomizeBase = true },
-        "Freq Offset" to ModulatableParameter(0.0f, minClamp = 0.0f, maxClamp = 1.0f)
-    )
 
     init {
         val initialList = MandalaLibrary.recipesByPetals[recipe.petals] ?: emptyList()
@@ -138,8 +109,6 @@ class Mandala(
             options.sorted()
         }
     }
-
-    override val globalAlpha = ModulatableParameter(1.0f)
 
     var minR: Float = 0f
         private set
@@ -181,24 +150,19 @@ class Mandala(
     }
 
     override fun clone(): Mandala {
-        val copy = Mandala(this.recipe)
+        val clonedParams = LinkedHashMap<String, ModulatableParameter>()
         this.parameters.forEach { (name, param) ->
-            val copyParam = copy.parameters[name]
-            if (copyParam != null) {
-                copyParam.set(param.baseValue)
-                copyParam.randomizeBase = param.randomizeBase
-                copyParam.baseMin = param.baseMin
-                copyParam.baseMax = param.baseMax
-                copyParam.modulators.clear()
-                copyParam.modulators.addAll(param.modulators)
-                @Suppress("DEPRECATION")
-                copyParam.mappedMidiId = param.mappedMidiId
-                @Suppress("DEPRECATION")
-                copyParam.midiMapMin = param.midiMapMin
-                @Suppress("DEPRECATION")
-                copyParam.midiMapMax = param.midiMapMax
-            }
+            clonedParams[name] = param.clone()
         }
+        val copy = Mandala(
+            id = this.id,
+            displayName = this.displayName,
+            shader = this.shader,
+            parameters = clonedParams,
+            hasFeedback = this.hasFeedback,
+            ownsShader = false,
+            recipe = this.recipe
+        )
         copy.globalAlpha.set(this.globalAlpha.baseValue)
         copy.globalAlpha.randomizeBase = this.globalAlpha.randomizeBase
         copy.globalAlpha.baseMin = this.globalAlpha.baseMin

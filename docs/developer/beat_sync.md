@@ -1,100 +1,136 @@
 # Audio Beat Synchronization & Stability
 
-This document details the mechanics of the beat-tracking and Control Voltage (CV) synchronization system in Spirals Desktop. It outlines how audio beats are detected, how the tempo is estimated, and how the system remains stable despite fluctuations in the input signal's BPM.
+This document describes the beat tracking and CV synchronization system in Spirals Desktop —
+how BPM is detected or set manually, how the beat clock is ticked, and how visual generators
+stay phase-locked to the music across frames.
 
 ---
 
 ## Architecture Overview
 
-Beat synchronization bridges the real-time audio thread, the control voltage registry, and the rendering thread.
+Beat synchronization bridges three subsystems:
 
-* **Audio Callback Thread**: Performs transient detection, filters out noise, estimates BPM, and increments a master beat counter.
-* **Control Voltage Registry**: Dynamically interpolates the beat clock with sub-millisecond precision for rendering frame rate decoupling.
-* **Render Thread**: Evaluates visual generators (e.g. mandalas, LFOs) synced to the phase of the beat clock.
-
----
-
-## Phase Sync Pipeline
-
-The beat synchronization flow consists of the following steps:
-
-### 1. Transient / Onset Detection
-In [AudioEngine.processAudio](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/AudioEngine.kt#L66), incoming mono audio is split into three frequency bands using [BiquadFilter](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/BiquadFilter.kt). The engine computes the **Spectral Flux** (the positive frame-to-frame change in RMS energy) for each band:
-
-* Low band (bass): $Flux_{bass} = \max(0, RMS_{bass} - RMS_{bass, prev})$
-* Mid band (vocals/instruments): $Flux_{mid} = \max(0, RMS_{mid} - RMS_{mid, prev})$
-* High band (hi-hats/percussion): $Flux_{high} = \max(0, RMS_{high} - RMS_{high, prev})$
-
-The bands are mixed into a single `onsetRaw` metric, which is normalized to `onsetNormalized` in the range $[0.0, 2.0]$:
-
-$$\text{onsetRaw} = (Flux_{bass} \times 1.0) + (Flux_{mid} \times 0.6) + (Flux_{high} \times 0.3)$$
-
-### 2. BPM Estimation
-When `onsetNormalized` crosses a dynamic `beatThreshold`, a beat trigger candidate is recorded. The engine computes the interval (in nanoseconds) since the last detected beat:
-
-$$\text{interval} = \text{currentTime} - \text{lastBeatTime}$$
-
-To filter out drum fills, syncopated beats, and false positives, the engine maintains a sliding window of the last 8 valid beat intervals (between 40 and 200 BPM) in the `beatIntervals` collection. The **estimated BPM** is calculated using the **median** of these intervals:
-
-$$\text{estimatedBpm} = \frac{60,000,000,000}{\text{medianInterval}}$$
-
-Using the median instead of the mean makes the estimation highly robust to isolated timing outliers.
-
-### 3. Flywheel Ticking
-In between physical audio transients, a master beat counter `totalBeats` is incremented on every audio callback using a steady tempo flywheel:
-
-$$\text{beatDelta} = \text{deltaTimeSec} \times \frac{\text{estimatedBpm}}{60.0}$$
-$$\text{totalBeats} \leftarrow \text{totalBeats} + \text{beatDelta}$$
-
-This ensures that even during quiet sections or periods of missing transients, the beat clock keeps ticking steadily at the last known tempo.
-
-### 4. Gated Phase Realignment
-To sync the accumulated beat phase with the actual audio stream, the phase is aligned on strong transients (`onsetNormalized > 1.4f`). The current phase is checked:
-
-$$\text{currentPhase} = \text{totalBeats} \pmod{1.0}$$
-
-If the phase is not already near the beat boundaries (i.e. $\text{currentPhase} \ge 0.1$ and $\text{currentPhase} \le 0.9$), the engine snaps `totalBeats` to the nearest integer:
-
-$$\text{totalBeats} \leftarrow \text{round}(\text{totalBeats})$$
-
-This gating prevents minor timing micro-variations from constantly shifting the clock phase.
-
-### 5. High-Precision CV Sync
-Once per render frame, [CVRegistry.updateAll](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/cv/CVRegistry.kt#L111) is called, which queries [CVRegistry.getSynchronizedTotalBeats](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/cv/CVRegistry.kt#L58-L63). This function interpolates the beat clock with sub-millisecond precision using the time elapsed since the last audio thread callback:
-
-$$\text{synchronizedBeats} = \text{anchorBeats} + (\text{currentTime} - \text{anchorTimeNs}) \times \frac{\text{anchorBpm}}{60.0 \times 10^9}$$
-
-The [BeatClock](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/cv/BeatClock.kt) source exposes this synchronized phase:
-
-$$\text{value} = \text{synchronizedBeats} \pmod{1.0}$$
-
----
-
-## Stability Tuning
-
-For audio tracks with unstable rhythm or variable BPMs, several mechanisms can be tuned or added to stabilize the beat:
-
-### Dynamic Thresholding
-The detection threshold `beatThreshold` is updated continuously to adapt to track dynamics:
-```kotlin
-beatThreshold = (beatThreshold * 0.95f) + (onsetNormalized * 0.05f)
 ```
-This ensures the engine remains sensitive during quiet parts and avoids double-triggering during loud, complex segments.
+JACK Callback (AudioEngine)
+    │
+    ├─► BeatDetector.processBlock()   ← runs every audio callback (~50-200 Hz)
+    │       └─► Returns estimated BPM
+    │
+    ├─► Flywheel tick: totalBeats += delta * bpm / 60
+    │
+    └─► CVRegistry.updateBeatAnchor(totalBeats, bpm, nanoTime)
+              │  (AtomicReference<BeatAnchor> swap — lock-free)
+              │
+        Render Thread (every frame)
+              │
+              └─► CVRegistry.getSynchronizedTotalBeats()
+                      └─► Interpolates beat clock to sub-millisecond precision
+                              │
+                        Evaluators.kt  ← beatPhase, gen1/gen2, sampleAndHold, lfo
+```
 
-### Further Improvements for High BPM Variance
-If the estimated BPM continues to experience jitter, developer enhancements include:
-1. **Exponential Moving Average (EMA) BPM Smoothing**:
-   Filter the estimated BPM to slow down tempo changes:
-   ```kotlin
-   estimatedBpm = (estimatedBpm * 0.95f) + (newEstimatedBpm * 0.05f)
-   ```
-2. **Phase-Locked Loop (PLL)**:
-   Rather than abruptly snapping the phase using the `round()` function, adjust the flywheel speed slightly based on phase error:
-   ```kotlin
-   val error = targetPhase - currentPhase
-   estimatedBpm += error * Gain
-   ```
-3. **Increasing the Median Window**:
-   Change `maxIntervals` in [AudioEngine](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/AudioEngine.kt#L42) to a higher value (e.g. 16 or 32) to require longer sustained changes before shifting the tempo.
-4. **Manual BPM Override**:
-   Allow locking the BPM to a fixed value to completely disable auto-tracking while maintaining phase-snapping.
+---
+
+## BPM Sources
+
+### Manual BPM Lock (`isBpmLocked = true`)
+
+The simplest and most stable mode. `AudioEngine.manualBpm` is used directly as the flywheel
+speed. No beat detection runs. This is the default mode and is recommended for most live
+performance use cases.
+
+Use the BPM tap button in the UI, or assign a MIDI CC to nudge `manualBpm` in real time.
+
+### Automatic Detection (`isBpmLocked = false`)
+
+When unlocked, `BeatDetector.processBlock()` analyses the audio envelope and returns an estimated
+BPM each callback. The engine selects which detection algorithm to use via `BeatDetectionSettings.mode`:
+
+---
+
+## BeatDetector Modes
+
+### 1. PLL (Phase-Locked Loop) — `BeatDetectionMode.PLL`
+
+A phase-locked loop that tracks the beat by nudging an internal oscillator period whenever a
+transient is detected. Good for stable, rhythmic material.
+
+On each audio callback block:
+1. The internal oscillator `pllPhase` increments by 1 block.
+2. When a transient is detected (current amplitude > previous and > threshold), the phase error
+   is computed:
+   $$\text{error} = \frac{\phi_{current}}{T_{period}} - 0.5\quad\text{(centered)}$$
+3. Both phase and period are nudged toward alignment:
+   $$\phi \leftarrow \phi - \text{error} \times T \times \alpha$$
+   $$T \leftarrow T - \text{error} \times T \times (\alpha \times 0.1)$$
+   where $\alpha$ is `pllAdaptationRate` from `BeatDetectionSettings`.
+4. BPM is derived from the current period:
+   $$BPM = \frac{60 \times fps}{T_{period}}$$
+5. Period is clamped to the `[bpmSearchFloor, bpmSearchCeiling]` range.
+
+### 2. STFT Comb Filter — `BeatDetectionMode.STFT_COMB`
+
+Runs periodically (every 16 blocks) on a background analysis thread to avoid blocking the
+real-time callback. Uses a comb filter bank to find the periodicity with the highest energy in
+the envelope history.
+
+For each candidate BPM in the search range (stepped by `bpmGridResolution`):
+$$\text{energy}(BPM) = \sum_{k=0}^{3} \text{envelope}\!\left[\text{histIdx} - k \times \text{delay}_{BPM}\right]$$
+where $\text{delay}_{BPM} = \lfloor fps \times 60 / BPM \rfloor$ blocks.
+
+The BPM with the highest comb energy is accepted, then blended smoothly:
+$$BPM_{current} \leftarrow BPM_{current} \times 0.9 + BPM_{best} \times 0.1$$
+
+### 3. Autocorrelation — `BeatDetectionMode.AUTOCORRELATION`
+
+Also runs on the background analysis thread. Computes the autocorrelation of the envelope history
+at each candidate lag (delay) to find the most periodic tempo:
+
+$$AC(\tau) = \sum_{i=0}^{N} \text{envelope}[i] \cdot \text{envelope}[i - \tau]$$
+
+The lag $\tau^*$ with the highest autocorrelation is converted to BPM:
+$$BPM = \frac{60 \times fps}{\tau^*}$$
+
+Then blended into the running estimate:
+$$BPM_{current} \leftarrow BPM_{current} \times 0.95 + BPM_{calc} \times 0.05$$
+
+---
+
+## Background Analysis Thread Safety
+
+For both STFT Comb and Autocorrelation modes, the analysis runs on a dedicated
+`BeatDetector-Analysis` daemon thread (`analysisExecutor`). To avoid a data race on the
+input snapshot, the `BeatDetector` uses a **double-buffered snapshot** pattern:
+
+- Two pre-allocated `AnalysisSnapshot` objects (`snapshot1`, `snapshot2`) hold `fps`,
+  `bgHistoryIndex`, and `bgHistoryCount`.
+- The audio callback writes the next snapshot and publishes it via a single `@Volatile`
+  `pendingSnapshot` reference swap before submitting the task.
+- The analysis task reads `pendingSnapshot` once into a local `val` at the start of `run()`,
+  making the entire read consistent without a lock.
+
+---
+
+## High-Precision Beat Clock Interpolation
+
+The render thread runs at a different rate than the JACK audio callback. To keep visual
+generators phase-accurate between audio callbacks, `CVRegistry.getSynchronizedTotalBeats()`
+interpolates the beat clock forward in time:
+
+$$\text{synchronizedBeats} = \text{anchorBeats} + \frac{(t_{now} - t_{anchor}) \times BPM_{anchor}}{60.0 \times 10^9}$$
+
+where $t$ is nanoseconds from `System.nanoTime()`. This gives sub-millisecond phase precision
+regardless of the audio callback interval.
+
+---
+
+## Tuning & Stability
+
+| Setting | Effect |
+|---------|--------|
+| `BeatDetectionSettings.mode` | Choose PLL, Comb, or Autocorrelation |
+| `bpmSearchFloor` / `bpmSearchCeiling` | Constrain the detection range (e.g. 80–160 for house) |
+| `bpmGridResolution` | Smaller = finer comb search, slower |
+| `pllAdaptationRate` | Higher = faster PLL lock, more jitter |
+| `analysisWindowLength` | Seconds of history used by autocorrelation |
+| Manual BPM lock | Most reliable for live use — set it and forget it |

@@ -31,21 +31,23 @@ object MidiEngine {
     }
 
     private fun initialize() {
-        val infos = MidiSystem.getMidiDeviceInfo()
-        logger.info { "Found ${infos.size} MIDI devices" }
-        for (info in infos) {
-            try {
-                val device = MidiSystem.getMidiDevice(info)
-                // We want input devices (which have transmitters)
-                if (device.maxTransmitters != 0) {
-                    device.open()
-                    val transmitter = device.transmitter
-                    transmitter.receiver = MidiInputReceiver()
-                    openDevices.add(device)
-                    logger.info { "Successfully opened MIDI input device: ${info.name} - ${info.description}" }
+        synchronized(openDevices) {
+            val infos = MidiSystem.getMidiDeviceInfo()
+            logger.info { "Found ${infos.size} MIDI devices" }
+            for (info in infos) {
+                try {
+                    val device = MidiSystem.getMidiDevice(info)
+                    // We want input devices (which have transmitters)
+                    if (device.maxTransmitters != 0) {
+                        device.open()
+                        val transmitter = device.transmitter
+                        transmitter.receiver = MidiInputReceiver()
+                        openDevices.add(device)
+                        logger.info { "Successfully opened MIDI input device: ${info.name} - ${info.description}" }
+                    }
+                } catch (e: Exception) {
+                    logger.warn { "Could not open MIDI device: ${info.name}. Error: ${e.message}" }
                 }
-            } catch (e: Exception) {
-                logger.warn { "Could not open MIDI device: ${info.name}. Error: ${e.message}" }
             }
         }
     }

@@ -1,6 +1,8 @@
 package llm.slop.spirals.patches
 
 import llm.slop.spirals.rendering.Mixer
+import llm.slop.spirals.rendering.Deck
+import llm.slop.spirals.ui.UITheme
 import llm.slop.spirals.models.PlaylistDto
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
@@ -290,24 +292,7 @@ object PlayQueueManager {
         val targetIsA = mixer.crossfade.value > 0.0f
         val targetDeck = if (targetIsA) mixer.deckA else mixer.deckB
         
-        val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
-        if (isDirty) {
-            when (llm.slop.spirals.ui.UITheme.autoVjDirtyBehavior) {
-                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.SKIP -> {
-                    logger.info { "AutoVJ: Skipping next item because target deck is dirty" }
-                    return
-                }
-                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_SAVE -> {
-                    val activeName = if (targetIsA) PatchManager.activePresetA else PatchManager.activePresetB
-                    val saveName = activeName ?: "AutoVJ_${if (targetIsA) "A" else "B"}_${System.currentTimeMillis()}"
-                    logger.info { "AutoVJ: Autosaving dirty deck to $saveName" }
-                    PatchManager.saveDeckPresetAsync(File("presets/patches/$saveName.lsd"), targetDeck, saveName)
-                }
-                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_DISCARD -> {
-                    logger.info { "AutoVJ: Discarding changes on dirty deck" }
-                }
-            }
-        }
+        if (!handleDirtyDeck(targetIsA, targetDeck, mixer)) return
 
         activeIndex = nextIndex
         val file = queue[activeIndex]
@@ -376,24 +361,7 @@ object PlayQueueManager {
         val targetIsA = mixer.crossfade.value > 0.0f
         val targetDeck = if (targetIsA) mixer.deckA else mixer.deckB
         
-        val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
-        if (isDirty) {
-            when (llm.slop.spirals.ui.UITheme.autoVjDirtyBehavior) {
-                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.SKIP -> {
-                    logger.info { "AutoVJ: Skipping prev item because target deck is dirty" }
-                    return
-                }
-                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_SAVE -> {
-                    val activeName = if (targetIsA) PatchManager.activePresetA else PatchManager.activePresetB
-                    val saveName = activeName ?: "AutoVJ_${if (targetIsA) "A" else "B"}_${System.currentTimeMillis()}"
-                    logger.info { "AutoVJ: Autosaving dirty deck to $saveName" }
-                    PatchManager.saveDeckPresetAsync(File("presets/patches/$saveName.lsd"), targetDeck, saveName)
-                }
-                llm.slop.spirals.ui.UITheme.AutoVjDirtyBehavior.AUTO_DISCARD -> {
-                    logger.info { "AutoVJ: Discarding changes on dirty deck" }
-                }
-            }
-        }
+        if (!handleDirtyDeck(targetIsA, targetDeck, mixer)) return
 
         activeIndex = prevIndex
         val file = queue[activeIndex]
@@ -405,6 +373,31 @@ object PlayQueueManager {
         // Start auto-fade to the target deck
         mixer.targetCrossfade = if (targetIsA) -1.0f else 1.0f
         mixer.isAutoFading = true
+    }
+
+    /**
+     * Handles a dirty target deck according to the configured AutoVJ dirty behavior.
+     * @return true if the queue advance should proceed, false if it should be skipped.
+     */
+    private fun handleDirtyDeck(targetIsA: Boolean, targetDeck: Deck, mixer: Mixer): Boolean {
+        if (!PatchManager.isDeckDirty(targetDeck, mixer)) return true
+        return when (UITheme.autoVjDirtyBehavior) {
+            UITheme.AutoVjDirtyBehavior.SKIP -> {
+                logger.info { "AutoVJ: Skipping because target deck is dirty" }
+                false
+            }
+            UITheme.AutoVjDirtyBehavior.AUTO_SAVE -> {
+                val activeName = if (targetIsA) PatchManager.activePresetA else PatchManager.activePresetB
+                val saveName = activeName ?: "AutoVJ_${if (targetIsA) "A" else "B"}_${System.currentTimeMillis()}"
+                logger.info { "AutoVJ: Autosaving dirty deck to $saveName" }
+                PatchManager.saveDeckPresetAsync(File("presets/patches/$saveName.lsd"), targetDeck, saveName)
+                true
+            }
+            UITheme.AutoVjDirtyBehavior.AUTO_DISCARD -> {
+                logger.info { "AutoVJ: Discarding changes on dirty deck" }
+                true
+            }
+        }
     }
 }
 

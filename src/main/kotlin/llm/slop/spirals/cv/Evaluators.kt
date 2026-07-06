@@ -82,29 +82,7 @@ fun evaluateModulator(modulator: CvModulator): Float {
             val currentValue = randomFloatFromSeed((currentCycle + seed).toLong())
             val previousValue = randomFloatFromSeed((previousCycle + seed).toLong())
 
-            val safeHold = modulator.hold.coerceIn(0.0f, 0.99f)
-            val slideDuration = 1.0f - safeHold
-            val tSlide = if (positivePhase < slideDuration) {
-                (positivePhase / slideDuration).toFloat().coerceIn(0f, 1f)
-            } else {
-                1.0f
-            }
-
-            val k = 1.5f + (15.0f - 1.5f) * modulator.morph
-            val maxVal = kotlin.math.log(kotlin.math.cosh(k.toDouble()), Math.E).toFloat() / k
-            val heldTri = tSlide * 2.0f - 1.0f
-            val result = if (heldTri >= 0f) {
-                val u = 1.0f - heldTri
-                val smoothedU = kotlin.math.log(kotlin.math.cosh((k * u).toDouble()), Math.E).toFloat() / k
-                1.0f - (smoothedU / maxVal)
-            } else {
-                val u = 1.0f + heldTri
-                val smoothedU = kotlin.math.log(kotlin.math.cosh((k * u).toDouble()), Math.E).toFloat() / k
-                -1.0f + (smoothedU / maxVal)
-            }
-            val t = (result + 1.0f) / 2.0f
-
-            previousValue + (currentValue - previousValue) * t
+            calculateRandomWaveform(positivePhase, modulator.morph, modulator.hold, previousValue, currentValue)
         }
         "lfo" -> {
             val seconds = CVRegistry.getElapsedRealtimeSec()

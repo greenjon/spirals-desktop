@@ -67,6 +67,13 @@ object VisualSourceRegistry {
                 continue
             }
 
+            val customVertFile = File(folder, "shader.vert")
+            val vertSource = if (customVertFile.exists()) {
+                customVertFile.readText()
+            } else {
+                vertexShaderSource
+            }
+
             try {
                 val metaText = metaFile.readText()
                 val meta = json.decodeFromString<SourceMeta>(metaText)
@@ -74,10 +81,10 @@ object VisualSourceRegistry {
                 
                 var shader: Shader
                 try {
-                    shader = Shader(vertexShaderSource, fragText)
+                    shader = Shader(vertSource, fragText)
                 } catch (e: Exception) {
                     logger.error(e) { "Failed to compile custom shader for '${meta.name}'. Using error fallback." }
-                    shader = Shader(vertexShaderSource, errorFragmentShaderSource)
+                    shader = Shader(vertSource, errorFragmentShaderSource)
                 }
 
                 val parameters = LinkedHashMap<String, ModulatableParameter>()
@@ -101,14 +108,27 @@ object VisualSourceRegistry {
                     parameters[pMeta.name] = param
                 }
 
-                val dynamicSource = DynamicVisualSource(
-                    id = meta.id,
-                    displayName = meta.name,
-                    shader = shader,
-                    parameters = parameters,
-                    hasFeedback = meta.feedback,
-                    ownsShader = true // Master instance owns the shader
-                )
+                val dynamicSource = if (meta.id == "mandala") {
+                    val initialRecipe = MandalaLibrary.MandalaRatios.first()
+                    Mandala(
+                        id = meta.id,
+                        displayName = meta.name,
+                        shader = shader,
+                        parameters = parameters,
+                        hasFeedback = meta.feedback,
+                        ownsShader = true,
+                        recipe = initialRecipe
+                    )
+                } else {
+                    DynamicVisualSource(
+                        id = meta.id,
+                        displayName = meta.name,
+                        shader = shader,
+                        parameters = parameters,
+                        hasFeedback = meta.feedback,
+                        ownsShader = true // Master instance owns the shader
+                    )
+                }
                 availableSources.add(dynamicSource)
                 logger.info { "Loaded dynamic visual source: ${meta.name} (${meta.id})" }
                 

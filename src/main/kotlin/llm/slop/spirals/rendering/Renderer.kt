@@ -11,13 +11,12 @@ import kotlin.math.roundToInt
  * and orchestrates Deck rendering and Mixer compositing.
  */
 class Renderer {
-    private val uniformNameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val uniformNameCache = HashMap<String, String>()
 
-    private val mandalaShader: Shader
     private val feedbackShader: Shader
     private val mixerShader: Shader
     private val backgroundShader: Shader
-    private val blitShader: Shader
+    val blitShader: Shader
 
     private var mandalaVAO: Int = 0
     private var mandalaVBO: Int = 0
@@ -25,7 +24,6 @@ class Renderer {
 
     init {
         // Load the shaders
-        mandalaShader = Shader.fromResources("shaders/mandala.vert", "shaders/mandala.frag")
         feedbackShader = Shader.fromResources("shaders/blit.vert", "shaders/feedback.frag")
         mixerShader = Shader.fromResources("shaders/blit.vert", "shaders/mixer.frag")
         backgroundShader = Shader.fromResources("shaders/blit.vert", "shaders/background.frag")
@@ -163,6 +161,7 @@ class Renderer {
      * Renders a Mandala to the specified FBO.
      */
     private fun renderMandala(mandala: Mandala, targetFBO: FBO) {
+        val mandalaShader = mandala.shader
         targetFBO.bind()
 
         // Clear the framebuffer's color buffer (fully transparent black background)
@@ -434,7 +433,7 @@ class Renderer {
         if (!isDisposed) {
             glDeleteBuffers(mandalaVBO)
             glDeleteVertexArrays(mandalaVAO)
-            mandalaShader.dispose()
+
             feedbackShader.dispose()
             mixerShader.dispose()
             backgroundShader.dispose()

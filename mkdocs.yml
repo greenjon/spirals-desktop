@@ -31,6 +31,7 @@ nav:
     - Core Concepts: user_guide/concepts.md
     - CV Modulation: user_guide/modulation.md
     - Presets & MIDI: user_guide/midi_presets.md
+    - Custom Visuals: user_guide/custom_visuals.md
   - Developer Reference:
     - Architecture Overview: developer/architecture.md
     - Real-Time Audio & DSP: developer/audio_dsp.md

@@ -44,8 +44,13 @@ class Deck(
         fb2.clear(0f, 0f, 0f, 0f)
         cleanFBO.clear(0f, 0f, 0f, 0f)
         
+        val initialId = (source as? DynamicVisualSource)?.id
+        val registrySources = VisualSourceRegistry.availableSources
+            .filter { it.id != initialId }
+            .map { it.clone() }
+        
         availableSources.add(source.clone())
-        availableSources.addAll(VisualSourceRegistry.availableSources.map { it.clone() })
+        availableSources.addAll(registrySources)
         
         updateSourceSelection()
     }

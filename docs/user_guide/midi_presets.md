@@ -7,11 +7,8 @@ Spirals Desktop contains patch saving mechanisms and external MIDI controller in
 Patches store the complete state of the workstation, including all parameter values, feedback settings, and active CV modulations.
 
 ### Serialization Format
-- Patches are saved as JSON files (`.json`) using the `kotlinx.serialization` library.
-- Presets are saved in subfolders inside the `presets/` folder in the project root:
-  - `presets/decks/`: Settings for individual Deck A or Deck B patches.
-  - `presets/global/`: Full-workstation project patches containing mixer settings and both decks.
-  - `presets/midi/`: Standalone MIDI mapping profiles.
+- Patches are saved as JSON files using the `kotlinx.serialization` library with a `.lsd` file extension.
+- All patch files (deck presets and full session saves) live in `presets/patches/`.
 
 ### Copy & Paste (Base Column)
 - You can copy the base parameter settings of one deck and paste them onto the other.
