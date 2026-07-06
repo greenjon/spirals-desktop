@@ -103,6 +103,18 @@ float sdTruncatedIcosahedron(vec3 p, float r) {
     return d - r;
 }
 
+vec3 getHexFold(vec3 z, float k) {
+    z.x = k > 0.0001 ? smax(z.x, -z.x, k) : abs(z.x);
+    z.y = k > 0.0001 ? smax(z.y, -z.y, k) : abs(z.y);
+    
+    vec2 nHex = vec2(0.86602540378, -0.5);
+    float t = dot(z.xy, nHex);
+    z.xy -= 2.0 * smin(0.0, t, k) * nHex;
+    
+    z.z = k > 0.0001 ? smax(z.z, -z.z, k) : abs(z.z);
+    return z;
+}
+
 float map(vec3 p, out float trap) {
     vec3 z = p;
     
@@ -119,29 +131,21 @@ float map(vec3 p, out float trap) {
     trap = 1e10;
     
     // Construct rotation matrix for the loop
-    mat3 rotMat = rotateX(uFoldAngleX) * rotateY(uFoldAngleY) * rotateZ(uFoldAngleZ);
     vec3 offset = vec3(uFoldX, uFoldY, uFoldZ);
+    mat3 rot = rotateX(uFoldAngleX) * rotateY(uFoldAngleY) * rotateZ(uFoldAngleZ);
     
     int maxIt = int(uIterations);
     for (int i = 0; i < 8; i++) {
         if (i >= maxIt) break;
         
-        // 3. Fold/mirror space across planes (sharp or smooth)
-        if (uSmoothness > 0.0) {
-            z = vec3(
-                smax(z.x, -z.x, uSmoothness),
-                smax(z.y, -z.y, uSmoothness),
-                smax(z.z, -z.z, uSmoothness)
-            );
-        } else {
-            z = abs(z);
-        }
+        // 3. Rotate space BEFORE folding so that the kaleidoscope twists nicely
+        z = rot * z;
+        
+        // 4. Fixed 6-Fold Radial Kaleidoscope Fold
+        z = getHexFold(z, uSmoothness);
         
         // Offset/Translate space
         z -= offset;
-        
-        // 4. Rotate space
-        z = rotMat * z;
         
         // 5. Scale space
         z *= uScale;

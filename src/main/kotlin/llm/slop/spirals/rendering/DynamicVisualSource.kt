@@ -58,6 +58,13 @@ open class DynamicVisualSource(
     fun getCurrentHistoryFBO(): FBO? = if (fbIndex == 0) fb1 else fb2
     fun getNextHistoryFBO(): FBO? = if (fbIndex == 0) fb2 else fb1
 
+    open fun setupUniforms(shader: Shader) {
+        parameters.forEach { (name, param) ->
+            val uniformName = "u" + name.replace(" ", "")
+            shader.setUniform(uniformName, param.value)
+        }
+    }
+
     override fun dispose() {
         fb1?.dispose()
         fb2?.dispose()

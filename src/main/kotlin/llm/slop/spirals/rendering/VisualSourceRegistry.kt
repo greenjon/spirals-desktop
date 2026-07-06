@@ -119,6 +119,15 @@ object VisualSourceRegistry {
                         ownsShader = true,
                         recipe = initialRecipe
                     )
+                } else if (meta.id == "kifs") {
+                    Kifs(
+                        id = meta.id,
+                        displayName = meta.name,
+                        shader = shader,
+                        parameters = parameters,
+                        hasFeedback = meta.feedback,
+                        ownsShader = true
+                    )
                 } else {
                     DynamicVisualSource(
                         id = meta.id,

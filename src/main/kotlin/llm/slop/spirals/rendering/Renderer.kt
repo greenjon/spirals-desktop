@@ -11,7 +11,6 @@ import kotlin.math.roundToInt
  * and orchestrates Deck rendering and Mixer compositing.
  */
 class Renderer {
-    private val uniformNameCache = HashMap<String, String>()
 
     private val feedbackShader: Shader
     private val mixerShader: Shader
@@ -90,10 +89,7 @@ class Renderer {
 
             source.shader.bind()
 
-            source.parameters.forEach { (name, param) ->
-                val uniformName = uniformNameCache.getOrPut(name) { "u" + name.replace(" ", "") }
-                source.shader.setUniform(uniformName, param.value)
-            }
+            source.setupUniforms(source.shader)
 
             source.shader.setUniform("uAlpha", source.globalAlpha.value)
             source.shader.setUniform("uResolution", targetFBO.width.toFloat(), targetFBO.height.toFloat())
