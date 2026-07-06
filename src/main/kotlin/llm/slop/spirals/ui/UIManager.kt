@@ -384,9 +384,9 @@ class UIManager(private val windowHandle: Long) {
 
             drawLayout(mixer, displayWidth, displayHeight)
 
-            SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight, { newSize ->
+            SettingsPanel.draw(UITheme.baseSize, displayWidth, displayHeight) { newSize ->
                 applyFontSize(newSize)
-            }, {})
+            }
 
             AudioEnginePanel.draw(displayWidth, displayHeight)
 

@@ -6,6 +6,7 @@ import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.patches.PatchManager
 import mu.KotlinLogging
 import llm.slop.spirals.midi.MidiEngine
+import llm.slop.spirals.audio.AudioEngine
 
 class MenuBar(
     private val popupManager: PopupManager,
@@ -139,7 +140,90 @@ class MenuBar(
             }
             ImGui.popStyleColor()
 
+            // ── Right-aligned performance stats ──────────────────────────────────
+            drawPerformanceStats()
+
             ImGui.endMainMenuBar()
+        }
+    }
+
+    /**
+     * Renders FPS, frame time, CPU%, and BPM right-aligned inside the main menu bar.
+     * Each metric is colourised: green = healthy, yellow = marginal, red = problematic.
+     * Zero allocations per frame (all formatting is done with pre-allocated StringBuilder).
+     */
+    private fun drawPerformanceStats() {
+        val fps        = PerformanceStats.fps
+        val ftMs       = PerformanceStats.frameTimeMs
+        val cpuFrac    = PerformanceStats.processCpuFraction   // -1 if unavailable
+        val bpm        = PerformanceStats.bpm
+        val audioActive = AudioEngine.isActive()
+
+        val cpuText = if (cpuFrac >= 0.0) "CPU: %2.0f%%  ".format(cpuFrac * 100.0) else ""
+        val bpmText = if (audioActive && UITheme.audioEngineEnabled) "BPM: %3.0f  ".format(bpm) else ""
+        val fpsText = "%3.0f fps  ".format(fps)
+        val ftText  = "%.0f ms  ".format(ftMs)
+        val fullLabel = cpuText + bpmText + fpsText + ftText
+
+        UITheme.withFont(UITheme.FontLevel.CODE) {
+            val barWidth  = ImGui.getContentRegionAvailX()
+            val textWidth = ImGui.calcTextSize(fullLabel).x
+            val startX    = ImGui.getCursorPosX() + barWidth - textWidth
+
+            if (startX > ImGui.getCursorPosX()) {
+                ImGui.setCursorPosX(startX)
+            }
+
+            // ── CPU % ──────────────────────────────────────────────────────────────
+            if (cpuFrac >= 0.0) {
+                val cpuPct = cpuFrac * 100.0
+                when {
+                    cpuPct >= 80.0 -> ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.25f, 0.25f, 1.0f) // red
+                    cpuPct >= 50.0 -> ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.75f, 0.0f,  1.0f) // yellow
+                    else           -> ImGui.pushStyleColor(ImGuiCol.Text, 0.55f, 1.0f, 0.55f, 1.0f) // green
+                }
+                ImGui.text(cpuText)
+                ImGui.popStyleColor()
+                ImGui.sameLine(0f, 0f)
+            }
+
+            // ── BPM ───────────────────────────────────────────────────────────────
+            if (audioActive && UITheme.audioEngineEnabled) {
+                ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.85f, 1.0f, 1.0f) // light blue
+                ImGui.text(bpmText)
+                ImGui.popStyleColor()
+                ImGui.sameLine(0f, 0f)
+            }
+
+            // ── FPS ───────────────────────────────────────────────────────────────
+            val maxFpsConfig = UITheme.maxFps
+            val (fpsRed, fpsYellow) = if (maxFpsConfig <= 30) {
+                20f to 27f
+            } else {
+                30f to 50f
+            }
+            when {
+                fps < fpsRed    -> ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.25f, 0.25f, 1.0f) // red
+                fps < fpsYellow -> ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.75f, 0.0f,  1.0f) // yellow
+                else            -> ImGui.pushStyleColor(ImGuiCol.Text, 0.55f, 1.0f, 0.55f, 1.0f) // green
+            }
+            ImGui.text(fpsText)
+            ImGui.popStyleColor()
+            ImGui.sameLine(0f, 0f)
+
+            // ── Frame time ────────────────────────────────────────────────────────
+            val (ftRed, ftYellow) = if (maxFpsConfig <= 30) {
+                50.0f to 37.0f
+            } else {
+                33.3f to 20.0f
+            }
+            when {
+                ftMs > ftRed    -> ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.25f, 0.25f, 1.0f) // red
+                ftMs > ftYellow -> ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.75f, 0.0f,  1.0f) // yellow
+                else            -> ImGui.pushStyleColor(ImGuiCol.Text, 0.55f, 1.0f, 0.55f, 1.0f) // green
+            }
+            ImGui.text(ftText)
+            ImGui.popStyleColor()
         }
     }
 }

@@ -189,7 +189,7 @@ class DeckControlPanel(
                                else if (fromName == "B") mixer.deckB
                                else mixer.deckC
                 if (fromDeck !== toDeck) {
-                    PatchManager.moveDeck(mixer, fromDeck, toDeck)
+                    onUtilityAction(0, fromDeck, toDeck)
                 }
             }
             val payloadMonitorRight = ImGui.acceptDragDropPayload<String>("MONITOR_DRAG_RIGHT")

@@ -86,11 +86,11 @@ class DeckPresetBrowser(
             pendingOpen = false
         }
 
-        ImGui.setNextWindowSize(480f, 400f, imgui.flag.ImGuiCond.Appearing)
+        ImGui.setNextWindowSize(400f, 800f, imgui.flag.ImGuiCond.Always)
         ImGui.setNextWindowPos(
             ImGui.getIO().displaySizeX * 0.5f,
             ImGui.getIO().displaySizeY * 0.5f,
-            imgui.flag.ImGuiCond.Appearing,
+            imgui.flag.ImGuiCond.Always,
             0.5f, 0.5f
         )
 
@@ -171,7 +171,8 @@ class DeckPresetBrowser(
         isDirty: Boolean,
         onSelect: (String?) -> Unit
     ) {
-        val listH = 220f
+        val footerHeight = ImGui.getFrameHeightWithSpacing() + 15f
+        val listH = ImGui.getContentRegionAvailY() - footerHeight
         ImGui.beginChild("##presetList$deckLabel", ImGui.getContentRegionAvailX(), listH, false)
 
         val filtered = filteredPresets()

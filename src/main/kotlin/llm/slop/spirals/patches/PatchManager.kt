@@ -67,7 +67,7 @@ object PatchManager {
 
     fun copyDeck(mixer: Mixer, from: Deck, to: Deck) {
         if (from.isEmpty) {
-            to.reset()
+            to.applyDto(emptyDeckDto(to, mixer))
             when {
                 to === mixer.deckA -> { cachedDtoA = null; activePresetA = null }
                 to === mixer.deckB -> { cachedDtoB = null; activePresetB = null }
@@ -93,12 +93,34 @@ object PatchManager {
 
     fun moveDeck(mixer: Mixer, from: Deck, to: Deck) {
         copyDeck(mixer, from, to)
-        from.reset()
+        // Apply an explicit empty DTO rather than calling from.reset() so that all
+        // state — isEmpty, lastSourceSelectBase, modulators — is set atomically via
+        // applyDto and cannot drift on subsequent update() calls.
+        from.applyDto(emptyDeckDto(from, mixer))
         when {
             from === mixer.deckA -> { cachedDtoA = null; activePresetA = null }
             from === mixer.deckB -> { cachedDtoB = null; activePresetB = null }
             from === mixer.deckC -> { cachedDtoC = null; activePresetC = null }
         }
+    }
+
+    /**
+     * Builds a canonical "empty" [DeckPatchDto] for the given deck.
+     * The DTO uses the deck's current active source name and default parameter
+     * values, with [isEmpty] = true and all modulators cleared, so that
+     * [Deck.applyDto] leaves the deck in an inert state that the renderer will skip.
+     */
+    private fun emptyDeckDto(deck: Deck, mixer: Mixer): DeckPatchDto {
+        val label = when {
+            deck === mixer.deckA -> "Deck A"
+            deck === mixer.deckB -> "Deck B"
+            deck === mixer.deckC -> "Deck C"
+            else -> "Deck"
+        }
+        // Snapshot the deck as-is but override isEmpty; this preserves the correct
+        // visualSourceType so applyDto selects the same source at index 0 and does
+        // not accidentally try to load an unrecognised type.
+        return deck.toDto(label).copy(isEmpty = true)
     }
 
     fun swapDecks(mixer: Mixer, deck1: Deck, deck2: Deck) {

@@ -67,14 +67,20 @@ class DeckUtilityTest {
         val dtoA = mockk<DeckPatchDto>()
         every { dtoA.name } returns "Patch A"
         every { deckA.toDto(any(), any()) } returns dtoA
+
+        // emptyDeckDto calls dtoA.copy(isEmpty = true); return a distinct sentinel
+        val emptyDto = mockk<DeckPatchDto>()
+        every { dtoA.copy(isEmpty = true) } returns emptyDto
+
         every { deckB.applyDto(any()) } returns Unit
-        every { deckA.reset() } returns Unit
+        // deckA.applyDto is called once with the empty DTO to clear the source deck
+        every { deckA.applyDto(any()) } returns Unit
 
         PatchManager.moveDeck(mixer, deckA, deckB)
 
         verify { deckA.toDto(any()) }
         verify { deckB.applyDto(dtoA) }
-        verify { deckA.reset() }
+        verify { deckA.applyDto(emptyDto) }
         assertEquals("Patch A", PatchManager.activePresetB)
         assertNull(PatchManager.activePresetA)
     }

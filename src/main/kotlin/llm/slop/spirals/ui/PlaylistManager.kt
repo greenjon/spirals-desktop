@@ -271,4 +271,45 @@ object PlaylistManager {
             Result.failure(e)
         }
     }
+
+    /**
+     * Scans every playlist on disk and replaces [oldAbsPath] with [newAbsPath] wherever it appears.
+     * Paths stored in playlists may be relative to the patches root, so both absolute and relative
+     * forms of the old path are matched. Only playlist files that actually contained the old path
+     * are rewritten.
+     */
+    fun updatePatchPathInAllPlaylists(oldAbsPath: String, newAbsPath: String) {
+        val patchesRoot = FileSystemManager.getPatchesRoot().canonicalFile
+        val playlistsRoot = FileSystemManager.getPlaylistsRoot()
+
+        fun toRelative(abs: String): String? = try {
+            val f = File(abs).canonicalFile
+            if (f.path.startsWith(patchesRoot.path)) f.relativeTo(patchesRoot).path else null
+        } catch (e: Exception) { null }
+
+        val oldRel = toRelative(oldAbsPath)
+        val newRel = toRelative(newAbsPath) ?: newAbsPath
+
+        // All forms the old path might appear as inside a playlist file
+        val oldCandidates = listOfNotNull(oldAbsPath, oldRel).toSet()
+
+        playlistsRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "lsdset" }
+            .forEach { playlistFile ->
+                val lines = playlistFile.readLines()
+                var changed = false
+                val updated = lines.map { line ->
+                    if (line.trim() in oldCandidates) {
+                        changed = true
+                        newRel
+                    } else {
+                        line
+                    }
+                }
+                if (changed) {
+                    playlistFile.writeText(updated.joinToString("\n") + "\n")
+                    logger.info { "Updated patch path in playlist ${playlistFile.name}: $oldAbsPath -> $newAbsPath" }
+                }
+            }
+    }
 }

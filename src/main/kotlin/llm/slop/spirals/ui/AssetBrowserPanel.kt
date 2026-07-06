@@ -35,6 +35,9 @@ object AssetBrowserPanel {
     private var selectedAsset: AssetItem? = null
     private var showSidebar = true
     private var renameTarget: AssetItem? = null
+    private var deleteTarget: AssetItem? = null
+    private var pendingOpenRenamePopup = false
+    private var pendingOpenDeletePopup = false
     private val renameBuffer = ImString(256)
     private val folderNameBuffer = ImString(256)
     
@@ -144,6 +147,19 @@ object AssetBrowserPanel {
         ImGui.beginChild("AssetQueue", queueWidth - 8f, contentH, true)
         drawQueueContent(mixer)
         ImGui.endChild()
+
+        // Deferred popup opens: ImGui does not allow openPopup() from inside a context menu popup.
+        // Flags are set inside the context menu block, and the actual open happens here, outside all popups.
+        if (pendingOpenRenamePopup) {
+            ImGui.openPopup("RenameAssetPopup")
+            pendingOpenRenamePopup = false
+        }
+        if (pendingOpenDeletePopup) {
+            ImGui.openPopup("ConfirmDeleteAssetPopup")
+            pendingOpenDeletePopup = false
+        }
+        drawRenameAssetPopup()
+        drawDeleteAssetConfirmationPopup()
     }
     
     private fun drawNavigationSidebar(mixer: Mixer) {
@@ -214,6 +230,22 @@ object AssetBrowserPanel {
                     }
                     if (ImGui.menuItem("Add to the bottom of the queue")) {
                         PlayQueueManager.appendPlaylistToQueue(File(asset.path))
+                    }
+                    ImGui.separator()
+                    if (ImGui.menuItem("Rename")) {
+                        renameTarget = asset
+                        renameBuffer.set(asset.name)
+                        pendingOpenRenamePopup = true
+                    }
+                    if (ImGui.menuItem("Clone")) {
+                        FileSystemManager.cloneFile(asset.path).onSuccess { newPath ->
+                            currentView = LibraryView.SpecificPlaylist(File(newPath))
+                            activePlaylistData = null
+                        }
+                    }
+                    if (ImGui.menuItem("Delete")) {
+                        deleteTarget = asset
+                        pendingOpenDeletePopup = true
                     }
                     ImGui.endPopup()
                 }
@@ -346,53 +378,74 @@ object AssetBrowserPanel {
         var moveFrom = -1
         var moveTo = -1
         var removeFromQueueIndex = -1
-        
+        // Insertion-line state: slot where the next drop will land, and the Y pixel for the indicator line.
+        var insertSlot = -1
+        var insertLineY = -1f
+        val insertLineColor = (255 shl 24) or (204 shl 16) or (255 shl 8) or 102 // mint-green, ABGR
+
         PlayQueueManager.queue.forEachIndexed { index, file ->
             val isActive = index == PlayQueueManager.activeIndex
             val label = "${index + 1}. ${file.nameWithoutExtension}${if (isActive) " ->" else ""}"
-            
+
             if (isActive) {
-                ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 1.0f, 0.8f, 1.0f) // Mint green for active
+                ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 1.0f, 0.8f, 1.0f)
             }
-            
+
             ImGui.selectable("$label##queue_$index", false)
-            
-            // Drag source (for reordering QUEUE_ITEM within the queue)
+
+            // Drag source (QUEUE_ITEM reorder)
             if (ImGui.beginDragDropSource()) {
                 ImGui.setDragDropPayload("QUEUE_ITEM", index as Any)
                 ImGui.text("Moving $label")
                 ImGui.endDragDropSource()
             }
-            
+
             if (isActive) {
                 ImGui.popStyleColor()
             }
-            
-            // Drag target
+
+            // Store item rect for insertion-line computation inside the target block
+            val itemMinY = ImGui.getItemRectMinY()
+            val itemMaxY = ImGui.getItemRectMaxY()
+
+            ImGui.pushStyleColor(ImGuiCol.DragDropTarget, 0f, 0f, 0f, 0f)
             if (ImGui.beginDragDropTarget()) {
-                // 1. Reordering within the queue
+                // Compute insertion slot from mouse Y relative to item midpoint.
+                // This must happen inside beginDragDropTarget, which guarantees the mouse
+                // is actually over this item's rect — no dependency on isItemHovered() or isMouseDragging().
+                val mouseY = ImGui.getMousePosY()
+                val insertBefore = mouseY < (itemMinY + itemMaxY) * 0.5f
+                val effectiveSlot = if (insertBefore) index else index + 1
+                insertSlot = effectiveSlot
+                insertLineY = if (insertBefore) itemMinY else itemMaxY
+
+                // 1. Reorder within queue
                 val queuePayload = ImGui.acceptDragDropPayload<Int>("QUEUE_ITEM")
                 if (queuePayload != null) {
                     moveFrom = queuePayload
-                    moveTo = index
+                    // moveQueueItem does removeAt(from) then add(to) on the shortened list
+                    val rawTo = if (queuePayload < effectiveSlot) effectiveSlot - 1 else effectiveSlot
+                    moveTo = rawTo.coerceIn(0, PlayQueueManager.queue.size - 1)
                 }
-                
-                // 2. Inserting a new asset from the center panel
+
+                // 2. Insert asset from center panel
                 val assetPayload = ImGui.acceptDragDropPayload<String>("ASSET_ITEM")
                 if (assetPayload != null) {
-                    val file = File(assetPayload)
-                    if (file.extension.lowercase() in listOf("patch", "lsd", "json")) {
-                        PlayQueueManager.queue.add(index, file)
-                        logger.info { "Inserted patch from drag-drop at index $index: ${file.name}" }
-                    } else if (file.extension.lowercase() in listOf("playlist", "lsdset")) {
-                        val files = PlayQueueManager.parsePlaylist(file)
-                        PlayQueueManager.queue.addAll(index, files)
-                        logger.info { "Inserted playlist from drag-drop at index $index: ${file.name} (${files.size} items)" }
+                    val droppedFile = File(assetPayload)
+                    val insertAt = effectiveSlot.coerceIn(0, PlayQueueManager.queue.size)
+                    if (droppedFile.extension.lowercase() in listOf("patch", "lsd", "json")) {
+                        PlayQueueManager.queue.add(insertAt, droppedFile)
+                        logger.info { "Inserted patch from drag-drop at slot $insertAt: ${droppedFile.name}" }
+                    } else if (droppedFile.extension.lowercase() in listOf("playlist", "lsdset")) {
+                        val files = PlayQueueManager.parsePlaylist(droppedFile)
+                        PlayQueueManager.queue.addAll(insertAt, files)
+                        logger.info { "Inserted playlist from drag-drop at slot $insertAt: ${droppedFile.name} (${files.size} items)" }
                     }
                 }
                 ImGui.endDragDropTarget()
             }
-            
+            ImGui.popStyleColor()
+
             // Right-click menu
             if (ImGui.beginPopupContextItem("queue_item_menu_$index")) {
                 if (ImGui.menuItem("Remove")) {
@@ -401,7 +454,16 @@ object AssetBrowserPanel {
                 ImGui.endPopup()
             }
         }
-        
+
+        // Draw insertion-line indicator
+        if (insertLineY > 0f) {
+            val dl = ImGui.getWindowDrawList()
+            val x0 = ImGui.getWindowPosX() + 4f
+            val x1 = ImGui.getWindowPosX() + ImGui.getWindowWidth() - 4f
+            dl.addCircleFilled(x0 + 2f, insertLineY, 3f, insertLineColor)
+            dl.addLine(x0 + 5f, insertLineY, x1, insertLineY, insertLineColor, 2f)
+        }
+
         if (moveFrom != -1 && moveTo != -1) {
             PlayQueueManager.moveQueueItem(moveFrom, moveTo)
         }
@@ -409,10 +471,11 @@ object AssetBrowserPanel {
             PlayQueueManager.removeFromQueue(removeFromQueueIndex)
         }
 
-        // Drop target for the empty space (appending to the bottom of the queue)
+        // Drop target for the empty space below all queue items (append to end)
         val remainingH = ImGui.getContentRegionAvailY()
         if (remainingH > 5f) {
             ImGui.dummy(ImGui.getWindowWidth(), remainingH)
+            ImGui.pushStyleColor(ImGuiCol.DragDropTarget, 0f, 0f, 0f, 0f)
             if (ImGui.beginDragDropTarget()) {
                 val payload = ImGui.acceptDragDropPayload<String>("ASSET_ITEM")
                 if (payload != null) {
@@ -425,6 +488,7 @@ object AssetBrowserPanel {
                 }
                 ImGui.endDragDropTarget()
             }
+            ImGui.popStyleColor()
         }
     }
 
@@ -520,42 +584,128 @@ object AssetBrowserPanel {
         var moveFrom = -1
         var moveTo = -1
         var removePatchIndex = -1
-        
+        // Insertion-line state
+        var insertSlot = -1
+        var insertLineY = -1f
+        val insertLineColor = (255 shl 24) or (204 shl 16) or (255 shl 8) or 102 // mint-green, ABGR
+
         playlist.patches.forEachIndexed { index, patchPath ->
             val resolvedFile = PlaylistManager.resolvePatch(patchPath)
             val exists = resolvedFile.exists()
             val displayName = resolvedFile.nameWithoutExtension.ifBlank { patchPath }
             val label = "${index + 1}. ${if (exists) "" else "[!] "}$displayName${if (!exists) " (missing)" else ""}"
-            
+
+            ImGui.pushID(index)
+
+            // A / B / C deck buttons
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f)
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 0f)
+
+            // Button A (Deck A color: Blue)
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.2f, 0.4f, 0.8f, if (exists) 1.0f else 0.3f)
+            ImGui.pushStyleColor(ImGuiCol.Border, 0.2f, 0.4f, 0.8f, if (exists) 1.0f else 0.3f)
+            ImGui.pushStyleColor(ImGuiCol.Button, 0f, 0f, 0f, 0f)
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.4f, 0.8f, 0.15f)
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.4f, 0.8f, 0.3f)
+            if (ImGui.button("A##deck_a", 24f, 24f) && exists) {
+                val targetDeck = mixer.deckA
+                val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
+                if (!isDirty) {
+                    PatchManager.loadDeckPresetAsync(resolvedFile, isDeckA = true, isDeckC = false)
+                } else {
+                    UIManager.triggerDeckDragDrop(resolvedFile, targetDeck, true, mixer)
+                }
+            }
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) ImGui.setTooltip("Load patch to Deck A.")
+            ImGui.popStyleColor(5)
+
+            ImGui.sameLine()
+
+            // Button B (Deck B color: Orange)
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.8f, 0.4f, 0.2f, if (exists) 1.0f else 0.3f)
+            ImGui.pushStyleColor(ImGuiCol.Border, 0.8f, 0.4f, 0.2f, if (exists) 1.0f else 0.3f)
+            ImGui.pushStyleColor(ImGuiCol.Button, 0f, 0f, 0f, 0f)
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.8f, 0.4f, 0.2f, 0.15f)
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.8f, 0.4f, 0.2f, 0.3f)
+            if (ImGui.button("B##deck_b", 24f, 24f) && exists) {
+                val targetDeck = mixer.deckB
+                val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
+                if (!isDirty) {
+                    PatchManager.loadDeckPresetAsync(resolvedFile, isDeckA = false, isDeckC = false)
+                } else {
+                    UIManager.triggerDeckDragDrop(resolvedFile, targetDeck, false, mixer)
+                }
+            }
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) ImGui.setTooltip("Load patch to Deck B.")
+            ImGui.popStyleColor(5)
+
+            ImGui.sameLine()
+
+            // Button C (Deck C color: Green)
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.2f, 0.7f, 0.5f, if (exists) 1.0f else 0.3f)
+            ImGui.pushStyleColor(ImGuiCol.Border, 0.2f, 0.7f, 0.5f, if (exists) 1.0f else 0.3f)
+            ImGui.pushStyleColor(ImGuiCol.Button, 0f, 0f, 0f, 0f)
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.7f, 0.5f, 0.15f)
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.7f, 0.5f, 0.3f)
+            if (ImGui.button("C##deck_c", 24f, 24f) && exists) {
+                val targetDeck = mixer.deckC
+                val isDirty = PatchManager.isDeckDirty(targetDeck, mixer)
+                if (!isDirty) {
+                    PatchManager.loadDeckPresetAsync(resolvedFile, isDeckA = false, isDeckC = true)
+                } else {
+                    UIManager.triggerDeckDragDrop(resolvedFile, targetDeck, false, mixer)
+                }
+            }
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) ImGui.setTooltip("Preview patch on Deck C (Preview/C).")
+            ImGui.popStyleColor(5)
+
+            ImGui.popStyleVar(2)
+
+            ImGui.sameLine()
+
             if (!exists) {
                 ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.3f, 0.3f, 1f)
             }
-            
-            ImGui.selectable("$label##playlist_item_$index", false)
-            
+
+            ImGui.selectable("$label##item", false)
+
             // Drag source for reordering within playlist
             if (ImGui.beginDragDropSource()) {
                 ImGui.setDragDropPayload("PLAYLIST_PATCH_ITEM", index as Any)
                 ImGui.text("Moving $displayName")
                 ImGui.endDragDropSource()
             }
-            
+
             if (!exists) {
                 ImGui.popStyleColor()
             }
-            
-            // Drag target for reordering within playlist
+
+            // Track insertion slot from mouse position
+            val itemMinY = ImGui.getItemRectMinY()
+            val itemMaxY = ImGui.getItemRectMaxY()
+
+            ImGui.pushStyleColor(ImGuiCol.DragDropTarget, 0f, 0f, 0f, 0f)
             if (ImGui.beginDragDropTarget()) {
+                // Compute insertion slot inside the target block — beginDragDropTarget() succeeds
+                // on rect overlap alone, without needing isItemHovered() or isMouseDragging().
+                val mouseY = ImGui.getMousePosY()
+                val insertBefore = mouseY < (itemMinY + itemMaxY) * 0.5f
+                val effectiveSlot = if (insertBefore) index else index + 1
+                insertSlot = effectiveSlot
+                insertLineY = if (insertBefore) itemMinY else itemMaxY
+
                 val payload = ImGui.acceptDragDropPayload<Int>("PLAYLIST_PATCH_ITEM")
                 if (payload != null) {
                     moveFrom = payload
-                    moveTo = index
+                    val rawTo = if (payload < effectiveSlot) effectiveSlot - 1 else effectiveSlot
+                    moveTo = rawTo.coerceIn(0, playlist.patches.size - 1)
                 }
                 ImGui.endDragDropTarget()
             }
-            
+            ImGui.popStyleColor()
+
             // Right-click menu
-            if (ImGui.beginPopupContextItem("playlist_item_menu_$index")) {
+            if (ImGui.beginPopupContextItem("playlist_item_menu")) {
                 if (ImGui.menuItem("Play now (and replace queue)")) {
                     PlayQueueManager.playNow(resolvedFile, mixer)
                 }
@@ -571,6 +721,17 @@ object AssetBrowserPanel {
                 }
                 ImGui.endPopup()
             }
+
+            ImGui.popID()
+        }
+
+        // Draw insertion-line indicator
+        if (insertLineY > 0f) {
+            val dl = ImGui.getWindowDrawList()
+            val x0 = ImGui.getWindowPosX() + 4f
+            val x1 = ImGui.getWindowPosX() + ImGui.getWindowWidth() - 4f
+            dl.addCircleFilled(x0 + 2f, insertLineY, 3f, insertLineColor)
+            dl.addLine(x0 + 5f, insertLineY, x1, insertLineY, insertLineColor, 2f)
         }
         
         if (moveFrom != -1 && moveTo != -1) {
@@ -635,6 +796,97 @@ object AssetBrowserPanel {
             }
             ImGui.sameLine()
             if (ImGui.button("Cancel", 120f, 0f)) {
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawRenameAssetPopup() {
+        if (ImGui.beginPopupModal("RenameAssetPopup", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
+            val target = renameTarget
+            if (target == null) {
+                ImGui.closeCurrentPopup()
+                ImGui.endPopup()
+                return
+            }
+            
+            val typeStr = when (target.type) {
+                AssetType.PATCH -> "Patch"
+                AssetType.PLAYLIST -> "Playlist"
+                AssetType.FOLDER -> "Folder"
+            }
+            
+            ImGui.text("Rename $typeStr to:")
+            ImGui.inputText("##renameAssetInput", renameBuffer)
+            
+            if (ImGui.button("Rename", 120f, 0f)) {
+                val newName = renameBuffer.get().trim()
+                if (newName.isNotBlank()) {
+                    FileSystemManager.renameFile(target.path, newName).onSuccess { newPath ->
+                        if (target.type == AssetType.PATCH) {
+                            PlaylistManager.updatePatchPathInAllPlaylists(target.path, newPath)
+                            activePlaylistData = null // invalidate cache: any open playlist may have been updated
+                            refreshAssets()
+                        } else if (target.type == AssetType.PLAYLIST) {
+                            val currentPlaylistPath = (currentView as? LibraryView.SpecificPlaylist)?.playlistFile?.absolutePath
+                            if (target.path == currentPlaylistPath) {
+                                currentView = LibraryView.SpecificPlaylist(File(newPath))
+                                activePlaylistData = null
+                            }
+                        }
+                    }
+                }
+                renameBuffer.set("")
+                renameTarget = null
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Cancel", 120f, 0f)) {
+                renameBuffer.set("")
+                renameTarget = null
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.endPopup()
+        }
+    }
+
+    private fun drawDeleteAssetConfirmationPopup() {
+        if (ImGui.beginPopupModal("ConfirmDeleteAssetPopup", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
+            val target = deleteTarget
+            if (target == null) {
+                ImGui.closeCurrentPopup()
+                ImGui.endPopup()
+                return
+            }
+            
+            val typeStr = when (target.type) {
+                AssetType.PATCH -> "Patch"
+                AssetType.PLAYLIST -> "Playlist"
+                AssetType.FOLDER -> "Folder"
+            }
+            
+            ImGui.text("Delete $typeStr ${target.name}?")
+            ImGui.text("This action cannot be undone.")
+            ImGui.separator()
+            if (ImGui.button("Delete", 120f, 0f)) {
+                FileSystemManager.deleteFile(target.path).onSuccess {
+                    if (target.type == AssetType.PATCH) {
+                        refreshAssets()
+                    } else if (target.type == AssetType.PLAYLIST) {
+                        val currentPlaylistPath = (currentView as? LibraryView.SpecificPlaylist)?.playlistFile?.absolutePath
+                        if (target.path == currentPlaylistPath) {
+                            currentView = LibraryView.PlaylistsRoot
+                            activePlaylistData = null
+                        }
+                    }
+                }
+                deleteTarget = null
+                ImGui.closeCurrentPopup()
+            }
+            ImGui.sameLine()
+            if (ImGui.button("Cancel", 120f, 0f)) {
+                deleteTarget = null
                 ImGui.closeCurrentPopup()
             }
             ImGui.endPopup()
@@ -780,6 +1032,21 @@ object AssetBrowserPanel {
                 }
                 if (ImGui.menuItem("Add to the bottom of the queue")) {
                     PlayQueueManager.appendToQueue(File(asset.path))
+                }
+                ImGui.separator()
+                if (ImGui.menuItem("Rename")) {
+                    renameTarget = asset
+                    renameBuffer.set(asset.name)
+                    pendingOpenRenamePopup = true
+                }
+                if (ImGui.menuItem("Clone")) {
+                    FileSystemManager.cloneFile(asset.path).onSuccess {
+                        refreshAssets()
+                    }
+                }
+                if (ImGui.menuItem("Delete")) {
+                    deleteTarget = asset
+                    pendingOpenDeletePopup = true
                 }
                 ImGui.endPopup()
             }

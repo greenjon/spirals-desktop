@@ -196,6 +196,7 @@ fun main() {
     val sh = IntArray(1)
 
     while (!glfwWindowShouldClose(window)) {
+        val frameStartTime = glfwGetTime()
         glfwPollEvents()
 
         // Clean up secondary window if it was closed manually by the user
@@ -295,6 +296,24 @@ fun main() {
 
             // Switch back to main context
             glfwMakeContextCurrent(window)
+        }
+
+        // Cap frame rate to UITheme.maxFps
+        val targetFrameTime = 1.0 / UITheme.maxFps
+        val elapsed = glfwGetTime() - frameStartTime
+        val sleepTime = targetFrameTime - elapsed
+        if (sleepTime > 0) {
+            val sleepMs = (sleepTime * 1000).toLong()
+            if (sleepMs > 0) {
+                try {
+                    Thread.sleep(sleepMs)
+                } catch (e: InterruptedException) {
+                    // Ignore
+                }
+            }
+            while (glfwGetTime() - frameStartTime < targetFrameTime) {
+                Thread.yield()
+            }
         }
     }
 

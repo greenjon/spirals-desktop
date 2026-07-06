@@ -37,7 +37,7 @@ object PatchGridPanel {
 
     private fun getCvLabels(): List<String> {
         return if (UITheme.audioEngineEnabled) {
-            listOf("LFO", /*"GEN 2",*/ "AUDIO", "TRIGGER")
+            listOf("LFO", /*"GEN 2",*/ "AUDIO", "TRIG")
         } else {
             listOf("LFO" /*, "GEN 2"*/)
         }
@@ -47,7 +47,6 @@ object PatchGridPanel {
     // Size of each cell square (px)
     private const val CELL = 35f
     private const val CELL_PAD = 5f
-    private const val GROUP_GAP = 10f
 
     private fun getColumnOffset(colId: String): Float {
         // Build the visible column list dynamically
@@ -59,9 +58,7 @@ object PatchGridPanel {
         if (index < 0) return 0f
         
         // Calculate offset based on position in visible columns
-        // Add GROUP_GAP after "midi" (between special columns and CV columns)
-        val gapAfterMidi = if (index > 1) GROUP_GAP else 0f
-        return index * (CELL + CELL_PAD) + gapAfterMidi
+        return index * (CELL + CELL_PAD)
     }
 
     private fun getCvColor(colId: String, alpha: Float = 1f): Int {
@@ -104,13 +101,20 @@ object PatchGridPanel {
 
         PatchGridKeyboard.handleKeyboardShortcuts(state, mixer, { s, m -> PatchGridUndo.pushUndoState(s, m) }, { s, m -> PatchGridUndo.performUndo(s, m) })
 
-        drawColumnHeaders(labelColW, state, mixer)
-        ImGui.separator()
+        // Row 1: Fixed/Top Tabs
+        PatchGridTabs.drawTopTabs(state)
         ImGui.spacing()
 
+        // Row 2: Dynamic/Sub Tabs
         PatchGridTabs.drawSubTabs(state, mixer)
         ImGui.spacing()
         ImGui.spacing()
+
+        ImGui.separator()
+        ImGui.spacing()
+
+        // Row 3: Column Headers
+        drawColumnHeaders(labelColW, state, mixer)
 
         if (ImGui.beginChild("##patch_grid_scroll", 0f, 0f, false)) {
             if (state.activeTopTab == "Mixer") {
@@ -162,10 +166,6 @@ object PatchGridPanel {
         // Reserve vertical space for headers
         ImGui.dummy(10f, headerH)
         val afterHeadersY = ImGui.getCursorScreenPosY()
-        
-        // Draw Top Tab Row at the bottom-left of the header area (just above the separator)
-        ImGui.setCursorScreenPos(startX, startY + headerH - 24f)
-        PatchGridTabs.drawTopTabs(state)
         
         val lineCol = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f) // VERY subtle extended grid line
         val bottomY = startY + ImGui.getWindowHeight() // align to parent window height

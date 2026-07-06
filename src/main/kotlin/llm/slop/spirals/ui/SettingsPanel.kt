@@ -25,8 +25,7 @@ object SettingsPanel {
     fun open() = ImGui.openPopup(POPUP_ID)
 
     fun draw(currentSize: Float, displayW: Float, displayH: Float,
-             onSizeChanged: (Float) -> Unit,
-             onAutocollapseChanged: () -> Unit) {
+             onSizeChanged: (Float) -> Unit) {
 
         // Centre the modal on the screen every time it appears.
         ImGui.setNextWindowPos(
@@ -161,35 +160,23 @@ object SettingsPanel {
         UITheme.caption("and the interface panels become semi-transparent.")
 
         ImGui.spacing()
-        ImGui.separator()
-        ImGui.spacing()
-
-        // ---------------------------------------------------------------------
-        // Interface Settings
-        // ---------------------------------------------------------------------
-        UITheme.h2("Interface")
-        ImGui.separator()
-        ImGui.spacing()
-
-        val autocollapseEnabled = ImBoolean(UITheme.autocollapseEnabled)
-        if (ImGui.checkbox("Autocollapse Grid Sections", autocollapseEnabled)) {
-            val nextVal = autocollapseEnabled.get()
-            if (nextVal != UITheme.autocollapseEnabled) {
-                UITheme.autocollapseEnabled = nextVal
-                UITheme.saveSettings()
-                onAutocollapseChanged()
-            }
+        val limit30 = ImBoolean(UITheme.maxFps == 30)
+        if (ImGui.checkbox("Limit FPS to 30", limit30)) {
+            UITheme.maxFps = if (limit30.get()) 30 else 60
+            UITheme.saveSettings()
         }
         if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
-            ImGui.setTooltip("Automatically collapse other parameter subgroups when expanding a section.")
+            ImGui.setTooltip("Limit the rendering frame rate to 30 FPS instead of 60 FPS.")
         }
         ImGui.spacing()
-        UITheme.caption("When enabled, opening a grid section or subgroup will")
-        UITheme.caption("automatically collapse other sections at that same level.")
+        UITheme.caption("Limits the rendering frame rate of the main loop. Checked is 30 FPS,")
+        UITheme.caption("unchecked is 60 FPS.")
 
         ImGui.spacing()
         ImGui.separator()
         ImGui.spacing()
+
+
 
         // ---------------------------------------------------------------------
         // Startup Settings

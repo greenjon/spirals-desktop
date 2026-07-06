@@ -49,8 +49,7 @@ object UITheme {
     /** True if the background video should be rendered and UI panels are semi-transparent. */
     var backgroundVideoEnabled: Boolean = false
 
-    /** True if grid sections and subgroups should autocollapse when another is opened. */
-    var autocollapseEnabled: Boolean = true
+
 
     /** True if the main window should hide all UI overlay panels to show full video mix. */
     var cleanModeEnabled: Boolean = false
@@ -61,6 +60,7 @@ object UITheme {
     var activeMidiProfile: String = "default"
     var queueKeyTrigger: QueueKeyTrigger = QueueKeyTrigger.NONE
     var tooltipsEnabled: Boolean = true
+    var maxFps: Int = 30
 
     enum class StartupBehavior { PREVIOUS_SESSION, EMPTY }
     var startupBehavior: StartupBehavior = StartupBehavior.PREVIOUS_SESSION
@@ -109,15 +109,16 @@ object UITheme {
                     backgroundVideoEnabled = savedBgVideo
                     logger.info { "Loaded backgroundVideoEnabled from settings file: $backgroundVideoEnabled" }
                 }
-                val savedAutocollapse = props.getProperty("autocollapseEnabled")?.toBooleanStrictOrNull()
-                if (savedAutocollapse != null) {
-                    autocollapseEnabled = savedAutocollapse
-                    logger.info { "Loaded autocollapseEnabled from settings file: $autocollapseEnabled" }
-                }
+
                 val savedTooltips = props.getProperty("tooltipsEnabled")?.toBooleanStrictOrNull()
                 if (savedTooltips != null) {
                     tooltipsEnabled = savedTooltips
                     logger.info { "Loaded tooltipsEnabled from settings file: $tooltipsEnabled" }
+                }
+                val savedMaxFps = props.getProperty("maxFps")?.toIntOrNull()
+                if (savedMaxFps != null) {
+                    maxFps = if (savedMaxFps == 60) 60 else 30
+                    logger.info { "Loaded maxFps from settings file: $maxFps" }
                 }
                 val savedMode = props.getProperty("assetBrowserMode")
                 if (savedMode != null) {
@@ -149,7 +150,7 @@ object UITheme {
                     logger.info { "Loaded startupBehavior from settings file: $startupBehavior" }
                 }
             } else {
-                logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, autocollapseEnabled: $autocollapseEnabled, tooltipsEnabled: $tooltipsEnabled" }
+                logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, tooltipsEnabled: $tooltipsEnabled, maxFps: $maxFps" }
             }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to load settings, using defaults" }
@@ -167,8 +168,8 @@ object UITheme {
 
 
             props.setProperty("backgroundVideoEnabled", backgroundVideoEnabled.toString())
-            props.setProperty("autocollapseEnabled", autocollapseEnabled.toString())
             props.setProperty("tooltipsEnabled", tooltipsEnabled.toString())
+            props.setProperty("maxFps", maxFps.toString())
             props.setProperty("assetBrowserMode", assetBrowserMode.name)
             props.setProperty("autoVjDirtyBehavior", autoVjDirtyBehavior.name)
             props.setProperty("activeMidiProfile", activeMidiProfile)

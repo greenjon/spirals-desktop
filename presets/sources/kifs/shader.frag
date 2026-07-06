@@ -29,6 +29,8 @@ uniform float uTrapMode;
 uniform float uTrapGlow;
 uniform float uSmoothness;
 uniform float uTime;
+uniform float uNormalColoring;
+uniform float uNormalFrequency;
 
 const int MAX_RAY_STEPS = 80;
 const float MIN_DIST = 0.001;
@@ -192,12 +194,16 @@ void main() {
         float diff = max(dot(normal, lightDir), 0.0);
         float rim = pow(1.0 + dot(normal, rd), 4.0);
 
-        float colVal = fract(log(trap + 1.0) * 0.5 + uColorShift);
+        float colValOrbit = fract(log(trap + 1.0) * 0.5 + uColorShift);
+        float normalVal = dot(normal, vec3(0.5, 0.3, 0.8)) * uNormalFrequency;
+        float colValNormal = fract(normalVal + uTime * 0.2 + uColorShift);
+        float colVal = mix(colValOrbit, colValNormal, uNormalColoring);
+
         vec3 baseCol = palette(colVal, 
             vec3(0.5, 0.5, 0.5), 
             vec3(0.5, 0.5, 0.5), 
-            vec3(1.0, 1.0, 1.0), 
-            vec3(0.0, 0.33, 0.67)
+            vec3(2.0, 1.0, 0.0), 
+            vec3(0.5, 0.20, 0.25)
         );
 
         color = baseCol * (diff * 0.8 + 0.2) + vec3(0.8, 0.9, 1.0) * rim * 0.4;
@@ -219,8 +225,8 @@ void main() {
         vec3 glowCol = palette(fract(uColorShift), 
             vec3(0.5, 0.5, 0.5), 
             vec3(0.5, 0.5, 0.5), 
-            vec3(1.0, 1.0, 1.0), 
-            vec3(0.0, 0.33, 0.67)
+            vec3(2.0, 1.0, 0.0), 
+            vec3(0.5, 0.20, 0.25)
         );
         color += glowCol * glowFactor * uGlow * 1.5;
     }

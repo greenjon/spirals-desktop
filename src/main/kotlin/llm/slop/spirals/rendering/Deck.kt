@@ -132,7 +132,7 @@ class Deck(
         updateSourceSelection()
         val newSelectValue = sourceSelect.value
 
-        if (isEmpty && (sourceSelect.baseValue != lastSourceSelectBase || sourceSelect.modulators.isNotEmpty() || newSelectValue != oldSelectValue)) {
+        if (isEmpty && sourceSelect.baseValue != lastSourceSelectBase) {
             isEmpty = false
         }
 
