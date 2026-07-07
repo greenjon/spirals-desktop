@@ -21,11 +21,16 @@ object SettingsPanel {
     private const val MAX_SIZE = 28f
     private const val STEP     = 1f
     private const val MODAL_W  = 380f  // inner content target width
+    private const val MODAL_MARGIN = 48f
+    private const val WINDOW_PADDING_W = 32f
 
     fun open() = ImGui.openPopup(POPUP_ID)
 
     fun draw(currentSize: Float, displayW: Float, displayH: Float,
              onSizeChanged: (Float) -> Unit) {
+        val modalW = MODAL_W.coerceAtMost((displayW - MODAL_MARGIN).coerceAtLeast(240f))
+        val contentAnchorW = (modalW - WINDOW_PADDING_W).coerceAtLeast(180f)
+        val controlColumnW = 160f.coerceAtMost(contentAnchorW * 0.48f)
 
         // Centre the modal on the screen every time it appears.
         ImGui.setNextWindowPos(
@@ -41,7 +46,7 @@ object SettingsPanel {
 
 
         // -- Width anchor -- ensures the modal is never narrower than MODAL_W --
-        ImGui.dummy(MODAL_W - 32f, 1f)   // 32 = 2 x default window padding
+        ImGui.dummy(contentAnchorW, 1f)
 
         // ---------------------------------------------------------------------
         // Fonts section
@@ -54,7 +59,7 @@ object SettingsPanel {
         // Two-column table: label on the left, controls on the right.
         if (ImGui.beginTable("##fontSettings", 2)) {
             ImGui.tableSetupColumn("##lbl",  ImGuiTableColumnFlags.WidthStretch)
-            ImGui.tableSetupColumn("##ctrl", ImGuiTableColumnFlags.WidthFixed, 160f)
+            ImGui.tableSetupColumn("##ctrl", ImGuiTableColumnFlags.WidthFixed, controlColumnW)
 
             ImGui.tableNextRow()
 
@@ -285,7 +290,7 @@ object SettingsPanel {
 
         // Centred Close button
         val closeW = 110f
-        ImGui.setCursorPosX((MODAL_W - 32f - closeW) * 0.5f + ImGui.getWindowContentRegionMinX())
+        ImGui.setCursorPosX(ImGui.getWindowContentRegionMinX() + (ImGui.getContentRegionAvailX() - closeW) * 0.5f)
         if (ImGui.button("Close", closeW, 0f)) ImGui.closeCurrentPopup()
 
         ImGui.spacing()
