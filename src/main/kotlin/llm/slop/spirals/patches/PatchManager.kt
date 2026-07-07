@@ -9,9 +9,14 @@ import mu.KotlinLogging
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 object PatchManager {
     private val logger = KotlinLogging.logger {}
+    private val patchIoExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "PatchManager-IO").apply { isDaemon = true }
+    }
 
     private val json = Json {
         prettyPrint = true
@@ -162,7 +167,7 @@ object PatchManager {
     }
 
     fun loadGlobalPatchAsync(file: File) {
-        CompletableFuture.runAsync {
+        CompletableFuture.runAsync({
             try {
                 logger.info { "Loading global patch from ${file.absolutePath} in background..." }
                 val content = file.readText()
@@ -172,11 +177,11 @@ object PatchManager {
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load global patch from ${file.absolutePath}" }
             }
-        }
+        }, patchIoExecutor)
     }
 
     fun loadDeckPresetAsync(file: File, isDeckA: Boolean, isDeckC: Boolean = false) {
-        CompletableFuture.runAsync {
+        CompletableFuture.runAsync({
             try {
                 logger.info { "Loading deck preset from ${file.absolutePath} in background..." }
                 if (!file.exists()) throw java.io.FileNotFoundException(file.absolutePath)
@@ -205,14 +210,14 @@ object PatchManager {
 
                 logger.error(e) { "Failed to load deck preset from ${file.absolutePath}" }
             }
-        }
+        }, patchIoExecutor)
     }
 
     fun saveGlobalPatchAsync(file: File, mixer: Mixer, name: String) {
         // Capture states on the main thread to ensure we don't read changing values from other threads
         val dto = mixer.toDto(name)
         cachedGlobalDto = dto
-        CompletableFuture.runAsync {
+        CompletableFuture.runAsync({
             try {
                 logger.info { "Saving global patch to ${file.absolutePath} in background..." }
                 val content = json.encodeToString(dto)
@@ -222,13 +227,13 @@ object PatchManager {
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save global patch to ${file.absolutePath}" }
             }
-        }
+        }, patchIoExecutor)
     }
 
     fun saveDeckPresetAsync(file: File, deck: Deck, name: String, tags: List<String> = emptyList()) {
         // Capture deck state on the main thread (Phase 2c: include tags)
         val dto = deck.toDto(name, tags)
-        CompletableFuture.runAsync {
+        CompletableFuture.runAsync({
             try {
                 logger.info { "Saving deck preset to ${file.absolutePath} in background..." }
                 val content = json.encodeToString(dto)
@@ -238,7 +243,7 @@ object PatchManager {
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save deck preset to ${file.absolutePath}" }
             }
-        }
+        }, patchIoExecutor)
     }
 
     fun applyPendingPatches(mixer: Mixer) {
