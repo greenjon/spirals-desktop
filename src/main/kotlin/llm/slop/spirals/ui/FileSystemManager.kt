@@ -6,6 +6,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Manages file system operations for patches and playlists.
@@ -16,6 +17,28 @@ object FileSystemManager {
     
     private const val PATCHES_ROOT = "presets/patches"
     private const val PLAYLISTS_ROOT = "presets/playlists"
+    private const val SCAN_CACHE_TTL_MS = 1_000L
+
+    private data class ScanCacheEntry(
+        val signature: String,
+        val cachedAtMs: Long,
+        val items: List<AssetItem>
+    )
+
+    private val scanCache = ConcurrentHashMap<String, ScanCacheEntry>()
+
+    internal fun clearScanCache() {
+        scanCache.clear()
+    }
+
+    private fun directorySignature(directory: File): String {
+        return directory.listFiles()
+            ?.sortedBy { it.name }
+            ?.joinToString("|") { file ->
+                "${file.name}:${file.isDirectory}:${file.length()}:${file.lastModified()}"
+            }
+            ?: ""
+    }
 
     private fun managedRootPaths(): List<Path> {
         return listOf(getPatchesRoot(), getPlaylistsRoot())
@@ -41,6 +64,15 @@ object FileSystemManager {
     fun scanDirectory(directory: File): List<AssetItem> {
         if (!directory.exists() || !directory.isDirectory) {
             return emptyList()
+        }
+
+        val cacheKey = directory.canonicalPath
+        val signature = directorySignature(directory)
+        val now = System.currentTimeMillis()
+        scanCache[cacheKey]?.let { cached ->
+            if (cached.signature == signature && now - cached.cachedAtMs <= SCAN_CACHE_TTL_MS) {
+                return cached.items
+            }
         }
         
         val items = mutableListOf<AssetItem>()
@@ -76,7 +108,9 @@ object FileSystemManager {
             }
         }
         
-        return items.sortedWith(compareBy({ it.type != AssetType.FOLDER }, { it.name }))
+        val sortedItems = items.sortedWith(compareBy({ it.type != AssetType.FOLDER }, { it.name }))
+        scanCache[cacheKey] = ScanCacheEntry(signature, now, sortedItems)
+        return sortedItems
     }
     
     /**
@@ -131,6 +165,7 @@ object FileSystemManager {
             }
             
             if (oldFile.renameTo(newFile)) {
+                clearScanCache()
                 logger.info { "Renamed ${oldFile.name} to ${newFile.name}" }
                 Result.success(newFile.absolutePath)
             } else {
@@ -170,6 +205,7 @@ object FileSystemManager {
             requireManagedAssetPath(targetFile)?.let { return it.map { targetFile.absolutePath } }
             
             Files.copy(sourceFile.toPath(), targetFile.toPath(), StandardCopyOption.COPY_ATTRIBUTES)
+            clearScanCache()
             logger.info { "Cloned ${sourceFile.name} to ${targetFile.name}" }
             Result.success(targetFile.absolutePath)
         } catch (e: Exception) {
@@ -203,6 +239,7 @@ object FileSystemManager {
             }
             
             Files.move(sourceFile.toPath(), targetFile.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            clearScanCache()
             logger.info { "Moved ${sourceFile.name} to ${targetDir.name}" }
             Result.success(targetFile.absolutePath)
         } catch (e: Exception) {
@@ -223,6 +260,7 @@ object FileSystemManager {
             requireManagedAssetPath(file)?.let { return it }
             
             if (file.delete()) {
+                clearScanCache()
                 logger.info { "Deleted ${file.name}" }
                 Result.success(Unit)
             } else {
@@ -252,6 +290,7 @@ object FileSystemManager {
             }
             
             if (newDir.mkdir()) {
+                clearScanCache()
                 logger.info { "Created directory: $name" }
                 Result.success(newDir.absolutePath)
             } else {
