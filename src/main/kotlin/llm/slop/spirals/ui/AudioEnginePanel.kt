@@ -17,7 +17,10 @@ import llm.slop.spirals.cv.CVRegistry
 object AudioEnginePanel {
 
     private const val POPUP_ID = "Audio Engine##modal"
-    private const val MODAL_W  = 1080f  // width of the overlay
+    private const val MODAL_W = 1080f
+    private const val MODAL_MARGIN = 48f
+    private const val MIN_MODAL_W = 640f
+    private const val MIN_MODAL_H = 360f
 
     // Pre-allocated arrays to avoid runtime allocations
     private val rawSamples = FloatArray(1024)
@@ -38,12 +41,15 @@ object AudioEnginePanel {
     fun open() = ImGui.openPopup(POPUP_ID)
 
     fun draw(displayWidth: Float, displayHeight: Float) {
+        val modalW = MODAL_W.coerceAtMost((displayWidth - MODAL_MARGIN).coerceAtLeast(MIN_MODAL_W))
+        val modalH = (displayHeight - MODAL_MARGIN).coerceAtLeast(MIN_MODAL_H)
+
         // Center the modal
         ImGui.setNextWindowPos(
             displayWidth * 0.5f, displayHeight * 0.5f,
             ImGuiCond.Always, 0.5f, 0.5f
         )
-        ImGui.setNextWindowSize(MODAL_W, 0f, ImGuiCond.Always)
+        ImGui.setNextWindowSize(modalW, modalH, ImGuiCond.Always)
 
         val flags = ImGuiWindowFlags.NoCollapse or
                     ImGuiWindowFlags.NoResize or
@@ -411,7 +417,7 @@ object AudioEnginePanel {
         // Footer: Close Button
         // ---------------------------------------------------------------------
         val closeW = 120f
-        ImGui.setCursorPosX((MODAL_W - 32f - closeW) * 0.5f + ImGui.getWindowContentRegionMinX())
+        ImGui.setCursorPosX(ImGui.getWindowContentRegionMinX() + (ImGui.getContentRegionAvailX() - closeW) * 0.5f)
         if (ImGui.button("Close", closeW, 0f)) {
             ImGui.closeCurrentPopup()
         }
