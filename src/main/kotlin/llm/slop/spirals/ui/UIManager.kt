@@ -31,7 +31,12 @@ import llm.slop.spirals.patches.PlayQueueManager
 /**
  * Manages the ImGui overlay for desktop control.
  */
-class UIManager(private val windowHandle: Long) {
+class UIManager(
+    private val windowHandle: Long,
+    private val uiMode: UiMode = UiMode.APP
+) {
+    enum class UiMode { APP, LAB }
+
     private val logger = KotlinLogging.logger {}
     private val imguiGlfw = ImGuiImplGlfw()
     private val imguiGl3 = ImGuiImplGl3()
@@ -261,10 +266,20 @@ class UIManager(private val windowHandle: Long) {
         currentMixer = mixer
 
         // Update window title dynamically with project name and dirty status
-        val title = "Spirals Desktop"
+        val title = if (uiMode == UiMode.LAB) "Spirals Desktop - UI Lab" else "Spirals Desktop"
         if (title != lastWindowTitle) {
             org.lwjgl.glfw.GLFW.glfwSetWindowTitle(windowHandle, title)
             lastWindowTitle = title
+        }
+
+        if (uiMode == UiMode.LAB) {
+            imguiGlfw.newFrame()
+            ImGui.newFrame()
+            updateUiTransparency()
+            UiLabPanel.draw(displayWidth, displayHeight)
+            ImGui.render()
+            imguiGl3.renderDrawData(ImGui.getDrawData())
+            return
         }
 
         // Drain all MIDI events queued by the MIDI receiver thread.
@@ -557,18 +572,14 @@ class UIManager(private val windowHandle: Long) {
     }
 
     private fun drawAssetManagementLayout(displayWidth: Float, displayHeight: Float, menuBarH: Float, contentH: Float, noDecorate: Int) {
-        val libraryW = displayWidth * 0.70f
-        val rightW = displayWidth - libraryW
-
-        val assetBrowserH = when (UITheme.assetBrowserMode) {
-            UITheme.AssetBrowserMode.FULL -> contentH
-            UITheme.AssetBrowserMode.HALF -> contentH * 0.5f
-            UITheme.AssetBrowserMode.HIDE -> 38f
-        }
+        val layout = AppMainLayoutCalculator.calculate(displayWidth, contentH, UITheme.assetBrowserMode)
+        val libraryW = layout.libraryWidth
+        val rightW = layout.rightWidth
+        val assetBrowserH = layout.assetBrowserHeight
 
         if (UITheme.assetBrowserMode != UITheme.AssetBrowserMode.FULL) {
             val topH = contentH - assetBrowserH
-            val leftW = displayWidth * 0.3f
+            val leftW = layout.patchGridWidth
 
             ImGui.setNextWindowPos(0f, menuBarH)
             ImGui.setNextWindowSize(leftW, topH)
@@ -577,7 +588,7 @@ class UIManager(private val windowHandle: Long) {
             }
             ImGui.end()
 
-            val middleW = libraryW - leftW
+            val middleW = layout.cellConfigWidth
             ImGui.setNextWindowPos(leftW, menuBarH)
             ImGui.setNextWindowSize(middleW, topH)
             if (ImGui.begin("Cell Config", noDecorate)) {

@@ -65,11 +65,34 @@ object AssetBrowserPanel {
     init {
         refreshAssets()
     }
+
+    private data class AssetBrowserLayout(val sidebarWidth: Float, val centerWidth: Float, val queueWidth: Float)
+
+    private fun calculateLayout(width: Float, showSidebar: Boolean): AssetBrowserLayout {
+        if (!showSidebar) {
+            val queueWidth = (width * 0.42f).coerceIn(220f, 360f)
+            return AssetBrowserLayout(0f, width - queueWidth, queueWidth)
+        }
+
+        val sidebarWidth = when {
+            width < 700f -> 130f
+            width < 1000f -> (width * 0.24f).coerceIn(150f, 240f)
+            else -> (width * 0.26f).coerceAtMost(320f)
+        }
+        val queueWidth = when {
+            width < 700f -> 220f
+            width < 1000f -> (width * 0.28f).coerceIn(240f, 300f)
+            else -> (width * 0.30f).coerceIn(300f, 420f)
+        }.coerceAtMost(width - sidebarWidth - 220f)
+        val centerWidth = (width - sidebarWidth - queueWidth).coerceAtLeast(220f)
+        return AssetBrowserLayout(sidebarWidth, centerWidth, width - sidebarWidth - centerWidth)
+    }
     
     fun draw(width: Float, height: Float, mixer: Mixer) {
-        val sidebarWidth = if (showSidebar) width * 0.33f else 0f
-        val centerWidth = if (showSidebar) width * 0.33f else width * 0.5f
-        val queueWidth = width - sidebarWidth - centerWidth
+        val layout = calculateLayout(width, showSidebar)
+        val sidebarWidth = layout.sidebarWidth
+        val centerWidth = layout.centerWidth
+        val queueWidth = layout.queueWidth
 
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, ImGui.getStyle().getFramePaddingX(), 6f)
         if (ImGui.beginMenuBar()) {
