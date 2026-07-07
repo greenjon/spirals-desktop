@@ -11,6 +11,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import java.io.File
+import kotlin.io.path.createTempDirectory
 
 class SessionStateTest {
     private val json = Json {
@@ -136,5 +138,37 @@ class SessionStateTest {
         assertEquals(0.5f, decodedNew.queuePrev?.baseValue)
         assertTrue(decodedNew.isRepeatEnabled)
         assertTrue(decodedNew.isShuffleEnabled)
+    }
+
+    @Test
+    fun testRestoredQueueRebasesActiveIndexAfterFilteringMissingFiles() {
+        val tempDir = createTempDirectory().toFile()
+        val activeFile = File(tempDir, "active.lsd").apply { writeText("{}") }
+        val nextFile = File(tempDir, "next.lsd").apply { writeText("{}") }
+        val missingFile = File(tempDir, "missing.lsd")
+
+        val restored = PatchManager.resolveRestoredQueue(
+            listOf(missingFile.absolutePath, activeFile.absolutePath, nextFile.absolutePath),
+            savedActiveIndex = 1
+        )
+
+        assertEquals(listOf(activeFile.absoluteFile, nextFile.absoluteFile), restored.files.map { it.absoluteFile })
+        assertEquals(0, restored.activeIndex)
+    }
+
+    @Test
+    fun testRestoredQueueMovesToNextSurvivingItemWhenActiveFileIsMissing() {
+        val tempDir = createTempDirectory().toFile()
+        val previousFile = File(tempDir, "previous.lsd").apply { writeText("{}") }
+        val nextFile = File(tempDir, "next.lsd").apply { writeText("{}") }
+        val missingActiveFile = File(tempDir, "active.lsd")
+
+        val restored = PatchManager.resolveRestoredQueue(
+            listOf(previousFile.absolutePath, missingActiveFile.absolutePath, nextFile.absolutePath),
+            savedActiveIndex = 1
+        )
+
+        assertEquals(listOf(previousFile.absoluteFile, nextFile.absoluteFile), restored.files.map { it.absoluteFile })
+        assertEquals(1, restored.activeIndex)
     }
 }

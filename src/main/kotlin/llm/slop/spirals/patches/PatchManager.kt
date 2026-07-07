@@ -30,6 +30,11 @@ object PatchManager {
     var cachedDtoB: DeckPatchDto? = null
     var cachedDtoC: DeckPatchDto? = null
 
+    internal data class RestoredQueueState(
+        val files: List<File>,
+        val activeIndex: Int
+    )
+
     var cachedGlobalDto: GlobalPatchDto? = null
     private var defaultGlobalPatchDto: GlobalPatchDto? = null
 
@@ -372,10 +377,10 @@ object PatchManager {
             activePresetC = if (session.deckC.isEmpty) null else session.deckC.name
             cachedDtoC = if (session.deckC.isEmpty) null else session.deckC
             
-            val files = session.queue.map { File(it) }.filter { it.exists() }
+            val restoredQueue = resolveRestoredQueue(session.queue, session.activeIndex)
             PlayQueueManager.restoreSessionQueue(
-                files,
-                session.activeIndex,
+                restoredQueue.files,
+                restoredQueue.activeIndex,
                 session.isAutoVJEnabled,
                 session.isRepeatEnabled,
                 session.isShuffleEnabled
@@ -384,6 +389,23 @@ object PatchManager {
         } catch (e: Exception) {
             logger.error(e) { "Failed to load session state" }
         }
+    }
+
+    internal fun resolveRestoredQueue(queuePaths: List<String>, savedActiveIndex: Int): RestoredQueueState {
+        val existingFiles = queuePaths.mapIndexedNotNull { originalIndex, path ->
+            val file = File(path)
+            if (file.exists()) originalIndex to file else null
+        }
+
+        if (existingFiles.isEmpty() || savedActiveIndex < 0) {
+            return RestoredQueueState(existingFiles.map { it.second }, -1)
+        }
+
+        val rebasedActiveIndex = existingFiles.indexOfFirst { it.first >= savedActiveIndex }
+            .takeIf { it >= 0 }
+            ?: existingFiles.lastIndex
+
+        return RestoredQueueState(existingFiles.map { it.second }, rebasedActiveIndex)
     }
 
     fun startEmpty(mixer: Mixer) {
