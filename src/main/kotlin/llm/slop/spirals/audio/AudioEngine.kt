@@ -370,9 +370,16 @@ object AudioEngine {
         val started = jackClient?.start() == true
         lastJackFailure = jackClient?.lastStartFailure
         lastJackFailureMessage = jackClient?.lastStartFailureMessage
-        if (!started && lastJackFailure == JackStartFailure.NATIVE_LIBRARY_MISSING) {
+        if (!started) {
+            jackClient?.stop()
+            jackClient = null
             automaticReconnectEnabled = false
-            logger.warn { "Automatic JACK reconnect disabled until manual retry; native library is missing." }
+            val reason = when (lastJackFailure) {
+                JackStartFailure.NATIVE_LIBRARY_MISSING -> "native library is missing"
+                JackStartFailure.CONNECTION_FAILED -> "server connection failed"
+                null -> "startup failed"
+            }
+            logger.warn { "Automatic JACK reconnect disabled until manual retry; $reason." }
         }
     }
 
