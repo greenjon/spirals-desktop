@@ -11,6 +11,8 @@ import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mixer
 import llm.slop.spirals.ui.UIManager
 import llm.slop.spirals.audio.AudioEngine
+import llm.slop.spirals.config.ProjectConfig
+import llm.slop.spirals.config.RuntimeConfig
 import llm.slop.spirals.ui.UITheme
 import llm.slop.spirals.cv.CVRegistry
 import llm.slop.spirals.patches.PatchManager
@@ -24,15 +26,13 @@ private val logger = KotlinLogging.logger {}
 
 fun main(args: Array<String>) {
     val launchOptions = AppLaunchOptions.parse(args)
-    logger.info { "Starting Spirals Desktop..." }
+    logger.info { "Starting ${ProjectConfig.App.NAME}..." }
     if (launchOptions.uiLab) {
         logger.info { "Starting in UI lab mode" }
     }
 
     // Ensure preset directories exist
-    java.io.File("presets/patches").mkdirs()
-    java.io.File("presets/playlists").mkdirs()
-    java.io.File("presets/midi").mkdirs()
+    ProjectConfig.Paths.requiredPresetDirectories.forEach { java.io.File(it).mkdirs() }
 
 
 
@@ -53,7 +53,7 @@ fun main(args: Array<String>) {
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE)
 
     // Create window
-    val windowTitle = if (launchOptions.uiLab) "Spirals Desktop - UI Lab" else "Spirals Desktop - VJ Software"
+    val windowTitle = if (launchOptions.uiLab) ProjectConfig.App.UI_LAB_WINDOW_TITLE else ProjectConfig.App.MAIN_WINDOW_TITLE
     val window = glfwCreateWindow(launchOptions.windowWidth, launchOptions.windowHeight, windowTitle, 0, 0)
         ?: throw RuntimeException("Failed to create GLFW window")
     if (launchOptions.startMaximized) {
@@ -91,7 +91,7 @@ fun main(args: Array<String>) {
     val renderer = Renderer()
 
     val masterMandala = llm.slop.spirals.rendering.VisualSourceRegistry.availableSources.firstOrNull { it.id == "mandala" } as? Mandala
-        ?: throw RuntimeException("Mandala source not loaded from presets/sources/mandala")
+        ?: throw RuntimeException("Mandala source not loaded from ${ProjectConfig.Paths.SOURCES_DIR}/mandala")
 
     // Create Deck A with a 4-petal recipe (yellow-ish theme default)
     val recipeA = MandalaRatio(
@@ -414,7 +414,7 @@ private fun createSecondaryWindow(primaryWindow: Long): Long {
         val mode = glfwGetVideoMode(externalMonitor) ?: return 0L
         glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE)
         glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
-        val win = glfwCreateWindow(mode.width(), mode.height(), "Spirals Output", externalMonitor, primaryWindow)
+        val win = glfwCreateWindow(mode.width(), mode.height(), ProjectConfig.App.OUTPUT_WINDOW_TITLE, externalMonitor, primaryWindow)
         if (win != 0L) {
             logger.info { "Created secondary window fullscreen on external monitor (width: ${mode.width()}, height: ${mode.height()})" }
             return win
@@ -422,7 +422,13 @@ private fun createSecondaryWindow(primaryWindow: Long): Long {
     } else {
         glfwWindowHint(GLFW_DECORATED, GLFW_TRUE)
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
-        val win = glfwCreateWindow(1280, 720, "Spirals Output Preview", 0, primaryWindow)
+        val win = glfwCreateWindow(
+            RuntimeConfig.Window.OUTPUT_PREVIEW_WIDTH,
+            RuntimeConfig.Window.OUTPUT_PREVIEW_HEIGHT,
+            ProjectConfig.App.OUTPUT_PREVIEW_WINDOW_TITLE,
+            0,
+            primaryWindow
+        )
         if (win != 0L) {
             logger.info { "Created secondary preview window (no external monitor found)" }
             return win

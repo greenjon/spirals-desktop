@@ -5,13 +5,15 @@ import imgui.ImFontConfig
 import imgui.ImGui
 import imgui.ImGuiIO
 import imgui.flag.ImGuiCol
+import llm.slop.spirals.config.ProjectConfig
+import llm.slop.spirals.config.UiConfig
 import llm.slop.spirals.audio.AudioEngine
 import mu.KotlinLogging
 import java.io.File
 import java.util.Properties
 
 /**
- * Central typography / styling system for Spirals Desktop.
+ * Central typography / styling system for the application.
  *
  * Six semantic text levels are defined, each backed by a separately loaded
  * ImFont at the correct pixel size. Call [loadFonts] once during ImGui
@@ -31,7 +33,7 @@ object UITheme {
 
     private val logger = KotlinLogging.logger {}
 
-    private val settingsFile = File("spirals-settings.properties")
+    private val settingsFile = File(ProjectConfig.Paths.SETTINGS_FILE)
 
     // -- Semantic Levels -------------------------------------------------------
 
@@ -42,7 +44,7 @@ object UITheme {
     // -- Mutable sizing knobs (user-tweakable from Settings later) -------------
 
     /** Base pixel size at which BODY text is rendered. All others are derived. */
-    var baseSize: Float = 18f
+    var baseSize: Float = UiConfig.ThemeDefaults.BASE_SIZE
 
     object Colors {
         const val BACKGROUND_R = 0.035f
@@ -99,10 +101,10 @@ object UITheme {
     }
 
     /** True if the JACK audio engine should process incoming audio and estimate tempo. */
-    var audioEngineEnabled: Boolean = true
+    var audioEngineEnabled: Boolean = UiConfig.ThemeDefaults.AUDIO_ENGINE_ENABLED
 
     /** True if the background video should be rendered and UI panels are semi-transparent. */
-    var backgroundVideoEnabled: Boolean = false
+    var backgroundVideoEnabled: Boolean = UiConfig.ThemeDefaults.BACKGROUND_VIDEO_ENABLED
 
 
 
@@ -111,17 +113,17 @@ object UITheme {
 
     enum class QueueKeyTrigger { NONE, ARROWS, PAGE_UP_DOWN, SPACE_BACKSPACE }
 
-    var autoVjDirtyBehavior: AutoVjDirtyBehavior = AutoVjDirtyBehavior.AUTO_DISCARD
-    var activeMidiProfile: String = "default"
-    var queueKeyTrigger: QueueKeyTrigger = QueueKeyTrigger.NONE
-    var tooltipsEnabled: Boolean = true
-    var maxFps: Int = 30
+    var autoVjDirtyBehavior: AutoVjDirtyBehavior = AutoVjDirtyBehavior.valueOf(UiConfig.ThemeDefaults.AUTO_VJ_DIRTY_BEHAVIOR)
+    var activeMidiProfile: String = ProjectConfig.Files.DEFAULT_MIDI_PROFILE
+    var queueKeyTrigger: QueueKeyTrigger = QueueKeyTrigger.valueOf(UiConfig.ThemeDefaults.QUEUE_KEY_TRIGGER)
+    var tooltipsEnabled: Boolean = UiConfig.ThemeDefaults.TOOLTIPS_ENABLED
+    var maxFps: Int = UiConfig.ThemeDefaults.MAX_FPS
 
     enum class StartupBehavior { PREVIOUS_SESSION, EMPTY }
-    var startupBehavior: StartupBehavior = StartupBehavior.PREVIOUS_SESSION
+    var startupBehavior: StartupBehavior = StartupBehavior.valueOf(UiConfig.ThemeDefaults.STARTUP_BEHAVIOR)
 
     enum class AssetBrowserMode { FULL, HALF, HIDE }
-    var assetBrowserMode: AssetBrowserMode = AssetBrowserMode.HALF
+    var assetBrowserMode: AssetBrowserMode = AssetBrowserMode.valueOf(UiConfig.ThemeDefaults.ASSET_BROWSER_MODE)
 
     init {
         loadSettings()
@@ -177,18 +179,18 @@ object UITheme {
                 }
                 val savedMode = props.getProperty("assetBrowserMode")
                 if (savedMode != null) {
-                    assetBrowserMode = try { AssetBrowserMode.valueOf(savedMode) } catch (e: Exception) { AssetBrowserMode.HALF }
+                    assetBrowserMode = try { AssetBrowserMode.valueOf(savedMode) } catch (e: Exception) { AssetBrowserMode.valueOf(UiConfig.ThemeDefaults.ASSET_BROWSER_MODE) }
                     logger.info { "Loaded assetBrowserMode from settings file: $assetBrowserMode" }
                 } else {
                     val savedHalfHeight = props.getProperty("assetManagerHalfHeight")?.toBooleanStrictOrNull()
                     if (savedHalfHeight != null) {
-                        assetBrowserMode = if (savedHalfHeight) AssetBrowserMode.HALF else AssetBrowserMode.FULL
+                        assetBrowserMode = if (savedHalfHeight) AssetBrowserMode.valueOf(UiConfig.ThemeDefaults.ASSET_BROWSER_MODE) else AssetBrowserMode.FULL
                         logger.info { "Migrated assetManagerHalfHeight to assetBrowserMode: $assetBrowserMode" }
                     }
                 }
                 val savedAutoVj = props.getProperty("autoVjDirtyBehavior")
                 if (savedAutoVj != null) {
-                    autoVjDirtyBehavior = try { AutoVjDirtyBehavior.valueOf(savedAutoVj) } catch (e: Exception) { AutoVjDirtyBehavior.AUTO_DISCARD }
+                    autoVjDirtyBehavior = try { AutoVjDirtyBehavior.valueOf(savedAutoVj) } catch (e: Exception) { AutoVjDirtyBehavior.valueOf(UiConfig.ThemeDefaults.AUTO_VJ_DIRTY_BEHAVIOR) }
                     logger.info { "Loaded autoVjDirtyBehavior from settings file: $autoVjDirtyBehavior" }
                 }
                 val savedProfile = props.getProperty("activeMidiProfile")
@@ -197,11 +199,11 @@ object UITheme {
                 }
                 val savedKeyTrigger = props.getProperty("queueKeyTrigger")
                 if (savedKeyTrigger != null) {
-                    queueKeyTrigger = try { QueueKeyTrigger.valueOf(savedKeyTrigger) } catch (e: Exception) { QueueKeyTrigger.NONE }
+                    queueKeyTrigger = try { QueueKeyTrigger.valueOf(savedKeyTrigger) } catch (e: Exception) { QueueKeyTrigger.valueOf(UiConfig.ThemeDefaults.QUEUE_KEY_TRIGGER) }
                 }
                 val savedStartup = props.getProperty("startupBehavior")
                 if (savedStartup != null) {
-                    startupBehavior = try { StartupBehavior.valueOf(savedStartup) } catch (e: Exception) { StartupBehavior.PREVIOUS_SESSION }
+                    startupBehavior = try { StartupBehavior.valueOf(savedStartup) } catch (e: Exception) { StartupBehavior.valueOf(UiConfig.ThemeDefaults.STARTUP_BEHAVIOR) }
                     logger.info { "Loaded startupBehavior from settings file: $startupBehavior" }
                 }
             } else {
@@ -230,7 +232,7 @@ object UITheme {
             props.setProperty("activeMidiProfile", activeMidiProfile)
             props.setProperty("queueKeyTrigger", queueKeyTrigger.name)
             props.setProperty("startupBehavior", startupBehavior.name)
-            settingsFile.outputStream().use { props.store(it, "Spirals Settings") }
+            settingsFile.outputStream().use { props.store(it, ProjectConfig.App.SETTINGS_FILE_COMMENT) }
             logger.info { "Saved settings to file" }
         } catch (e: Exception) {
             logger.error(e) { "Failed to save settings" }

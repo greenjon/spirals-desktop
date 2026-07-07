@@ -5,6 +5,8 @@ import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImString
+import llm.slop.spirals.config.ProjectConfig
+import llm.slop.spirals.config.UiConfig
 import llm.slop.spirals.patches.PlayQueueManager
 import llm.slop.spirals.patches.PatchManager
 import llm.slop.spirals.rendering.Mixer
@@ -70,21 +72,25 @@ object AssetBrowserPanel {
 
     private fun calculateLayout(width: Float, showSidebar: Boolean): AssetBrowserLayout {
         if (!showSidebar) {
-            val queueWidth = (width * 0.42f).coerceIn(220f, 360f)
+            val queueWidth = (width * UiConfig.AssetBrowserLayout.NO_SIDEBAR_QUEUE_RATIO)
+                .coerceIn(UiConfig.AssetBrowserLayout.NO_SIDEBAR_QUEUE_MIN, UiConfig.AssetBrowserLayout.NO_SIDEBAR_QUEUE_MAX)
             return AssetBrowserLayout(0f, width - queueWidth, queueWidth)
         }
 
         val sidebarWidth = when {
-            width < 700f -> 130f
-            width < 1000f -> (width * 0.24f).coerceIn(150f, 240f)
-            else -> (width * 0.26f).coerceAtMost(320f)
+            width < UiConfig.AssetBrowserLayout.COMPACT_BREAKPOINT -> UiConfig.AssetBrowserLayout.COMPACT_SIDEBAR_WIDTH
+            width < UiConfig.AssetBrowserLayout.MEDIUM_BREAKPOINT -> (width * UiConfig.AssetBrowserLayout.MEDIUM_SIDEBAR_RATIO)
+                .coerceIn(UiConfig.AssetBrowserLayout.MEDIUM_SIDEBAR_MIN, UiConfig.AssetBrowserLayout.MEDIUM_SIDEBAR_MAX)
+            else -> (width * UiConfig.AssetBrowserLayout.WIDE_SIDEBAR_RATIO).coerceAtMost(UiConfig.AssetBrowserLayout.WIDE_SIDEBAR_MAX)
         }
         val queueWidth = when {
-            width < 700f -> 220f
-            width < 1000f -> (width * 0.28f).coerceIn(240f, 300f)
-            else -> (width * 0.30f).coerceIn(300f, 420f)
-        }.coerceAtMost(width - sidebarWidth - 220f)
-        val centerWidth = (width - sidebarWidth - queueWidth).coerceAtLeast(220f)
+            width < UiConfig.AssetBrowserLayout.COMPACT_BREAKPOINT -> UiConfig.AssetBrowserLayout.COMPACT_QUEUE_WIDTH
+            width < UiConfig.AssetBrowserLayout.MEDIUM_BREAKPOINT -> (width * UiConfig.AssetBrowserLayout.MEDIUM_QUEUE_RATIO)
+                .coerceIn(UiConfig.AssetBrowserLayout.MEDIUM_QUEUE_MIN, UiConfig.AssetBrowserLayout.MEDIUM_QUEUE_MAX)
+            else -> (width * UiConfig.AssetBrowserLayout.WIDE_QUEUE_RATIO)
+                .coerceIn(UiConfig.AssetBrowserLayout.WIDE_QUEUE_MIN, UiConfig.AssetBrowserLayout.WIDE_QUEUE_MAX)
+        }.coerceAtMost(width - sidebarWidth - UiConfig.AssetBrowserLayout.CENTER_MIN_WIDTH)
+        val centerWidth = (width - sidebarWidth - queueWidth).coerceAtLeast(UiConfig.AssetBrowserLayout.CENTER_MIN_WIDTH)
         return AssetBrowserLayout(sidebarWidth, centerWidth, width - sidebarWidth - centerWidth)
     }
     
@@ -259,7 +265,7 @@ object AssetBrowserPanel {
     
     private fun handlePatchDropOnPlaylist(patchPath: String, playlistFile: File) {
         val droppedFile = File(patchPath)
-        if (droppedFile.extension.lowercase() in listOf("patch", "lsd", "json")) {
+        if (droppedFile.extension.lowercase() in ProjectConfig.Files.patchExtensions) {
             val playlistToModify = if (activePlaylistData?.filePath == playlistFile.absolutePath) {
                 activePlaylistData
             } else {
@@ -404,7 +410,7 @@ object AssetBrowserPanel {
                 if (assetPayload != null) {
                     val droppedFile = File(assetPayload)
                     val insertAt = effectiveSlot.coerceIn(0, PlayQueueManager.queue.size)
-                    if (droppedFile.extension.lowercase() in listOf("patch", "lsd", "json")) {
+                    if (droppedFile.extension.lowercase() in ProjectConfig.Files.patchExtensions) {
                         PlayQueueManager.queue.add(insertAt, droppedFile)
                         logger.info { "Inserted patch from drag-drop at slot $insertAt: ${droppedFile.name}" }
                     } else if (droppedFile.extension.lowercase() in listOf("playlist", "lsdset")) {

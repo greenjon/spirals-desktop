@@ -4,6 +4,7 @@ import imgui.ImGui
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
+import llm.slop.spirals.config.ProjectConfig
 
 object UiLabPanel {
     private val checkboxValue = ImBoolean(true)
@@ -54,7 +55,7 @@ object UiLabPanel {
     }
 
     private fun drawHeader() {
-        UITheme.h1("Spirals UI Lab")
+        UITheme.h1(ProjectConfig.App.UI_LAB_TITLE)
         UITheme.caption("Deterministic composition for visual review, screenshot capture, and theme iteration.")
     }
 

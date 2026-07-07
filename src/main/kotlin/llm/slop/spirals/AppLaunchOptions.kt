@@ -1,13 +1,14 @@
 package llm.slop.spirals
 
 import java.io.File
+import llm.slop.spirals.config.RuntimeConfig
 
 data class AppLaunchOptions(
     val uiLab: Boolean = false,
     val screenshotPath: File? = null,
-    val screenshotAfterFrames: Int = 6,
-    val windowWidth: Int = 1920,
-    val windowHeight: Int = 1080,
+    val screenshotAfterFrames: Int = RuntimeConfig.Screenshot.DEFAULT_AFTER_FRAMES,
+    val windowWidth: Int = RuntimeConfig.Window.DEFAULT_WIDTH,
+    val windowHeight: Int = RuntimeConfig.Window.DEFAULT_HEIGHT,
     val startMaximized: Boolean = false,
     val audioEnabled: Boolean? = null,
     val watchdogEnabled: Boolean = true
@@ -53,8 +54,8 @@ data class AppLaunchOptions(
             val parts = normalized.split("x")
             if (parts.size != 2) return null
 
-            val width = parts[0].toIntOrNull()?.coerceAtLeast(320) ?: return null
-            val height = parts[1].toIntOrNull()?.coerceAtLeast(240) ?: return null
+            val width = parts[0].toIntOrNull()?.coerceAtLeast(RuntimeConfig.Window.MIN_WIDTH) ?: return null
+            val height = parts[1].toIntOrNull()?.coerceAtLeast(RuntimeConfig.Window.MIN_HEIGHT) ?: return null
             return width to height
         }
     }

@@ -1,5 +1,7 @@
 package llm.slop.spirals.ui
 
+import llm.slop.spirals.config.UiConfig
+
 data class AppMainLayout(
     val libraryWidth: Float,
     val rightWidth: Float,
@@ -11,24 +13,38 @@ data class AppMainLayout(
 object AppMainLayoutCalculator {
     fun calculate(displayWidth: Float, contentHeight: Float, assetBrowserMode: UITheme.AssetBrowserMode): AppMainLayout {
         val rightMin = when {
-            displayWidth < 1100f -> 320f
-            displayWidth < 1500f -> 360f
-            else -> 420f
+            displayWidth < UiConfig.MainLayout.RIGHT_COMPACT_BREAKPOINT -> UiConfig.MainLayout.RIGHT_COMPACT_MIN
+            displayWidth < UiConfig.MainLayout.RIGHT_MEDIUM_BREAKPOINT -> UiConfig.MainLayout.RIGHT_MEDIUM_MIN
+            else -> UiConfig.MainLayout.RIGHT_WIDE_MIN
         }
-        val rightTarget = (displayWidth * 0.30f).coerceAtLeast(rightMin)
-        val rightMax = (displayWidth * 0.38f).coerceAtMost(displayWidth - 560f).coerceAtLeast(rightMin)
-        val rightWidth = rightTarget.coerceAtMost(rightMax).coerceAtMost(displayWidth - 360f)
-        val libraryWidth = (displayWidth - rightWidth).coerceAtLeast(360f)
+        val rightTarget = (displayWidth * UiConfig.MainLayout.RIGHT_TARGET_RATIO).coerceAtLeast(rightMin)
+        val rightMax = (displayWidth * UiConfig.MainLayout.RIGHT_MAX_RATIO)
+            .coerceAtMost(displayWidth - UiConfig.MainLayout.RIGHT_MAX_RESERVED_WIDTH)
+            .coerceAtLeast(rightMin)
+        val rightWidth = rightTarget.coerceAtMost(rightMax).coerceAtMost(displayWidth - UiConfig.MainLayout.RIGHT_RESERVED_MIN_WIDTH)
+        val libraryWidth = (displayWidth - rightWidth).coerceAtLeast(UiConfig.MainLayout.LIBRARY_MIN_WIDTH)
 
         val assetBrowserHeight = when (assetBrowserMode) {
             UITheme.AssetBrowserMode.FULL -> contentHeight
-            UITheme.AssetBrowserMode.HALF -> contentHeight * 0.5f
-            UITheme.AssetBrowserMode.HIDE -> 38f
+            UITheme.AssetBrowserMode.HALF -> contentHeight * UiConfig.MainLayout.ASSET_BROWSER_HALF_RATIO
+            UITheme.AssetBrowserMode.HIDE -> UiConfig.MainLayout.ASSET_BROWSER_HIDDEN_HEIGHT
         }
 
-        val patchMin = if (displayWidth < 1000f) 360f else 420f
-        val cellMin = if (displayWidth < 1000f) 220f else 320f
-        val patchTarget = displayWidth * if (displayWidth < 1300f) 0.34f else 0.30f
+        val patchMin = if (displayWidth < UiConfig.MainLayout.NARROW_WIDTH) {
+            UiConfig.MainLayout.PATCH_GRID_COMPACT_MIN
+        } else {
+            UiConfig.MainLayout.PATCH_GRID_WIDE_MIN
+        }
+        val cellMin = if (displayWidth < UiConfig.MainLayout.NARROW_WIDTH) {
+            UiConfig.MainLayout.CELL_CONFIG_COMPACT_MIN
+        } else {
+            UiConfig.MainLayout.CELL_CONFIG_WIDE_MIN
+        }
+        val patchTarget = displayWidth * if (displayWidth < UiConfig.MainLayout.PATCH_GRID_COMPACT_BREAKPOINT) {
+            UiConfig.MainLayout.PATCH_GRID_COMPACT_RATIO
+        } else {
+            UiConfig.MainLayout.PATCH_GRID_WIDE_RATIO
+        }
         val patchMax = (libraryWidth - cellMin).coerceAtLeast(patchMin)
         val patchGridWidth = patchTarget.coerceAtLeast(patchMin).coerceAtMost(patchMax)
         val cellConfigWidth = (libraryWidth - patchGridWidth).coerceAtLeast(1f)

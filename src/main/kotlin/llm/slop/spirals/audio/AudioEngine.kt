@@ -2,6 +2,7 @@ package llm.slop.spirals.audio
 
 import llm.slop.spirals.cv.CVRegistry
 import llm.slop.spirals.cv.CvHistoryBuffer
+import llm.slop.spirals.config.ProjectConfig
 import java.nio.FloatBuffer
 import kotlin.math.max
 import kotlin.math.log10
@@ -364,7 +365,7 @@ object AudioEngine {
         accentLevel = 0f
         localOnsetMean = 0f
 
-        jackClient = JackClient("spirals-desktop") { buffer, nframes, sampleRate ->
+        jackClient = JackClient(ProjectConfig.App.JACK_CLIENT_NAME) { buffer, nframes, sampleRate ->
             processAudio(buffer, nframes, sampleRate)
         }
         val started = jackClient?.start() == true

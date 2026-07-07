@@ -6,6 +6,7 @@ import imgui.flag.ImGuiConfigFlags
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImInt
 import imgui.type.ImString
+import llm.slop.spirals.config.ProjectConfig
 import java.io.File
 import llm.slop.spirals.rendering.Deck
 import llm.slop.spirals.rendering.Mandala
@@ -245,7 +246,7 @@ class UIManager(
         currentMixer = mixer
 
         // Update window title dynamically with project name and dirty status
-        val title = if (uiMode == UiMode.LAB) "Spirals Desktop - UI Lab" else "Spirals Desktop"
+        val title = if (uiMode == UiMode.LAB) ProjectConfig.App.UI_LAB_WINDOW_TITLE else ProjectConfig.App.NAME
         if (title != lastWindowTitle) {
             org.lwjgl.glfw.GLFW.glfwSetWindowTitle(windowHandle, title)
             lastWindowTitle = title
@@ -368,7 +369,7 @@ class UIManager(
             }
 
             if (popupManager.pendingOpenExitPopup) {
-                ImGui.openPopup("Exit Spirals?##confirm")
+                ImGui.openPopup("${ProjectConfig.App.EXIT_CONFIRM_TITLE}##confirm")
                 popupManager.pendingOpenExitPopup = false
             }
             if (popupManager.pendingOpenMidiWarningPopup) {
@@ -473,7 +474,7 @@ class UIManager(
 
     /**
      * Phase 2: deck preset "Load File..." now opens the ImGui file browser
-     * pointed at `presets/patches/` instead of `java.awt.FileDialog`.
+     * pointed at the configured patches directory instead of `java.awt.FileDialog`.
      *
      * The browser is shared with the global project browser but uses a
      * separate instance per deck so both decks can have independent state.
@@ -485,7 +486,7 @@ class UIManager(
         val browser = if (isDeckA) deckAFileBrowser else deckBFileBrowser
         browser.open(
             ImGuiFileBrowser.Mode.LOAD,
-            startDir = File("presets/patches").canonicalFile
+            startDir = File(ProjectConfig.Paths.PATCHES_DIR).canonicalFile
         )
     }
 
@@ -493,9 +494,9 @@ class UIManager(
 
     private fun loadDeckPreset(presetName: String, deck: Deck, isDeckA: Boolean) {
         if (presetName == "None") return
-        var file = File("presets/patches/$presetName.lsd")
+        var file = File(ProjectConfig.Paths.PATCHES_DIR, "$presetName.lsd")
         if (!file.exists()) {
-            file = File("presets/patches/$presetName.json")
+            file = File(ProjectConfig.Paths.PATCHES_DIR, "$presetName.json")
         }
         if (file.exists()) {
             llm.slop.spirals.patches.PatchManager.loadDeckPresetAsync(file, isDeckA)
@@ -536,7 +537,7 @@ class UIManager(
                 llm.slop.spirals.patches.PatchManager.cachedDtoC = dto
             }
         }
-        val file = File("presets/patches/$name.lsd")
+        val file = File(ProjectConfig.Paths.PATCHES_DIR, "$name.lsd")
         llm.slop.spirals.patches.PatchManager.saveDeckPresetAsync(file, deck, name, resolvedTags)
     }
 
