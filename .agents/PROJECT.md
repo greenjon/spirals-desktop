@@ -1,4 +1,4 @@
-# Spirals Desktop — Agent Context
+# Liquid LSD Desktop — Agent Context
 
 **Read this file first.** It gives you enough orientation to work on any task.
 For deeper context, consult the subsystem notes listed at the bottom — only read them if your task touches that area.
@@ -7,7 +7,7 @@ For deeper context, consult the subsystem notes listed at the bottom — only re
 
 ## What This App Is
 
-Spirals Desktop is a **Linux VJ (video jockey) application** written in **Kotlin/JVM**.
+Liquid LSD Desktop is a **Linux VJ (video jockey) application** written in **Kotlin/JVM**.
 It renders real-time audio-reactive visuals — primarily parametric mandala geometry and
 user-defined GLSL shaders — and exposes a live performance surface through an ImGui desktop UI.
 
@@ -52,7 +52,7 @@ These apply to every change. Violating them causes xruns, segfaults, or crashes.
 ## Source Layout (one-liner per package)
 
 ```
-src/main/kotlin/llm/slop/spirals/
+src/main/kotlin/llm/slop/liquidlsd/
 ├── Main.kt              — GLFW init, render loop, top-level lifecycle
 ├── audio/               — JACK client, DSP (FFT/RMS/onset), beat analysis
 ├── cv/                  — CV registry, beat clock, evaluators, history ring buffers

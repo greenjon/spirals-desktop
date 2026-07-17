@@ -33,7 +33,7 @@ Deck C  (preview only — same pipeline as A/B, excluded from Mixer output)
 ## File Map
 
 ```
-src/main/kotlin/llm/slop/spirals/
+src/main/kotlin/llm/slop/liquidlsd/
 ├── Main.kt                     — GLFW window, render loop
 ├── audio/
 │   ├── AudioEngine.kt          — Audio lifecycle, coordinates JACK & Java Sound, pushes CV values

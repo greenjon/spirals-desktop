@@ -1,0 +1,30 @@
+package llm.slop.liquidlsd.parameters
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class ModulationOperator {
+    ADD, MUL, SCALE
+}
+
+@Serializable
+enum class Waveform {
+    SINE, TRIANGLE, SQUARE, RANDOM
+}
+
+@Serializable
+enum class LfoSpeedMode {
+    SLOW, MEDIUM, FAST
+}
+
+@Serializable
+enum class GenUnit {
+    TIME, BEAT
+}
+
+@Serializable
+enum class GeneratorModMode {
+    NONE, AM, PM, ADD
+}
+
+

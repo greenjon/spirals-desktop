@@ -81,7 +81,7 @@ Create a fat JAR:
 The output is written to:
 
 ```text
-build/libs/spirals-desktop-1.0-SNAPSHOT-all.jar
+build/libs/liquid-lsd-desktop-1.0-SNAPSHOT-all.jar
 ```
 
 Platform ZIP distribution tasks are also defined in `build.gradle.kts`.
@@ -89,7 +89,7 @@ Platform ZIP distribution tasks are also defined in `build.gradle.kts`.
 ## Project Map
 
 ```text
-src/main/kotlin/llm/slop/spirals/
+src/main/kotlin/llm/slop/liquidlsd/
   Main.kt                GLFW window, OpenGL context, render loop
   audio/                 JACK client, DSP, beat/audio analysis
   cv/                    CV registry, beat clock, evaluators, history buffers

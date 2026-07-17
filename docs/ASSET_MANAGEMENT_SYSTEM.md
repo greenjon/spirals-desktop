@@ -259,7 +259,7 @@ Unit tests are provided for:
 
 Run tests with:
 ```bash
-./gradlew test --tests "llm.slop.spirals.ui.*Test"
+./gradlew test --tests "llm.slop.liquidlsd.ui.*Test"
 ```
 
 ## Troubleshooting

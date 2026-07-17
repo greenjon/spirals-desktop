@@ -1,4 +1,4 @@
-# Spirals Desktop - TODO
+# Liquid LSD Desktop - TODO
 
 ## 1. UI & Interaction Improvements
 - [ ] Center raw audio waveform in monitor panel

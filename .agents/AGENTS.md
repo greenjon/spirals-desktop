@@ -1,4 +1,4 @@
-# Project-Scoped Rules for Spirals Desktop
+# Project-Scoped Rules for Liquid LSD Desktop
 
 These rules guide the development of this cross-platform (Linux x64/ARM64, macOS x64/ARM64, Windows x64)
 real-time graphics and audio project.

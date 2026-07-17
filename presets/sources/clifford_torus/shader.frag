@@ -18,7 +18,7 @@ uniform float uWireframeMode;
 uniform float uColorShift;
 uniform float uGlow;
 
-// Standard uniforms injected by Spirals Desktop
+// Standard uniforms injected by Liquid LSD Desktop
 uniform float uAlpha;
 uniform vec2 uResolution;
 uniform float uTime;

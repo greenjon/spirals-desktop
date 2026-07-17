@@ -5,7 +5,7 @@ description: Guidelines for managing native memory allocations in ImGui/JVM wrap
 
 # ImGui Memory Management in Kotlin/JVM (imgui-java)
 
-Spirals uses **imgui-java** (`io.github.spair:imgui-java`), not the raw LWJGL ImGui bindings.
+Liquid LSD uses **imgui-java** (`io.github.spair:imgui-java`), not the raw LWJGL ImGui bindings.
 `MemoryStack` from LWJGL is **not used in the `ui/` package** and is not the right tool for
 ImGui widget state. Using it for ImGui inputs will cause incorrect behaviour or crashes.
 

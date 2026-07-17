@@ -42,5 +42,5 @@ updated: 2026-07-06T18:23:53-07:00
 
 - root_cause: Startup UI layout mixed framebuffer-pixel dimensions with ImGui logical window coordinates, while the right-pane monitor content sat on a vertical-scrollbar threshold and resized as scrollbar visibility changed.
 - fix: Main.kt now passes GLFW window size to UIManager.render while keeping framebuffer size for OpenGL; the Mixer / Monitor pane uses a pure layout calculator that reserves scrollbar width and scales preview heights to fit the available pane height.
-- verification: Ran `.\gradlew.bat test --tests "llm.slop.spirals.ui.MixerMonitorLayoutTest"` and `.\gradlew.bat test`; both passed.
-- files_changed: src/main/kotlin/llm/slop/spirals/Main.kt; src/main/kotlin/llm/slop/spirals/ui/MixerMonitorLayout.kt; src/main/kotlin/llm/slop/spirals/ui/MixerMonitorPanel.kt; src/main/kotlin/llm/slop/spirals/ui/DeckControlPanel.kt; src/test/kotlin/llm/slop/spirals/ui/MixerMonitorLayoutTest.kt
+- verification: Ran `.\gradlew.bat test --tests "llm.slop.liquidlsd.ui.MixerMonitorLayoutTest"` and `.\gradlew.bat test`; both passed.
+- files_changed: src/main/kotlin/llm/slop/liquidlsd/Main.kt; src/main/kotlin/llm/slop/liquidlsd/ui/MixerMonitorLayout.kt; src/main/kotlin/llm/slop/liquidlsd/ui/MixerMonitorPanel.kt; src/main/kotlin/llm/slop/liquidlsd/ui/DeckControlPanel.kt; src/test/kotlin/llm/slop/liquidlsd/ui/MixerMonitorLayoutTest.kt

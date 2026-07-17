@@ -63,7 +63,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("llm.slop.spirals.MainKt")
+    mainClass.set("llm.slop.liquidlsd.MainKt")
 }
 
 kotlin {

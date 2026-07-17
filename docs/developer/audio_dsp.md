@@ -13,7 +13,7 @@ Depending on the active backend, the audio analysis loop runs inside either a JA
 Rules enforced across both backends:
 - **The Allocation Rule**: No objects may be allocated inside the callback or processing loop. This means no `new`, no Kotlin lambdas that capture state, and no standard library collection instantiation.
 - **Blocking Operations**: File I/O, database access, network requests, print statements, and mutex locks are strictly forbidden in the processing loop.
-- **Pre-Allocation**: All arrays, filters, buffers, and objects used in the callback (including the byte-to-float conversion buffers in [JavaSoundClient](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/JavaSoundClient.kt)) are allocated during initialization.
+- **Pre-Allocation**: All arrays, filters, buffers, and objects used in the callback (including the byte-to-float conversion buffers in [JavaSoundClient](file:///home/gj/projects/liquid-lsd-desktop/src/main/kotlin/llm/slop/liquidlsd/audio/JavaSoundClient.kt)) are allocated during initialization.
 
 As of the current build, the three filter output buffers (`lowBuffer`, `midBuffer`, `highBuffer`) are pre-allocated as `FloatArray(16384)` — the maximum hardware buffer size — so the callback never needs to resize them.
 
@@ -25,7 +25,7 @@ The incoming mono audio stream is processed sequentially each callback to extrac
 
 ### Biquad IIR Filter Bank
 
-- Class: [`BiquadFilter.kt`](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/BiquadFilter.kt)
+- Class: [`BiquadFilter.kt`](file:///home/gj/projects/liquid-lsd-desktop/src/main/kotlin/llm/slop/liquidlsd/audio/BiquadFilter.kt)
 - Three biquad IIR filters run in parallel: a **low-pass** (≤150 Hz), **band-pass** (≈1000 Hz),
   and **high-pass** (≥5000 Hz), splitting the stream into bass, mid, and high frequency bands.
 - IIR filters are inherently zero-allocation: state is held in a fixed set of float coefficients
@@ -33,7 +33,7 @@ The incoming mono audio stream is processed sequentially each callback to extrac
 
 ### Amplitude Extractor (RMS)
 
-- Class: [`AmplitudeExtractor.kt`](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/AmplitudeExtractor.kt)
+- Class: [`AmplitudeExtractor.kt`](file:///home/gj/projects/liquid-lsd-desktop/src/main/kotlin/llm/slop/liquidlsd/audio/AmplitudeExtractor.kt)
 - Computes Root Mean Square amplitude over each callback block for each band:
 
 $$RMS = \sqrt{\frac{1}{N} \sum_{i=1}^N x_i^2}$$
