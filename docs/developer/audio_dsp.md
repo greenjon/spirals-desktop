@@ -3,20 +3,19 @@
 This section describes the real-time audio thread constraints, DSP band-splitting, and the onset
 detection engine that feeds the CV registry.
 
-## Zero-Allocation Callback Safety
+## Zero-Allocation & Real-Time Callback Safety
 
-The JACK audio processing thread runs in a real-time context managed by the OS audio server.
+Depending on the active backend, the audio analysis loop runs inside either a JACK host callback or a standard JVM daemon thread (for the Java Sound fallback).
 
-- **The Allocation Rule**: No objects may be allocated inside the callback. This means no `new`,
-  no Kotlin lambdas that capture state, and no standard library collection instantiation.
-- **Blocking Operations**: File I/O, database access, network requests, print statements, and mutex
-  locks are strictly forbidden.
-- **Pre-Allocation**: All arrays, filters, buffers, and objects used in the callback are allocated
-  during `AudioEngine` object initialization, before the JACK client starts.
+* **JACK Thread (Linux)**: This real-time thread has strict OS constraints. Any allocation or blocking will cause immediate buffer underruns (xruns) or server disconnects.
+* **Java Sound Thread (macOS, Windows, JACK-less Linux)**: This daemon thread captures system input audio. While not bound by the real-time constraints of JACK, maintaining zero allocations inside this loop prevents Garbage Collection (GC) pauses from causing visual micro-stuttering.
 
-As of the current build, the three filter output buffers (`lowBuffer`, `midBuffer`, `highBuffer`)
-are pre-allocated as `FloatArray(16384)` — the maximum JACK buffer size — so the callback never
-needs to resize them.
+Rules enforced across both backends:
+- **The Allocation Rule**: No objects may be allocated inside the callback or processing loop. This means no `new`, no Kotlin lambdas that capture state, and no standard library collection instantiation.
+- **Blocking Operations**: File I/O, database access, network requests, print statements, and mutex locks are strictly forbidden in the processing loop.
+- **Pre-Allocation**: All arrays, filters, buffers, and objects used in the callback (including the byte-to-float conversion buffers in [JavaSoundClient](file:///home/gj/projects/spirals-desktop/src/main/kotlin/llm/slop/spirals/audio/JavaSoundClient.kt)) are allocated during initialization.
+
+As of the current build, the three filter output buffers (`lowBuffer`, `midBuffer`, `highBuffer`) are pre-allocated as `FloatArray(16384)` — the maximum hardware buffer size — so the callback never needs to resize them.
 
 ---
 

@@ -7,7 +7,7 @@ The project is in active beta: the core workflow is usable, the UI is close to i
 ## What It Does
 
 - Dual-deck visual mixer with per-deck feedback, blend, and monitor controls.
-- Audio-reactive modulation from JACK/PipeWire-JACK input analysis.
+- Audio-reactive modulation from JACK/PipeWire-JACK (Linux) or cross-platform Java Sound fallback (macOS/Windows/Linux fallback).
 - CV modulation matrix for amplitude bands, onset/accent triggers, beat phase, LFOs, and random/sample-and-hold sources.
 - Patch, playlist, play queue, clipboard, and MIDI mapping support.
 - Dynamic GLSL visual sources loaded from `presets/sources/`.
@@ -17,18 +17,16 @@ The project is in active beta: the core workflow is usable, the UI is close to i
 
 - JDK 17.
 - OpenGL 3.3 capable GPU/driver.
-- JACK or PipeWire-JACK for audio-reactive features.
+- Audio input device: JACK or PipeWire-JACK (recommended on Linux for superior low latency and routing) or any standard system audio input (works out-of-the-box via Java Sound on macOS, Windows, and JACK-less Linux).
 - Gradle Wrapper from this repository.
 - Optional: `mkdocs` and `mkdocs-material` if you want to regenerate bundled documentation.
-
-The app can launch without JACK, but audio-derived CV values will stay inactive until a JACK-compatible server is running.
 
 ## Tech Stack
 
 - Kotlin/JVM 2.0.21.
 - LWJGL 3 for GLFW, OpenGL, and native desktop integration.
 - imgui-java for the immediate-mode UI.
-- JNAJack for JACK audio input.
+- JNAJack (JACK) and Java Sound (fallback/cross-platform) for audio input.
 - kotlinx.serialization for patch/session data.
 - Gradle Shadow for fat JAR packaging.
 
@@ -50,7 +48,7 @@ If the Gradle daemon has local socket trouble, run the same command with `--no-d
 
 ## Run
 
-Start JACK or PipeWire-JACK first if you want live audio analysis.
+On Linux, starting JACK or PipeWire first is recommended for superior low-latency analysis and inter-app audio routing. Otherwise, the app automatically captures from the system's default audio input device using Java Sound.
 
 On Linux/macOS:
 

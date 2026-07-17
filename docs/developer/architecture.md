@@ -7,7 +7,7 @@ This section covers the high-level system design, threading boundaries, and safe
 Spirals processes real-time audio and generates framebuffers through sequential stages:
 
 ```
-JACK Audio ──► AudioEngine ──► CVRegistry
+JACK / Java Sound ──► AudioEngine ──► CVRegistry
                                     │  (every frame: updateAll)
                           ┌─────────┴──────────────┐
                        Deck A                   Deck B
@@ -31,14 +31,14 @@ JACK Audio ──► AudioEngine ──► CVRegistry
 
 ## Threading Boundaries
 
-Spirals runs on two primary threads: the **OS Main Thread** and the **JACK Audio Thread**. Maintaining strict separation between them is critical for real-time safety.
+Spirals runs on two primary threads: the **OS Main Thread** and the **Audio Thread** (JACK callback thread or Java Sound capture thread). Maintaining strict separation between them is critical for real-time safety.
 
 ### Thread 0 (OS Main / Rendering Thread)
 - **Duties**: GLFW event polling, OpenGL context creation, OpenGL draw calls (rendering to Decks, Mixer, and Screen), ImGui interface drawing.
 - **Rules**: All LWJGL 3 GLFW window and OpenGL context manipulations must run on Thread 0.
 
-### Real-Time Audio Thread (JACK Callback)
-- **Duties**: Periodically receives raw audio buffer chunks from the audio server, runs bandpass filtering, FFT calculations, RMS amplitude extraction, and onset detection.
+### Audio Thread (JACK Callback or Java Sound Loop)
+- **Duties**: Periodically receives raw audio buffer chunks (via JACK callback or Java Sound capture thread), runs bandpass filtering, FFT calculations, RMS amplitude extraction, and onset detection.
 - **Rules**: Must be *completely non-blocking* and *zero-allocation*.
 
 ---
@@ -49,7 +49,7 @@ Since the audio thread operates under strict real-time constraints and the rende
 
 ### Lock-Free Buffers
 - **`AtomicReference<BeatAnchor>`**: The primary mechanism for passing beat clock state (beats, BPM,
-  timestamp) from the audio thread to the render thread. The audio thread writes a new `BeatAnchor`
+  timestamp) from the audio thread to the render thread. The audio thread/loop writes a new `BeatAnchor`
   value object atomically; the render thread reads it without any lock.
 - **`CvHistoryBuffer`**: A pre-allocated ring buffer used to pass historical CV values from the audio
   engine to the main thread for drawing oscilloscopes and UI monitoring.

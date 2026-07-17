@@ -2,12 +2,12 @@
 
 Cross-platform VJ software (Linux x64/ARM64, macOS x64/ARM64, Windows x64). Real-time
 audio-reactive parametric mandala visuals, three-deck mixer with preview deck, CV modulation
-matrix. Built with Kotlin/JVM, OpenGL 3.3, ImGui, and JACK audio (Linux only).
+matrix. Built with Kotlin/JVM, OpenGL 3.3, ImGui, and JACK audio (with fallback) / Java Sound (cross-platform).
 
 ## Video Pipeline
 
 ```
-JACK Audio ──► AudioEngine ──► CVRegistry
+JACK / Java Sound ──► AudioEngine ──► CVRegistry
                                     │  (every frame: updateAll)
                          ┌──────────┴──────────┐
                       Deck A                Deck B
@@ -36,8 +36,9 @@ Deck C  (preview only — same pipeline as A/B, excluded from Mixer output)
 src/main/kotlin/llm/slop/spirals/
 ├── Main.kt                     — GLFW window, render loop
 ├── audio/
-│   ├── AudioEngine.kt          — JACK lifecycle, pushes CV values (Linux only)
+│   ├── AudioEngine.kt          — Audio lifecycle, coordinates JACK & Java Sound, pushes CV values
 │   ├── JackClient.kt           — JNAJack callback wrapper
+│   ├── JavaSoundClient.kt      — Java Sound TargetDataLine fallback client
 │   ├── DSP.kt                  — Band-split FFT, RMS, onset detection
 │   ├── BiquadFilter.kt         — Zero-alloc biquad IIR filter
 │   └── AmplitudeExtractor.kt   — RMS amplitude per band
@@ -127,7 +128,7 @@ Patch Grid rows: Mixer → Deck A [Geometry, Color, Feedback] → Deck B [same] 
 Patch Grid columns: LFO | AUDIO | TRIG
 
 ## Design Principles
-- **Zero-allocation audio thread** — pre-allocated buffers, no object creation in JACK callback (Linux only)
+- **Zero-allocation audio loops** — pre-allocated buffers, no object creation in JACK callback or Java Sound conversion loop
 - **Deck C preview** — third deck runs the full render pipeline but is excluded from `Mixer` output; used for patch authoring while A/B perform live
 - **VisualSource abstraction** — Deck is source-agnostic; `Mandala`, `DynamicVisualSource`, `Kifs` all satisfy the interface
 - **VisualSourceRegistry** — pluggable dynamic visual sources (GLSL shaders loaded from `presets/sources/`)
@@ -136,7 +137,7 @@ Patch Grid columns: LFO | AUDIO | TRIG
 
 ## Build & Run
 ```bash
-./gradlew run              # launch (JACK/PipeWire should be running for audio CVs on Linux)
+./gradlew run              # launch (JACK/PipeWire recommended for Linux, Java Sound fallback runs otherwise)
 ./gradlew compileKotlin    # type-check only, no run
 ./gradlew packageThumbDrive  # bundle fat JAR + JREs for all 5 platforms
 ```

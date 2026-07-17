@@ -282,6 +282,7 @@ data class DetectionConfig(
 object AudioEngine {
     private val logger = KotlinLogging.logger {}
     private var jackClient: JackClient? = null
+    private var javaSoundClient: JavaSoundClient? = null
     @Volatile
     private var automaticReconnectEnabled = true
     @Volatile
@@ -334,7 +335,13 @@ object AudioEngine {
     private var localOnsetMean = 0f // fast adaptive mean for onset threshold
 
     fun getEstimatedBpm(): Float = estimatedBpm
-    fun isActive(): Boolean = jackClient?.isConnected == true
+    fun isActive(): Boolean = (jackClient?.isConnected == true) || (javaSoundClient?.isConnected == true)
+
+    fun getActiveBackendName(): String = when {
+        jackClient?.isConnected == true -> "JACK"
+        javaSoundClient?.isConnected == true -> "Java Sound"
+        else -> "None"
+    }
 
     fun setBpmDirectly(bpm: Float) {
         estimatedBpm = bpm
@@ -370,9 +377,25 @@ object AudioEngine {
         val started = jackClient?.start() == true
         lastJackFailure = jackClient?.lastStartFailure
         lastJackFailureMessage = jackClient?.lastStartFailureMessage
-        if (!started && lastJackFailure == JackStartFailure.NATIVE_LIBRARY_MISSING) {
-            automaticReconnectEnabled = false
-            logger.warn { "Automatic JACK reconnect disabled until manual retry; native library is missing." }
+        
+        if (started) {
+            logger.info { "Successfully started JACK audio client." }
+        } else {
+            if (lastJackFailure == JackStartFailure.NATIVE_LIBRARY_MISSING) {
+                automaticReconnectEnabled = false
+                logger.warn { "Automatic JACK reconnect disabled until manual retry; native library is missing." }
+            }
+            logger.info { "JACK audio client failed to start. Trying Java Sound fallback..." }
+            jackClient = null
+            
+            javaSoundClient = JavaSoundClient { buffer, nframes, sampleRate ->
+                processAudio(buffer, nframes, sampleRate)
+            }
+            val javaStarted = javaSoundClient?.start() == true
+            if (!javaStarted) {
+                logger.warn { "Java Sound fallback also failed to start. Audio engine is inactive." }
+                javaSoundClient = null
+            }
         }
     }
 
@@ -381,7 +404,7 @@ object AudioEngine {
      * Safe to call from a background thread.
      */
     fun tryReconnect(force: Boolean = false) {
-        if (isActive()) return
+        if (jackClient?.isConnected == true) return
         if (!force && !automaticReconnectEnabled) return
         if (force) {
             automaticReconnectEnabled = true
@@ -494,5 +517,7 @@ object AudioEngine {
     fun stop() {
         jackClient?.stop()
         jackClient = null
+        javaSoundClient?.stop()
+        javaSoundClient = null
     }
 }

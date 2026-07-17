@@ -110,6 +110,8 @@ object AudioEnginePanel {
 
         // Display tracking state
         val state = AudioEngine.currentState
+        val backend = AudioEngine.getActiveBackendName()
+
         ImGui.alignTextToFramePadding()
         UITheme.body("Sync State: ")
         ImGui.sameLine()
@@ -121,9 +123,17 @@ object AudioEnginePanel {
             ImGui.setTooltip("Active: Signal detected and tracking tempo. Silent: No input audio or level too low.")
         }
 
+        ImGui.alignTextToFramePadding()
+        UITheme.body("Audio Driver: ")
+        ImGui.sameLine()
+        UITheme.bodyColored(0.2f, 0.7f, 0.9f, 1.0f, backend)
+        if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+            ImGui.setTooltip("The active audio input capture backend.")
+        }
+
         ImGui.spacing()
 
-        // Show inactive banner if JACK is not running
+        // Show inactive banner or options to switch to JACK if using Java Sound fallback
         if (!AudioEngine.isActive()) {
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 1.0f, 0.3f, 0.3f, 1.0f)
             ImGui.textWrapped("Warning: Audio Engine is inactive. No audio source detected.")
@@ -137,6 +147,16 @@ object AudioEnginePanel {
             }
             if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
                 ImGui.setTooltip("Attempts to reconnect to the JACK or PipeWire audio backend.")
+            }
+            ImGui.spacing()
+        } else if (backend == "Java Sound") {
+            if (ImGui.button("Switch to JACK Audio", ImGui.getContentRegionAvailX(), 0f)) {
+                Thread {
+                    AudioEngine.tryReconnect(force = true)
+                }.start()
+            }
+            if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+                ImGui.setTooltip("Stops Java Sound and attempts to connect to a running JACK/PipeWire audio server.")
             }
             ImGui.spacing()
         }
