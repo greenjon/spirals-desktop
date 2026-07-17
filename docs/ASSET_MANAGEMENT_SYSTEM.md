@@ -160,7 +160,7 @@ The asset management mode can be toggled via:
 ## Directory Structure
 
 ```
-spirals-desktop/
+liquid-lsd/
 ├── patches/
 │   ├── user/
 │   │   ├── subfolder1/

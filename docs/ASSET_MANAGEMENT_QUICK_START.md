@@ -95,7 +95,7 @@ Press **F3** or click **File → Asset Manager** to toggle between:
 ## Directory Structure
 
 ```
-spirals-desktop/
+liquid-lsd/
 ├── patches/
 │   ├── user/          # Your patches
 │   └── factory/       # Built-in patches

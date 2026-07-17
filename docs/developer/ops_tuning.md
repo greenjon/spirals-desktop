@@ -52,7 +52,7 @@ jack_lsp
 Use `jack_lsp -c` to see active connection links between ports.
 
 ### `jack_connect`
-Manually wire ports together (e.g., routing system capture to spirals):
+Manually wire ports together (e.g., routing system capture to lsd):
 ```bash
 jack_connect system:capture_1 lsd:input_1
 jack_connect system:capture_2 lsd:input_2

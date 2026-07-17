@@ -57,11 +57,11 @@ java -XX:+UseZGC -XX:MaxGCPauseMillis=2 -jar build/libs/lsd-all.jar
 
 1. **Start the Audio Server**: Launch PipeWire/JACK (e.g., using `qjackctl` or starting the system audio service).
 2. **Launch Liquid LSD**: Run `./gradlew run`.
-3. **Verify Window initialization**: A window with the title **Liquid LSD - VJ Software** should open, showing a live generative mandala and a three-column ImGui setup:
+3. **Verify Window initialization**: A window with the title **Liquid LSD — Libre Shader Decks** should open, showing a live generative mandala and a three-column ImGui setup:
    - **Left Panel**: Patch Grid (modulation matrix).
    - **Middle Panel**: Cell Config (parameters editor & oscilloscope).
    - **Right Panel**: Mixer / Output Monitor.
 4. **Connect Audio Ports**:
    - The application registers input ports with the JACK server.
-   - Route audio from your system hardware inputs or media player to the `spirals` input ports using a connection manager like Patchage, Helvum, or the CLI commands in the tuning guide.
+   - Route audio from your system hardware inputs or media player to the `lsd` input ports using a connection manager like Patchage, Helvum, or the CLI commands in the tuning guide.
 5. **Observe Reactions**: If audio is playing and routed correctly, the `AMP`, `BASS`, `MID`, and `HIGH` columns in the Patch Grid will animate, indicating active CV modulation.
