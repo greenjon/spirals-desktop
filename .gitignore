@@ -32,6 +32,7 @@ patches/*.json
 presets/*
 !presets/sources/
 spirals-settings.properties
+lsd-settings.properties
 imgui.ini
 
 # Native libraries
