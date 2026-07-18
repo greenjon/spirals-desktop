@@ -1,12 +1,16 @@
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 plugins {
+    // Kotlin: version 2.0.21 (latest 2.4.20-Beta1). Do not update automatically.
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
     application
+    // Shadow plugin: version 8.1.1. Do not update automatically.
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.ben-manes.versions") version "0.51.0"
 }
 
 group = "llm.slop"
@@ -17,6 +21,7 @@ repositories {
 }
 
 val lwjglVersion = "3.3.3"
+// imgui-java: current is 1.86.11, latest is 1.92.0. Flag for dedicated smoke-test upgrade.
 val imguiVersion = "1.86.11"
 
 dependencies {
@@ -55,7 +60,7 @@ dependencies {
 
     // Logging
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
-    implementation("ch.qos.logback:logback-classic:1.4.14")
+    implementation("ch.qos.logback:logback-classic:1.5.38")
 
     // Testing
     testImplementation(kotlin("test"))
@@ -114,52 +119,77 @@ tasks.processResources {
     dependsOn(generateDocs)
 }
 
-val packageThumbDrive = tasks.register("packageThumbDrive") {
-    group = "distribution"
-    description = "Downloads platform JREs and packages the application for a thumb drive."
-    dependsOn("shadowJar")
+    val packageThumbDrive = tasks.register("packageThumbDrive") {
+        group = "distribution"
+        description = "Downloads platform JREs and packages the application for a thumb drive."
+        dependsOn("shadowJar")
 
-    val distDir = file("build/dist")
-    val jreCacheDir = file("build/jre-cache")
+        val distDir = file("build/dist")
+        val jreCacheDir = file("build/jre-cache")
 
-    inputs.file(tasks.named("shadowJar").map { it.outputs.files.singleFile })
-    outputs.dir(distDir)
-
-    doLast {
-        distDir.deleteRecursively()
-        distDir.mkdirs()
-        jreCacheDir.mkdirs()
-
-        // 1. Copy shadowJar
-        val jarFile = tasks.named("shadowJar").get().outputs.files.singleFile
-        val destJar = file("$distDir/lsd-all.jar")
-        jarFile.copyTo(destJar, overwrite = true)
-        println("Copied shadowJar to ${destJar.absolutePath}")
-
-        // 2. Define platforms, their URLs, extension, and JRE folder
-        val platforms = listOf(
-            Triple("windows-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jre/hotspot/normal/eclipse", "zip"),
-            Triple("linux-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse", "tar.gz"),
-            Triple("linux-aarch64", "https://api.adoptium.net/v3/binary/latest/17/ga/linux/aarch64/jre/hotspot/normal/eclipse", "tar.gz"),
-            Triple("macos-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/mac/x64/jre/hotspot/normal/eclipse", "tar.gz"),
-            Triple("macos-aarch64", "https://api.adoptium.net/v3/binary/latest/17/ga/mac/aarch64/jre/hotspot/normal/eclipse", "tar.gz")
+        // TODO: update these checksums when upgrading the JRE version
+        // Obtain from: https://api.adoptium.net/v3/assets/...
+        val jreChecksums = mapOf(
+            "windows-x64.zip" to "EXPECTED_SHA256_HERE",
+            "linux-x64.tar.gz" to "EXPECTED_SHA256_HERE",
+            "linux-aarch64.tar.gz" to "EXPECTED_SHA256_HERE",
+            "macos-x64.tar.gz" to "EXPECTED_SHA256_HERE",
+            "macos-aarch64.tar.gz" to "EXPECTED_SHA256_HERE"
         )
 
-        platforms.forEach { (name, url, ext) ->
-            val cacheFile = file("$jreCacheDir/$name.$ext")
-            if (!cacheFile.exists()) {
-                println("Downloading JRE for $name...")
-                try {
-                    URL(url).openStream().use { input ->
-                        Files.copy(input, cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                    }
-                    println("Successfully downloaded JRE for $name.")
-                } catch (e: Exception) {
-                    throw GradleException("Failed to download JRE for $name from $url: ${e.message}", e)
-                }
-            } else {
-                println("Using cached JRE for $name.")
+        fun verifyChecksum(file: File, expectedSha256: String) {
+            if (expectedSha256 == "EXPECTED_SHA256_HERE") {
+                logger.warn("Checksum not pinned for ${file.name} — update jreChecksums in build.gradle.kts")
+                return
             }
+            val digest = MessageDigest.getInstance("SHA-256")
+            val actual = file.inputStream().use { digest.digest(it.readBytes()) }
+                .joinToString("") { "%02x".format(it) }
+            require(actual == expectedSha256) {
+                "Checksum mismatch for ${file.name}: expected $expectedSha256, got $actual"
+            }
+        }
+
+        inputs.file(tasks.named("shadowJar").map { it.outputs.files.singleFile })
+        outputs.dir(distDir)
+
+        doLast {
+            distDir.deleteRecursively()
+            distDir.mkdirs()
+            jreCacheDir.mkdirs()
+
+            // 1. Copy shadowJar
+            val jarFile = tasks.named("shadowJar").get().outputs.files.singleFile
+            val destJar = file("$distDir/lsd-all.jar")
+            jarFile.copyTo(destJar, overwrite = true)
+            println("Copied shadowJar to ${destJar.absolutePath}")
+
+            // 2. Define platforms, their URLs, extension, and JRE folder
+            val platforms = listOf(
+                Triple("windows-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/windows/x64/jre/hotspot/normal/eclipse", "zip"),
+                Triple("linux-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse", "tar.gz"),
+                Triple("linux-aarch64", "https://api.adoptium.net/v3/binary/latest/17/ga/linux/aarch64/jre/hotspot/normal/eclipse", "tar.gz"),
+                Triple("macos-x64", "https://api.adoptium.net/v3/binary/latest/17/ga/mac/x64/jre/hotspot/normal/eclipse", "tar.gz"),
+                Triple("macos-aarch64", "https://api.adoptium.net/v3/binary/latest/17/ga/mac/aarch64/jre/hotspot/normal/eclipse", "tar.gz")
+            )
+
+            platforms.forEach { (name, url, ext) ->
+                val filename = "$name.$ext"
+                val cacheFile = file("$jreCacheDir/$filename")
+                if (!cacheFile.exists()) {
+                    println("Downloading JRE for $name...")
+                    try {
+                        URL(url).openStream().use { input ->
+                            Files.copy(input, cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                        }
+                        println("Successfully downloaded JRE for $name.")
+                    } catch (e: Exception) {
+                        throw GradleException("Failed to download JRE for $name from $url: ${e.message}", e)
+                    }
+                } else {
+                    println("Using cached JRE for $name.")
+                }
+                verifyChecksum(cacheFile, jreChecksums[filename] ?: "EXPECTED_SHA256_HERE")
 
             // Extract JRE
             val targetJreDir = file("$distDir/jre/$name")

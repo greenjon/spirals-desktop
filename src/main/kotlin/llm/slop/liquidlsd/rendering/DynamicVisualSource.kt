@@ -51,6 +51,19 @@ open class DynamicVisualSource(
     var fb2: FBO? = null
     var fbIndex: Int = 0
 
+    init {
+        if (ownsShader) {
+            val descriptors = mutableListOf<llm.slop.liquidlsd.parameters.ParameterDescriptor>()
+            for (deckLabel in listOf("Deck A", "Deck B", "Deck C")) {
+                parameters.keys.forEach { name ->
+                    descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/$displayName/$name", name, "DynamicVisualSource"))
+                }
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/$displayName/Gain", "Gain", "DynamicVisualSource"))
+            }
+            llm.slop.liquidlsd.parameters.ParameterResolver.register(*descriptors.toTypedArray())
+        }
+    }
+
     fun swapFeedbackBuffers() {
         fbIndex = 1 - fbIndex
     }

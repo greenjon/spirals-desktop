@@ -173,6 +173,20 @@ class Mandala(
     }
 
     companion object {
+        init {
+            val descriptors = mutableListOf<llm.slop.liquidlsd.parameters.ParameterDescriptor>()
+            for (deckLabel in listOf("Deck A", "Deck B", "Deck C")) {
+                val geom = listOf("Lobes", "Recipe", "L1", "L2", "L3", "L4", "FreqOffset", "HarmonicLock", "3DMode", "SphereWrapX", "SphereWrapY", "MirrorGroup", "PermuteXY", "PermuteYZ", "PermuteZX")
+                geom.forEach { descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/Geometry/$it", it, "Mandala")) }
+                val view = listOf("Zoom", "RotateZ", "RotateX", "RotateY", "Persp")
+                view.forEach { descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/View/$it", it, "Mandala")) }
+                val color = listOf("Thickness", "HueOffset", "HueSweep", "Depth", "Gain")
+                color.forEach { descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/Color/$it", it, "Mandala")) }
+                val bg = listOf("Style", "Feedback", "Hue", "Sat", "Val", "Sweep", "Speed", "Zoom")
+                bg.forEach { descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/Background/$it", it, "Mandala")) }
+            }
+            llm.slop.liquidlsd.parameters.ParameterResolver.register(*descriptors.toTypedArray())
+        }
         private val symmetricHueCyclesCache = java.util.concurrent.ConcurrentHashMap<Int, List<Int>>()
         const val POINTS = 2048
 

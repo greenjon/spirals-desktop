@@ -320,6 +320,10 @@ object AudioEngine {
 
     val patchIOInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    private val callbackLatencyNanos = java.util.concurrent.atomic.AtomicLong(0L)
+
+    fun getCallbackLatencyNanos(): Long = if (jackClient?.isConnected == true) callbackLatencyNanos.get() else 0L
+
     // DSP filters
     private var lastSampleRate = 44100f
     private val lowPass  = BiquadFilter(BiquadFilter.Type.LOWPASS,  lastSampleRate, 150f)
@@ -552,6 +556,9 @@ object AudioEngine {
         CVRegistry.updatePushedValue("high",   (high / 0.1f).coerceIn(0f, 2f))
         CVRegistry.updatePushedValue("onset",  onsetNormalized)
         CVRegistry.updatePushedValue("accent", accentLevel)
+
+        val callbackNanos = System.nanoTime() - currentTime
+        callbackLatencyNanos.set(callbackNanos)
     }
 
     /**

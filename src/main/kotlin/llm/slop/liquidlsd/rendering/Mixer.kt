@@ -42,6 +42,17 @@ class Mixer(
     private var prevQueueNextVal = 0.0f
     private var lastUpdateTimeNs: Long = System.nanoTime()
 
+    init {
+        llm.slop.liquidlsd.parameters.ParameterResolver.register(
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/crossfade", "Crossfade", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/masterAlpha", "Master Alpha", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/bloom", "Bloom", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/xfadeSpeed", "XFade Speed", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/queuePrev", "Queue Prev", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/queueNext", "Queue Next", "Mixer")
+        )
+    }
+
     /**
      * Evaluates mixer parameters.
      */

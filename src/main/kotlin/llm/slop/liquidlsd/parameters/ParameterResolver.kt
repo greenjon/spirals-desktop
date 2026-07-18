@@ -6,9 +6,18 @@ import llm.slop.liquidlsd.rendering.Mixer
 import llm.slop.liquidlsd.rendering.DynamicVisualSource
 
 object ParameterResolver {
+    private val registeredDescriptors = mutableListOf<ParameterDescriptor>()
+
+    fun register(vararg descriptors: ParameterDescriptor) {
+        registeredDescriptors.addAll(descriptors)
+    }
+
+    fun getAllDescriptors(): List<ParameterDescriptor> = registeredDescriptors.toList()
+
     fun getAllParameterPaths(mixer: Mixer): List<Pair<String, ModulatableParameter>> {
         val list = mutableListOf<Pair<String, ModulatableParameter>>()
         
+        // TODO: remove once all owners self-register
         // Mixer
         list.add("Deck A/FB/Source" to mixer.deckA.sourceSelect)
         list.add("Deck B/FB/Source" to mixer.deckB.sourceSelect)
@@ -31,45 +40,45 @@ object ParameterResolver {
             
             if (mandala != null) {
                 // Geometry
-                list.add("$deckLabel/Geometry/Lobes" to mandala.parameters["Lobes"]!!)
-                list.add("$deckLabel/Geometry/Recipe" to mandala.parameters["Recipe Select"]!!)
-                list.add("$deckLabel/Geometry/L1" to mandala.parameters["L1"]!!)
-                list.add("$deckLabel/Geometry/L2" to mandala.parameters["L2"]!!)
-                list.add("$deckLabel/Geometry/L3" to mandala.parameters["L3"]!!)
-                list.add("$deckLabel/Geometry/L4" to mandala.parameters["L4"]!!)
-                list.add("$deckLabel/Geometry/FreqOffset" to mandala.parameters["Freq Offset"]!!)
-                list.add("$deckLabel/Geometry/HarmonicLock" to mandala.parameters["Harmonic Lock"]!!)
-                list.add("$deckLabel/Geometry/3DMode" to mandala.parameters["3D Mode"]!!)
-                list.add("$deckLabel/Geometry/SphereWrapX" to mandala.parameters["Sphere Wrap X"]!!)
-                list.add("$deckLabel/Geometry/SphereWrapY" to mandala.parameters["Sphere Wrap Y"]!!)
-                list.add("$deckLabel/Geometry/MirrorGroup" to mandala.parameters["Mirror Group"]!!)
-                list.add("$deckLabel/Geometry/PermuteXY" to mandala.parameters["Permute XY"]!!)
-                list.add("$deckLabel/Geometry/PermuteYZ" to mandala.parameters["Permute YZ"]!!)
-                list.add("$deckLabel/Geometry/PermuteZX" to mandala.parameters["Permute ZX"]!!)
+                list.add("$deckLabel/Geometry/Lobes" to mandala.parameters.getOrElse("Lobes") { error("Unknown parameter path: $deckLabel/Geometry/Lobes — check registration") })
+                list.add("$deckLabel/Geometry/Recipe" to mandala.parameters.getOrElse("Recipe Select") { error("Unknown parameter path: $deckLabel/Geometry/Recipe — check registration") })
+                list.add("$deckLabel/Geometry/L1" to mandala.parameters.getOrElse("L1") { error("Unknown parameter path: $deckLabel/Geometry/L1 — check registration") })
+                list.add("$deckLabel/Geometry/L2" to mandala.parameters.getOrElse("L2") { error("Unknown parameter path: $deckLabel/Geometry/L2 — check registration") })
+                list.add("$deckLabel/Geometry/L3" to mandala.parameters.getOrElse("L3") { error("Unknown parameter path: $deckLabel/Geometry/L3 — check registration") })
+                list.add("$deckLabel/Geometry/L4" to mandala.parameters.getOrElse("L4") { error("Unknown parameter path: $deckLabel/Geometry/L4 — check registration") })
+                list.add("$deckLabel/Geometry/FreqOffset" to mandala.parameters.getOrElse("Freq Offset") { error("Unknown parameter path: $deckLabel/Geometry/FreqOffset — check registration") })
+                list.add("$deckLabel/Geometry/HarmonicLock" to mandala.parameters.getOrElse("Harmonic Lock") { error("Unknown parameter path: $deckLabel/Geometry/HarmonicLock — check registration") })
+                list.add("$deckLabel/Geometry/3DMode" to mandala.parameters.getOrElse("3D Mode") { error("Unknown parameter path: $deckLabel/Geometry/3DMode — check registration") })
+                list.add("$deckLabel/Geometry/SphereWrapX" to mandala.parameters.getOrElse("Sphere Wrap X") { error("Unknown parameter path: $deckLabel/Geometry/SphereWrapX — check registration") })
+                list.add("$deckLabel/Geometry/SphereWrapY" to mandala.parameters.getOrElse("Sphere Wrap Y") { error("Unknown parameter path: $deckLabel/Geometry/SphereWrapY — check registration") })
+                list.add("$deckLabel/Geometry/MirrorGroup" to mandala.parameters.getOrElse("Mirror Group") { error("Unknown parameter path: $deckLabel/Geometry/MirrorGroup — check registration") })
+                list.add("$deckLabel/Geometry/PermuteXY" to mandala.parameters.getOrElse("Permute XY") { error("Unknown parameter path: $deckLabel/Geometry/PermuteXY — check registration") })
+                list.add("$deckLabel/Geometry/PermuteYZ" to mandala.parameters.getOrElse("Permute YZ") { error("Unknown parameter path: $deckLabel/Geometry/PermuteYZ — check registration") })
+                list.add("$deckLabel/Geometry/PermuteZX" to mandala.parameters.getOrElse("Permute ZX") { error("Unknown parameter path: $deckLabel/Geometry/PermuteZX — check registration") })
 
                 // View
-                list.add("$deckLabel/View/Zoom" to mandala.parameters["Zoom"]!!)
-                list.add("$deckLabel/View/RotateZ" to mandala.parameters["Rotate Z"]!!)
-                list.add("$deckLabel/View/RotateX" to mandala.parameters["Rotate X"]!!)
-                list.add("$deckLabel/View/RotateY" to mandala.parameters["Rotate Y"]!!)
-                list.add("$deckLabel/View/Persp" to mandala.parameters["3D Persp"]!!)
+                list.add("$deckLabel/View/Zoom" to mandala.parameters.getOrElse("Zoom") { error("Unknown parameter path: $deckLabel/View/Zoom — check registration") })
+                list.add("$deckLabel/View/RotateZ" to mandala.parameters.getOrElse("Rotate Z") { error("Unknown parameter path: $deckLabel/View/RotateZ — check registration") })
+                list.add("$deckLabel/View/RotateX" to mandala.parameters.getOrElse("Rotate X") { error("Unknown parameter path: $deckLabel/View/RotateX — check registration") })
+                list.add("$deckLabel/View/RotateY" to mandala.parameters.getOrElse("Rotate Y") { error("Unknown parameter path: $deckLabel/View/RotateY — check registration") })
+                list.add("$deckLabel/View/Persp" to mandala.parameters.getOrElse("3D Persp") { error("Unknown parameter path: $deckLabel/View/Persp — check registration") })
                 
                 // Color
-                list.add("$deckLabel/Color/Thickness" to mandala.parameters["Thickness"]!!)
-                list.add("$deckLabel/Color/HueOffset" to mandala.parameters["Hue Offset"]!!)
-                list.add("$deckLabel/Color/HueSweep" to mandala.parameters["Hue Sweep"]!!)
-                list.add("$deckLabel/Color/Depth" to mandala.parameters["Depth"]!!)
+                list.add("$deckLabel/Color/Thickness" to mandala.parameters.getOrElse("Thickness") { error("Unknown parameter path: $deckLabel/Color/Thickness — check registration") })
+                list.add("$deckLabel/Color/HueOffset" to mandala.parameters.getOrElse("Hue Offset") { error("Unknown parameter path: $deckLabel/Color/HueOffset — check registration") })
+                list.add("$deckLabel/Color/HueSweep" to mandala.parameters.getOrElse("Hue Sweep") { error("Unknown parameter path: $deckLabel/Color/HueSweep — check registration") })
+                list.add("$deckLabel/Color/Depth" to mandala.parameters.getOrElse("Depth") { error("Unknown parameter path: $deckLabel/Color/Depth — check registration") })
                 list.add("$deckLabel/Color/Gain" to mandala.globalAlpha)
                 
                 // Background
-                list.add("$deckLabel/Background/Style" to mandala.parameters["Bg Style"]!!)
-                list.add("$deckLabel/Background/Feedback" to mandala.parameters["Bg Feedback"]!!)
-                list.add("$deckLabel/Background/Hue" to mandala.parameters["Bg Hue"]!!)
-                list.add("$deckLabel/Background/Sat" to mandala.parameters["Bg Sat"]!!)
-                list.add("$deckLabel/Background/Val" to mandala.parameters["Bg Val"]!!)
-                list.add("$deckLabel/Background/Sweep" to mandala.parameters["Bg Sweep"]!!)
-                list.add("$deckLabel/Background/Speed" to mandala.parameters["Bg Speed"]!!)
-                list.add("$deckLabel/Background/Zoom" to mandala.parameters["Bg Zoom"]!!)
+                list.add("$deckLabel/Background/Style" to mandala.parameters.getOrElse("Bg Style") { error("Unknown parameter path: $deckLabel/Background/Style — check registration") })
+                list.add("$deckLabel/Background/Feedback" to mandala.parameters.getOrElse("Bg Feedback") { error("Unknown parameter path: $deckLabel/Background/Feedback — check registration") })
+                list.add("$deckLabel/Background/Hue" to mandala.parameters.getOrElse("Bg Hue") { error("Unknown parameter path: $deckLabel/Background/Hue — check registration") })
+                list.add("$deckLabel/Background/Sat" to mandala.parameters.getOrElse("Bg Sat") { error("Unknown parameter path: $deckLabel/Background/Sat — check registration") })
+                list.add("$deckLabel/Background/Val" to mandala.parameters.getOrElse("Bg Val") { error("Unknown parameter path: $deckLabel/Background/Val — check registration") })
+                list.add("$deckLabel/Background/Sweep" to mandala.parameters.getOrElse("Bg Sweep") { error("Unknown parameter path: $deckLabel/Background/Sweep — check registration") })
+                list.add("$deckLabel/Background/Speed" to mandala.parameters.getOrElse("Bg Speed") { error("Unknown parameter path: $deckLabel/Background/Speed — check registration") })
+                list.add("$deckLabel/Background/Zoom" to mandala.parameters.getOrElse("Bg Zoom") { error("Unknown parameter path: $deckLabel/Background/Zoom — check registration") })
             }
 
             val activeSource = deck.source

@@ -58,6 +58,9 @@ fun main() {
     GL.createCapabilities()
     GLDebug.setupDebugCallback()
 
+    val queryIds = IntArray(2)
+    org.lwjgl.opengl.GL15.glGenQueries(queryIds)
+
     // Load dynamic visual sources
     llm.slop.liquidlsd.rendering.VisualSourceRegistry.loadAll()
 
@@ -188,6 +191,7 @@ fun main() {
 
     // Main loop
     var frameCount = 0
+    var frameIndex = 0
     var lastTime = glfwGetTime()
 
     val w = IntArray(1)
@@ -215,6 +219,8 @@ fun main() {
             frameCount = 0
             lastTime = currentTime
         }
+
+        org.lwjgl.opengl.GL15.glBeginQuery(org.lwjgl.opengl.GL33.GL_TIME_ELAPSED, queryIds[frameIndex % 2])
 
         // === RENDERING PHASE ===
 
@@ -273,6 +279,13 @@ fun main() {
 
         // === UI PHASE ===
         uiManager.render(mixer, windowW[0].toFloat(), windowH[0].toFloat())
+
+        org.lwjgl.opengl.GL15.glEndQuery(org.lwjgl.opengl.GL33.GL_TIME_ELAPSED)
+        if (frameIndex > 0) {
+            val frameNanos = org.lwjgl.opengl.GL33.glGetQueryObjecti64(queryIds[(frameIndex + 1) % 2], org.lwjgl.opengl.GL15.GL_QUERY_RESULT)
+            llm.slop.liquidlsd.ui.PerformanceStats.frameTimeNanos.set(frameNanos)
+        }
+        frameIndex++
 
         glfwSwapBuffers(window)
 

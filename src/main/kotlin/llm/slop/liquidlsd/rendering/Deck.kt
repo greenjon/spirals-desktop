@@ -40,6 +40,24 @@ class Deck(
     val fbMode = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f) // 0 = Max, 1 = Difference
     val fbKaleido = ModulatableParameter(1.0f, minClamp = 1f, maxClamp = 12f)
 
+    companion object {
+        init {
+            val descriptors = mutableListOf<llm.slop.liquidlsd.parameters.ParameterDescriptor>()
+            for (deckLabel in listOf("Deck A", "Deck B", "Deck C")) {
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Source", "FB Source", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Decay", "FB Decay", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Gain", "FB Gain", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Zoom", "FB Zoom", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Rotate", "FB Rotate", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/HueShift", "FB HueShift", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Blur", "FB Blur", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Chroma", "FB Chroma", "Deck"))
+                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Mode", "FB Mode", "Deck"))
+            }
+            llm.slop.liquidlsd.parameters.ParameterResolver.register(*descriptors.toTypedArray())
+        }
+    }
+
     init {
         // Clear all FBOs at startup to prevent reading uninitialized GPU memory
         fb1.clear(0f, 0f, 0f, 0f)
