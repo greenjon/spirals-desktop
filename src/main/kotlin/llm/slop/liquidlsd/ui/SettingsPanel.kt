@@ -49,6 +49,32 @@ object SettingsPanel {
         ImGui.dummy(contentAnchorW, 1f)
 
         // ---------------------------------------------------------------------
+        // Appearance section
+        // ---------------------------------------------------------------------
+        ImGui.spacing()
+        UITheme.h2("Appearance")
+        ImGui.separator()
+        ImGui.spacing()
+
+        val themes = UITheme.Theme.values()
+        val themeNames = themes.map { theme ->
+            theme.name.split("_")
+                .joinToString(" ") { word ->
+                    word.lowercase().replaceFirstChar { it.uppercaseChar() }
+                }
+        }.toTypedArray()
+        val currentThemeIdx = imgui.type.ImInt(UITheme.theme.ordinal)
+        if (ImGui.combo("UI Theme", currentThemeIdx, themeNames)) {
+            val nextTheme = themes[currentThemeIdx.get()]
+            UITheme.theme = nextTheme
+            UITheme.saveSettings()
+        }
+        if (ImGui.isItemHovered() && UITheme.tooltipsEnabled) {
+            ImGui.setTooltip("Select the user interface color palette theme.")
+        }
+        ImGui.spacing()
+
+        // ---------------------------------------------------------------------
         // Fonts section
         // ---------------------------------------------------------------------
         ImGui.spacing()

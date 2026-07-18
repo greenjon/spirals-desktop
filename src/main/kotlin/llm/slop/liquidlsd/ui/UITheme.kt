@@ -39,10 +39,23 @@ object UITheme {
 
     enum class AutoVjDirtyBehavior { SKIP, AUTO_DISCARD, AUTO_SAVE }
 
+    enum class Theme {
+        BORING,
+        DARK_SOLARIZED,
+        LIGHT_SOLARIZED,
+        DARK_LUNARIZED,
+        LIGHT_LUNARIZED,
+        NEON
+    }
+
     // -- Mutable sizing knobs (user-tweakable from Settings later) -------------
 
     @Volatile
     var settings = AppSettings()
+
+    var theme: Theme
+        get() = settings.theme
+        set(value) { settings = settings.copy(theme = value) }
 
     var baseSize: Float
         get() = settings.baseSize
@@ -191,6 +204,11 @@ object UITheme {
                     startupBehavior = try { StartupBehavior.valueOf(savedStartup) } catch (e: Exception) { StartupBehavior.PREVIOUS_SESSION }
                     logger.info { "Loaded startupBehavior from settings file: $startupBehavior" }
                 }
+                val savedTheme = props.getProperty("theme")
+                if (savedTheme != null) {
+                    theme = try { Theme.valueOf(savedTheme) } catch (e: Exception) { Theme.BORING }
+                    logger.info { "Loaded theme from settings file: $theme" }
+                }
             } else {
                 logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, tooltipsEnabled: $tooltipsEnabled, maxFps: $maxFps" }
             }
@@ -219,6 +237,7 @@ object UITheme {
             props.setProperty("activeMidiProfile", activeMidiProfile)
             props.setProperty("queueKeyTrigger", queueKeyTrigger.name)
             props.setProperty("startupBehavior", startupBehavior.name)
+            props.setProperty("theme", theme.name)
             settingsFile.outputStream().use { props.store(it, "Liquid LSD Settings") }
             logger.info { "Saved settings to file" }
         } catch (e: Exception) {

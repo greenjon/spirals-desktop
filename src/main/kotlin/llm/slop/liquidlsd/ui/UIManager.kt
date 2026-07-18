@@ -1,6 +1,7 @@
 package llm.slop.liquidlsd.ui
 
 import imgui.ImGui
+import imgui.ImColor
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiConfigFlags
 import imgui.flag.ImGuiWindowFlags
@@ -50,28 +51,206 @@ class UIManager(private val windowHandle: Long) {
     private var pendingOpenAudioEngineMonitor = false
 
     private var lastBgVideoEnabled: Boolean? = null
+    private var lastTheme: UITheme.Theme? = null
+
+    private fun setupThemeColors(theme: UITheme.Theme, bgVideoEnabled: Boolean) {
+        val style = ImGui.getStyle()
+        val isLight = theme == UITheme.Theme.LIGHT_SOLARIZED || theme == UITheme.Theme.LIGHT_LUNARIZED
+
+        if (isLight) {
+            ImGui.styleColorsLight()
+        } else {
+            ImGui.styleColorsDark()
+        }
+
+        val alpha = if (bgVideoEnabled) 0.75f else 1.00f
+
+        when (theme) {
+            UITheme.Theme.BORING -> {
+                if (bgVideoEnabled) {
+                    style.setColor(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 0.75f)
+                    style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.04f, 0.75f)
+                    style.setColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.16f, 0.75f)
+                    style.setColor(ImGuiCol.MenuBarBg, 0.14f, 0.14f, 0.14f, 0.75f)
+                    style.setColor(ImGuiCol.PopupBg, 0.08f, 0.08f, 0.08f, 1.00f)
+                } else {
+                    style.setColor(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 1.00f)
+                    style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.04f, 1.00f)
+                    style.setColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.16f, 1.00f)
+                    style.setColor(ImGuiCol.MenuBarBg, 0.14f, 0.14f, 0.14f, 1.00f)
+                    style.setColor(ImGuiCol.PopupBg, 0.08f, 0.08f, 0.08f, 1.00f)
+                }
+            }
+            UITheme.Theme.DARK_SOLARIZED -> {
+                style.setColor(ImGuiCol.WindowBg, 0.00f, 0.17f, 0.21f, alpha)
+                style.setColor(ImGuiCol.PopupBg, 0.03f, 0.21f, 0.26f, 1.00f)
+                style.setColor(ImGuiCol.TitleBg, 0.03f, 0.21f, 0.26f, alpha)
+                style.setColor(ImGuiCol.TitleBgActive, 0.00f, 0.17f, 0.21f, alpha)
+                style.setColor(ImGuiCol.MenuBarBg, 0.03f, 0.21f, 0.26f, alpha)
+                
+                style.setColor(ImGuiCol.FrameBg, 0.03f, 0.21f, 0.26f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgHovered, 0.00f, 0.17f, 0.21f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgActive, 0.80f, 0.29f, 0.09f, 1.00f)
+                
+                style.setColor(ImGuiCol.Button, 0.03f, 0.21f, 0.26f, 1.00f)
+                style.setColor(ImGuiCol.ButtonHovered, 0.35f, 0.43f, 0.46f, 1.00f)
+                style.setColor(ImGuiCol.ButtonActive, 0.80f, 0.29f, 0.09f, 1.00f)
+                
+                style.setColor(ImGuiCol.SliderGrab, 0.80f, 0.29f, 0.09f, 1.00f)
+                style.setColor(ImGuiCol.SliderGrabActive, 0.80f, 0.29f, 0.09f, 1.00f)
+                style.setColor(ImGuiCol.CheckMark, 0.80f, 0.29f, 0.09f, 1.00f)
+                
+                style.setColor(ImGuiCol.Text, 0.51f, 0.58f, 0.59f, 1.00f)
+                style.setColor(ImGuiCol.TextDisabled, 0.35f, 0.43f, 0.46f, 1.00f)
+                
+                style.setColor(ImGuiCol.Header, 0.03f, 0.21f, 0.26f, 1.00f)
+                style.setColor(ImGuiCol.HeaderHovered, 0.35f, 0.43f, 0.46f, 1.00f)
+                style.setColor(ImGuiCol.HeaderActive, 0.80f, 0.29f, 0.09f, 1.00f)
+            }
+            UITheme.Theme.LIGHT_SOLARIZED -> {
+                style.setColor(ImGuiCol.WindowBg, 0.99f, 0.96f, 0.89f, alpha)
+                style.setColor(ImGuiCol.PopupBg, 0.93f, 0.91f, 0.84f, 1.00f)
+                style.setColor(ImGuiCol.TitleBg, 0.93f, 0.91f, 0.84f, alpha)
+                style.setColor(ImGuiCol.TitleBgActive, 0.99f, 0.96f, 0.89f, alpha)
+                style.setColor(ImGuiCol.MenuBarBg, 0.93f, 0.91f, 0.84f, alpha)
+                
+                style.setColor(ImGuiCol.FrameBg, 0.93f, 0.91f, 0.84f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgHovered, 0.99f, 0.96f, 0.89f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgActive, 0.17f, 0.63f, 0.60f, 1.00f)
+                
+                style.setColor(ImGuiCol.Button, 0.93f, 0.91f, 0.84f, 1.00f)
+                style.setColor(ImGuiCol.ButtonHovered, 0.58f, 0.63f, 0.63f, 1.00f)
+                style.setColor(ImGuiCol.ButtonActive, 0.83f, 0.21f, 0.51f, 1.00f)
+                
+                style.setColor(ImGuiCol.SliderGrab, 0.17f, 0.63f, 0.60f, 1.00f)
+                style.setColor(ImGuiCol.SliderGrabActive, 0.83f, 0.21f, 0.51f, 1.00f)
+                style.setColor(ImGuiCol.CheckMark, 0.52f, 0.60f, 0.00f, 1.00f)
+                
+                style.setColor(ImGuiCol.Text, 0.40f, 0.48f, 0.51f, 1.00f)
+                style.setColor(ImGuiCol.TextDisabled, 0.58f, 0.63f, 0.63f, 1.00f)
+                
+                style.setColor(ImGuiCol.Header, 0.93f, 0.91f, 0.84f, 1.00f)
+                style.setColor(ImGuiCol.HeaderHovered, 0.58f, 0.63f, 0.63f, 1.00f)
+                style.setColor(ImGuiCol.HeaderActive, 0.17f, 0.63f, 0.60f, 1.00f)
+            }
+            UITheme.Theme.DARK_LUNARIZED -> {
+                style.setColor(ImGuiCol.WindowBg, 0.21f, 0.04f, 0.00f, alpha)
+                style.setColor(ImGuiCol.PopupBg, 0.28f, 0.07f, 0.00f, 1.00f)
+                style.setColor(ImGuiCol.TitleBg, 0.28f, 0.07f, 0.00f, alpha)
+                style.setColor(ImGuiCol.TitleBgActive, 0.21f, 0.04f, 0.00f, alpha)
+                style.setColor(ImGuiCol.MenuBarBg, 0.28f, 0.07f, 0.00f, alpha)
+                
+                style.setColor(ImGuiCol.FrameBg, 0.28f, 0.07f, 0.00f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgHovered, 0.21f, 0.04f, 0.00f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgActive, 0.42f, 0.44f, 0.77f, 1.00f)
+                
+                style.setColor(ImGuiCol.Button, 0.28f, 0.07f, 0.00f, 1.00f)
+                style.setColor(ImGuiCol.ButtonHovered, 0.37f, 0.16f, 0.08f, 1.00f)
+                style.setColor(ImGuiCol.ButtonActive, 0.42f, 0.44f, 0.77f, 1.00f)
+                
+                style.setColor(ImGuiCol.SliderGrab, 0.42f, 0.44f, 0.77f, 1.00f)
+                style.setColor(ImGuiCol.SliderGrabActive, 0.48f, 0.32f, 0.80f, 1.00f)
+                style.setColor(ImGuiCol.CheckMark, 0.42f, 0.44f, 0.77f, 1.00f)
+                
+                style.setColor(ImGuiCol.Text, 0.97f, 0.91f, 0.88f, 1.00f)
+                style.setColor(ImGuiCol.TextDisabled, 0.58f, 0.40f, 0.35f, 1.00f)
+                
+                style.setColor(ImGuiCol.Header, 0.28f, 0.07f, 0.00f, 1.00f)
+                style.setColor(ImGuiCol.HeaderHovered, 0.37f, 0.16f, 0.08f, 1.00f)
+                style.setColor(ImGuiCol.HeaderActive, 0.42f, 0.44f, 0.77f, 1.00f)
+            }
+            UITheme.Theme.LIGHT_LUNARIZED -> {
+                style.setColor(ImGuiCol.WindowBg, 0.89f, 0.92f, 0.99f, alpha)
+                style.setColor(ImGuiCol.PopupBg, 0.82f, 0.85f, 0.96f, 1.00f)
+                style.setColor(ImGuiCol.TitleBg, 0.82f, 0.85f, 0.96f, alpha)
+                style.setColor(ImGuiCol.TitleBgActive, 0.89f, 0.92f, 0.99f, alpha)
+                style.setColor(ImGuiCol.MenuBarBg, 0.82f, 0.85f, 0.96f, alpha)
+                
+                style.setColor(ImGuiCol.FrameBg, 0.82f, 0.85f, 0.96f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgHovered, 0.89f, 0.92f, 0.99f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgActive, 0.11f, 0.37f, 0.89f, 1.00f)
+                
+                style.setColor(ImGuiCol.Button, 0.82f, 0.85f, 0.96f, 1.00f)
+                style.setColor(ImGuiCol.ButtonHovered, 0.69f, 0.75f, 0.92f, 1.00f)
+                style.setColor(ImGuiCol.ButtonActive, 0.11f, 0.37f, 0.89f, 1.00f)
+                
+                style.setColor(ImGuiCol.SliderGrab, 0.11f, 0.37f, 0.89f, 1.00f)
+                style.setColor(ImGuiCol.SliderGrabActive, 0.00f, 0.64f, 0.80f, 1.00f)
+                style.setColor(ImGuiCol.CheckMark, 0.00f, 0.64f, 0.80f, 1.00f)
+                
+                style.setColor(ImGuiCol.Text, 0.15f, 0.17f, 0.21f, 1.00f)
+                style.setColor(ImGuiCol.TextDisabled, 0.47f, 0.50f, 0.61f, 1.00f)
+                
+                style.setColor(ImGuiCol.Header, 0.82f, 0.85f, 0.96f, 1.00f)
+                style.setColor(ImGuiCol.HeaderHovered, 0.69f, 0.75f, 0.92f, 1.00f)
+                style.setColor(ImGuiCol.HeaderActive, 0.11f, 0.37f, 0.89f, 1.00f)
+            }
+            UITheme.Theme.NEON -> {
+                style.setColor(ImGuiCol.WindowBg, 0.00f, 0.00f, 0.00f, 0.00f)
+                style.setColor(ImGuiCol.PopupBg, 0.05f, 0.01f, 0.08f, 1.00f)
+                style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.10f, if (bgVideoEnabled) 0.65f else 0.90f)
+                style.setColor(ImGuiCol.TitleBgActive, 0.08f, 0.00f, 0.14f, if (bgVideoEnabled) 0.65f else 0.90f)
+                style.setColor(ImGuiCol.MenuBarBg, 0.04f, 0.04f, 0.10f, if (bgVideoEnabled) 0.65f else 0.90f)
+                
+                style.setColor(ImGuiCol.FrameBg, 0.11f, 0.05f, 0.16f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgHovered, 0.18f, 0.07f, 0.28f, 1.00f)
+                style.setColor(ImGuiCol.FrameBgActive, 1.00f, 0.00f, 0.50f, 1.00f)
+                
+                style.setColor(ImGuiCol.Button, 0.13f, 0.02f, 0.20f, 1.00f)
+                style.setColor(ImGuiCol.ButtonHovered, 1.00f, 0.00f, 0.50f, 1.00f)
+                style.setColor(ImGuiCol.ButtonActive, 1.00f, 1.00f, 0.00f, 1.00f)
+                
+                style.setColor(ImGuiCol.SliderGrab, 1.00f, 0.00f, 0.50f, 1.00f)
+                style.setColor(ImGuiCol.SliderGrabActive, 0.50f, 1.00f, 0.00f, 1.00f)
+                style.setColor(ImGuiCol.CheckMark, 0.50f, 1.00f, 0.00f, 1.00f)
+                
+                style.setColor(ImGuiCol.Text, 1.00f, 1.00f, 1.00f, 1.00f)
+                style.setColor(ImGuiCol.TextDisabled, 0.54f, 0.40f, 0.64f, 1.00f)
+                
+                style.setColor(ImGuiCol.Header, 0.13f, 0.02f, 0.20f, 1.00f)
+                style.setColor(ImGuiCol.HeaderHovered, 1.00f, 0.00f, 0.50f, 1.00f)
+                style.setColor(ImGuiCol.HeaderActive, 1.00f, 1.00f, 0.00f, 1.00f)
+            }
+        }
+
+        style.setColor(imgui.flag.ImGuiCol.ModalWindowDimBg, 0f, 0f, 0f, 0.72f)
+    }
 
     private fun updateUiTransparency() {
         val enabled = UITheme.backgroundVideoEnabled
-        if (enabled == lastBgVideoEnabled) return
+        val theme = UITheme.settings.theme
+        if (enabled == lastBgVideoEnabled && theme == lastTheme) return
         lastBgVideoEnabled = enabled
+        lastTheme = theme
 
-        val style = ImGui.getStyle()
-        if (enabled) {
-            // Semi-transparent style for a cool VJ look
-            style.setColor(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 0.75f)
-            style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.04f, 0.75f)
-            style.setColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.16f, 0.75f)
-            style.setColor(ImGuiCol.MenuBarBg, 0.14f, 0.14f, 0.14f, 0.75f)
-            style.setColor(ImGuiCol.PopupBg, 0.08f, 0.08f, 0.08f, 1.00f)
-        } else {
-            // Completely opaque colors
-            style.setColor(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 1.00f)
-            style.setColor(ImGuiCol.TitleBg, 0.04f, 0.04f, 0.04f, 1.00f)
-            style.setColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.16f, 1.00f)
-            style.setColor(ImGuiCol.MenuBarBg, 0.14f, 0.14f, 0.14f, 1.00f)
-            style.setColor(ImGuiCol.PopupBg, 0.08f, 0.08f, 0.08f, 1.00f)
+        setupThemeColors(theme, enabled)
+    }
+
+    private fun drawNeonBackgroundIfNeeded(posX: Float, posY: Float, panelW: Float, panelH: Float, displayWidth: Float) {
+        if (UITheme.settings.theme != UITheme.Theme.NEON) return
+        val dl = ImGui.getWindowDrawList()
+        
+        fun getNeonBgColor(t: Float): Int {
+            val r: Float
+            val g: Float = 0.0f
+            val b: Float
+            if (t < 0.5f) {
+                val fraction = t * 2f
+                r = 0.01f + (0.85f - 0.01f) * fraction
+                b = 0.14f + (0.42f - 0.14f) * fraction
+            } else {
+                val fraction = (t - 0.5f) * 2f
+                r = 0.85f + (0.01f - 0.85f) * fraction
+                b = 0.42f + (0.14f - 0.42f) * fraction
+            }
+            val alpha = if (UITheme.backgroundVideoEnabled) 0.65f else 0.90f
+            return ImColor.rgba(r, g, b, alpha)
         }
+
+        val leftCol = getNeonBgColor((posX / displayWidth).coerceIn(0f, 1f)).toLong() and 0xFFFFFFFFL
+        val rightCol = getNeonBgColor(((posX + panelW) / displayWidth).coerceIn(0f, 1f)).toLong() and 0xFFFFFFFFL
+        
+        dl.addRectFilledMultiColor(posX, posY, posX + panelW, posY + panelH, leftCol, rightCol, rightCol, leftCol)
     }
 
     private val patchState = PatchGridState()
@@ -653,6 +832,7 @@ class UIManager(private val windowHandle: Long) {
             ImGui.setNextWindowPos(0f, menuBarH)
             ImGui.setNextWindowSize(leftW, topH)
             if (ImGui.begin("Patch Grid", noDecorate)) {
+                drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
                 PatchGridPanel.draw(currentMixer!!, patchState)
             }
             ImGui.end()
@@ -661,6 +841,7 @@ class UIManager(private val windowHandle: Long) {
             ImGui.setNextWindowPos(leftW, menuBarH)
             ImGui.setNextWindowSize(middleW, topH)
             if (ImGui.begin("Cell Config", noDecorate)) {
+                drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
                 CellConfigPanel.draw(patchState, currentMixer!!)
             }
             ImGui.end()
@@ -673,6 +854,7 @@ class UIManager(private val windowHandle: Long) {
         val flags = (if (UITheme.assetBrowserMode == UITheme.AssetBrowserMode.HIDE) noDecorate or ImGuiWindowFlags.NoScrollbar else noDecorate) or
                 ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.MenuBar
         if (ImGui.begin("Asset Browser", flags)) {
+            drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
             AssetBrowserPanel.draw(libraryW, assetBrowserH, currentMixer!!)
         }
         ImGui.end()
@@ -682,6 +864,7 @@ class UIManager(private val windowHandle: Long) {
         ImGui.setNextWindowSize(rightW, contentH)
         val noTitleDecorate = noDecorate or imgui.flag.ImGuiWindowFlags.NoTitleBar
         if (ImGui.begin("Mixer / Monitor", noTitleDecorate)) {
+            drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
             drawMixerMonitor(currentMixer!!)
         }
         ImGui.end()
