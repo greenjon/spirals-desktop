@@ -27,15 +27,19 @@ object PatchGridTabs {
         return getDeckColor(state.activeTopTab, alpha)
     }
 
-    fun drawLeftTabs(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState, topOffset: Float = 36f) {
+    fun drawLeftTabs(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState, mixer: Mixer? = null, topOffset: Float = 36f) {
         if (topOffset > 0f) {
             ImGui.dummy(0f, topOffset)
         }
+        val deckAEmpty = mixer?.deckA?.isEmpty == true
+        val deckBEmpty = mixer?.deckB?.isEmpty == true
+        val deckCEmpty = mixer?.deckC?.isEmpty == true
+
         val tabs = listOf(
             Triple("MIX", "Mixer", "Mixer controls, Deck sources, and Crossfader parameters."),
-            Triple("A",   "Deck A", "Deck A visual source, geometry, color, and feedback parameters."),
-            Triple("B",   "Deck B", "Deck B visual source, geometry, color, and feedback parameters."),
-            Triple("C",   "Deck C", "Deck C visual source, geometry, color, and feedback parameters.")
+            Triple("A",   "Deck A", if (deckAEmpty) "Deck A [EMPTY] — Click to assign a source or preset." else "Deck A visual source, geometry, color, and feedback parameters."),
+            Triple("B",   "Deck B", if (deckBEmpty) "Deck B [EMPTY] — Click to assign a source or preset." else "Deck B visual source, geometry, color, and feedback parameters."),
+            Triple("C",   "Deck C", if (deckCEmpty) "Deck C [EMPTY] — Click to assign a source or preset." else "Deck C visual source, geometry, color, and feedback parameters.")
         )
         val buttonWidth = 38f
         val buttonHeight = 28f
@@ -72,40 +76,10 @@ object PatchGridTabs {
         ImGui.popStyleVar(2)
     }
 
-    /* Commented out in favor of drawLeftTabs; uncomment to use horizontal top tabs instead:
-    fun drawTopTabs(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState) {
-        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 0f, 0f)
-        val tabs = listOf("Mixer", "Deck A", "Deck B", "Deck C")
-        val buttonWidth = 80f
-        tabs.forEachIndexed { i, tab ->
-            if (i > 0) ImGui.sameLine()
-            val isActive = state.activeTopTab == tab
-            if (isActive) {
-                val activeCol = when (tab) {
-                    "Deck A" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 1f)
-                    "Deck B" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 1f)
-                    "Deck C" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.5f, 1f)
-                    else     -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f)
-                }
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        activeCol)
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, activeCol)
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  activeCol)
-            } else {
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 1f))
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f))
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 1f))
-            }
-            if (ImGui.button(tab, buttonWidth, 24f)) {
-                state.activeTopTab = tab
-            }
-            ImGui.popStyleColor(3)
-        }
-        ImGui.popStyleVar()
-    }
-    */
-
-
     private fun getDeckSubTabs(deck: Deck): List<String> {
+        if (deck.isEmpty) {
+            return listOf("Empty")
+        }
         val tabs = mutableListOf<String>()
         val activeSource = deck.source
         if (activeSource is Mandala) {

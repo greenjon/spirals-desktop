@@ -98,7 +98,8 @@ object VisualSourceRegistry {
                         baseValue = pMeta.default,
                         minClamp = pMeta.min,
                         maxClamp = pMeta.max,
-                        meterType = meterType
+                        meterType = meterType,
+                        explicitIsAngle = pMeta.isAngle
                     )
                     if (pMeta.defaultMin != null && pMeta.defaultMax != null) {
                         param.baseMin = pMeta.defaultMin

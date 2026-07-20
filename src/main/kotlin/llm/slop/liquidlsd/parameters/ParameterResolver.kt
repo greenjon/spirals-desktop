@@ -19,9 +19,6 @@ object ParameterResolver {
         
         // TODO: remove once all owners self-register
         // Mixer
-        list.add("Deck A/FB/Source" to mixer.deckA.sourceSelect)
-        list.add("Deck B/FB/Source" to mixer.deckB.sourceSelect)
-        list.add("Deck C/FB/Source" to mixer.deckC.sourceSelect)
         list.add("Mixer/crossfade" to mixer.crossfade)
         list.add("Mixer/masterAlpha" to mixer.masterAlpha)
         list.add("Mixer/bloom" to mixer.bloom)

@@ -18,20 +18,7 @@ object SidebarPanel {
     var currentView: LibraryView = LibraryView.Patches(FileSystemManager.getPatchesRoot())
 
     fun draw(session: llm.slop.liquidlsd.SessionContext, mixer: Mixer) {
-        // Node 2: Playlists
-        val isPlaylistsActive = currentView is LibraryView.PlaylistsRoot || currentView is LibraryView.SpecificPlaylist
-        val playlistsFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.OpenOnDoubleClick or ImGuiTreeNodeFlags.SpanAvailWidth or
-            (if (isPlaylistsActive) ImGuiTreeNodeFlags.Selected else 0)
-        val playlistsOpened = ImGui.treeNodeEx("Playlists", playlistsFlags)
-        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) {
-            currentView = LibraryView.PlaylistsRoot
-        }
-        if (playlistsOpened) {
-            drawPlaylistsSidebarTree(session, FileSystemManager.getPlaylistsRoot(), mixer)
-            ImGui.treePop()
-        }
-        
-        // Node 3: Patches
+        // Node 1: Patches
         val patchesRoot = FileSystemManager.getPatchesRoot()
         val isPatchesActive = currentView is LibraryView.Patches
         val patchesFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.OpenOnDoubleClick or ImGuiTreeNodeFlags.SpanAvailWidth or
@@ -44,6 +31,19 @@ object SidebarPanel {
         }
         if (patchesOpened) {
             drawPatchesFolderTree(patchesRoot)
+            ImGui.treePop()
+        }
+
+        // Node 2: Playlists
+        val isPlaylistsActive = currentView is LibraryView.PlaylistsRoot || currentView is LibraryView.SpecificPlaylist
+        val playlistsFlags = ImGuiTreeNodeFlags.OpenOnArrow or ImGuiTreeNodeFlags.OpenOnDoubleClick or ImGuiTreeNodeFlags.SpanAvailWidth or
+            (if (isPlaylistsActive) ImGuiTreeNodeFlags.Selected else 0)
+        val playlistsOpened = ImGui.treeNodeEx("Playlists", playlistsFlags)
+        if (ImGui.isItemClicked() && !ImGui.isItemToggledOpen()) {
+            currentView = LibraryView.PlaylistsRoot
+        }
+        if (playlistsOpened) {
+            drawPlaylistsSidebarTree(session, FileSystemManager.getPlaylistsRoot(), mixer)
             ImGui.treePop()
         }
     }

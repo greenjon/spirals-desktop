@@ -46,6 +46,7 @@ object FinalParamSection {
                 }
             }
             isLobes -> "${liveVal.roundToInt()} lobes"
+            param.isAngle -> "${"%.1f".format(liveVal * 180f / kotlin.math.PI.toFloat())}°"
             else -> "%.3f".format(liveVal)
         }
         session.uiTheme.h3("Live Modulated Value: $liveLabel")
@@ -80,7 +81,7 @@ object FinalParamSection {
         }
 
         // Oscilloscope showing final value history plus modulator histories
-        OscilloscopeDrawer.drawFinalOscilloscope(session, param.history, param.minClamp, param.maxClamp, themeColor, activeMods, modulatorHistories)
+        OscilloscopeDrawer.drawFinalOscilloscope(session, param.history, param.minClamp, param.maxClamp, themeColor, activeMods, modulatorHistories, isAngle = param.isAngle)
 
         ImGui.spacing()
         ImGui.separator()
@@ -173,12 +174,15 @@ object FinalParamSection {
         } else {
             val isRecipeSelect = paramKey.endsWith("/Geometry/Recipe")
 
+            val scale = if (param.isAngle) (180f / kotlin.math.PI.toFloat()) else 1f
+            val invScale = if (param.isAngle) (kotlin.math.PI.toFloat() / 180f) else 1f
+
             CustomRangeSlider.drawCustomRangeSlider(session, label = "Initial Range",
-                currentValue = param.baseValue,
-                currentMin = param.baseMin,
-                currentMax = param.baseMax,
-                minLimit = param.minClamp,
-                maxLimit = param.maxClamp,
+                currentValue = param.baseValue * scale,
+                currentMin = param.baseMin * scale,
+                currentMax = param.baseMax * scale,
+                minLimit = param.minClamp * scale,
+                maxLimit = param.maxClamp * scale,
                 isRandomizable = param.randomizeBase,
                 showControls = true,
                 formatValue = {
@@ -203,6 +207,7 @@ object FinalParamSection {
                                 } else "No recipes"
                             } else "%.3f".format(it)
                         }
+                        param.isAngle -> "${"%.1f".format(it)}°"
                         else -> "%.3f".format(it)
                     }
                 },
@@ -230,16 +235,17 @@ object FinalParamSection {
                     param.randomizeBaseValue()
                 },
                 onRangeChanged = { nextMin, nextMax ->
-                    val safeMin = minOf(nextMin, nextMax)
-                    val safeMax = maxOf(nextMin, nextMax)
+                    val safeMin = minOf(nextMin, nextMax) * invScale
+                    val safeMax = maxOf(nextMin, nextMax) * invScale
                     param.baseMin = safeMin
                     param.baseMax = safeMax
                     param.baseValue = param.baseValue.coerceIn(safeMin, safeMax)
                 },
                 onValueChanged = { newVal ->
-                    param.baseValue = newVal
-                    param.baseMin = newVal
-                    param.baseMax = newVal
+                    val radianVal = newVal * invScale
+                    param.baseValue = radianVal
+                    param.baseMin = radianVal
+                    param.baseMax = radianVal
                 }
             )
         }
@@ -274,7 +280,8 @@ object FinalParamSection {
             }
             session.uiTheme.caption("Static Initial Value: $label")
         } else {
-            session.uiTheme.caption("Static Initial Value: %.3f".format(param.baseValue))
+            val displayBase = if (param.isAngle) "${"%.1f".format(param.baseValue * 180f / kotlin.math.PI.toFloat())}°" else "%.3f".format(param.baseValue)
+            session.uiTheme.caption("Static Initial Value: $displayBase")
         }
         val baseBarW = ImGui.getContentRegionAvailX()
         val baseDl = ImGui.getWindowDrawList()

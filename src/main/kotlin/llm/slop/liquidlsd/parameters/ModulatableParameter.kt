@@ -19,8 +19,11 @@ class ModulatableParameter(
     val minClamp: Float = 0.0f,
     val maxClamp: Float = 1.0f,
     var randomizeBase: Boolean = false,
-    val meterType: MeterType = if (minClamp < 0f) MeterType.BIPOLAR else MeterType.MONOPOLAR
+    val meterType: MeterType = if (minClamp < 0f) MeterType.BIPOLAR else MeterType.MONOPOLAR,
+    val explicitIsAngle: Boolean = false
 ) {
+    val isAngle: Boolean
+        get() = explicitIsAngle || (minClamp in -3.15f..-3.13f && maxClamp in 3.13f..3.15f)
     val modulators = CopyOnWriteArrayList<CvModulator>()
     val history = CvHistoryBuffer(historySize)
 
@@ -140,7 +143,8 @@ class ModulatableParameter(
             minClamp = this.minClamp,
             maxClamp = this.maxClamp,
             randomizeBase = this.randomizeBase,
-            meterType = this.meterType
+            meterType = this.meterType,
+            explicitIsAngle = this.explicitIsAngle
         )
         copy.baseMin = this.baseMin
         copy.baseMax = this.baseMax

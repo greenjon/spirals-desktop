@@ -14,7 +14,8 @@ object OscilloscopeDrawer {
         maxVal: Float,
         themeColor: Int,
         modulators: List<CvModulator>,
-        modulatorHistories: Map<String, CvHistoryBuffer>
+        modulatorHistories: Map<String, CvHistoryBuffer>,
+        isAngle: Boolean = false
     ) {
         val historySize = history.size
         val w = ImGui.getContentRegionAvailX()
@@ -90,12 +91,15 @@ object OscilloscopeDrawer {
         val borderCol = ImGui.colorConvertFloat4ToU32(0.18f, 0.18f, 0.18f, 1.0f)
         dl.addRect(startX, startY, startX + w, startY + h, borderCol, 4f)
         
+        val labelScale = if (isAngle) (180f / kotlin.math.PI.toFloat()) else 1f
+        val suffix = if (isAngle) "°" else ""
+        
         ImGui.setCursorScreenPos(startX + 6f, startY + 4f)
-        session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "%.2f".format(maxVal))
+        session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "${"%.1f".format(maxVal * labelScale)}$suffix")
         ImGui.setCursorScreenPos(startX + 6f, centerY - 6f)
-        session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "%.2f".format(minVal + range * 0.5f))
+        session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "${"%.1f".format((minVal + range * 0.5f) * labelScale)}$suffix")
         ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
-        session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "%.2f".format(minVal))
+        session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, "${"%.1f".format(minVal * labelScale)}$suffix")
         
         val textWidth = ImGui.calcTextSize("Final Parameter Value").x
         ImGui.setCursorScreenPos(startX + w - textWidth - 8f, startY + 4f)
@@ -175,19 +179,21 @@ object OscilloscopeDrawer {
         dl.addRect(startX, startY, startX + w, startY + h, borderCol, 4f)
         
         // 5. Y-Axis label markings (showing scaled bounds instead of hardcoded -1..1)
-        val maxLabel = "%.2f".format(param.maxClamp)
-        val midLabel = "%.2f".format(param.minClamp + (param.maxClamp - param.minClamp) / 2f)
-        val minLabel = "%.2f".format(param.minClamp)
+        val labelScale = if (param.isAngle) (180f / kotlin.math.PI.toFloat()) else 1f
+        val suffix = if (param.isAngle) "°" else ""
+        val maxLabel = "${"%.1f".format(param.maxClamp * labelScale)}$suffix"
+        val midLabel = "${"%.1f".format((param.minClamp + (param.maxClamp - param.minClamp) / 2f) * labelScale)}$suffix"
+        val minLabel = "${"%.1f".format(param.minClamp * labelScale)}$suffix"
         
         ImGui.setCursorScreenPos(startX + 6f, startY + 4f)
         session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, maxLabel)
-
+ 
         if (isBipolar) {
             val centerY = startY + h / 2f
             ImGui.setCursorScreenPos(startX + 6f, centerY - 6f)
             session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, midLabel)
         }
-
+ 
         ImGui.setCursorScreenPos(startX + 6f, startY + h - 16f)
         session.uiTheme.captionColored(0.5f, 0.5f, 0.5f, 0.6f, minLabel)
 

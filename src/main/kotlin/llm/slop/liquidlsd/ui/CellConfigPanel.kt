@@ -125,7 +125,14 @@ object CellConfigPanel {
         val deck = when {
             paramKey.startsWith("Deck A/") -> mixer.deckA
             paramKey.startsWith("Deck B/") -> mixer.deckB
+            paramKey.startsWith("Deck C/") -> mixer.deckC
             else -> null
+        }
+        if (deck?.isEmpty == true) {
+            activeHistory = null
+            activeCellId = null
+            session.uiTheme.caption("Deck is empty. Add a source or load a preset to configure cell modulation.")
+            return
         }
         val mandala = deck?.source as? Mandala
 

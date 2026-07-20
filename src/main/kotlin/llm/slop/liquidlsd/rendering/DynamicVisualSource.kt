@@ -12,7 +12,8 @@ data class ParamMeta(
     val max: Float,
     val type: String = "MONOPOLAR",
     val defaultMin: Float? = null,
-    val defaultMax: Float? = null
+    val defaultMax: Float? = null,
+    val isAngle: Boolean = false
 )
 
 @Serializable

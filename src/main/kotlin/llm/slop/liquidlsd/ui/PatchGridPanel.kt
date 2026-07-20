@@ -21,6 +21,10 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.roundToInt
 
+import llm.slop.liquidlsd.rendering.MandalaLibrary
+import llm.slop.liquidlsd.rendering.VisualSourceRegistry
+import java.io.File
+
 /**
  * Draws the Patch Grid panel. Rows = grouped ModulatableParameters.
  * Columns = CV sources. Each intersection is a clickable cell.
@@ -110,7 +114,7 @@ object PatchGridPanel {
 
             // Left column: Side tabs (MIX, A, B, C)
             ImGui.tableSetColumnIndex(0)
-            PatchGridTabs.drawLeftTabs(session, state)
+            PatchGridTabs.drawLeftTabs(session, state, mixer)
 
             // Right column: Main Patch Grid content
             ImGui.tableSetColumnIndex(1)
@@ -136,28 +140,47 @@ object PatchGridPanel {
             ImGui.spacing()
             ImGui.spacing()
 
-            // Column Headers
-            drawColumnHeaders(session, labelColW, state, mixer)
+            val activeDeck = when (state.activeTopTab) {
+                "Deck A" -> mixer.deckA
+                "Deck B" -> mixer.deckB
+                "Deck C" -> mixer.deckC
+                else -> null
+            }
+            val isDeckEmpty = activeDeck?.isEmpty == true
+
+            // Column Headers (only draw when not empty)
+            if (!isDeckEmpty) {
+                drawColumnHeaders(session, labelColW, state, mixer)
+            }
 
             if (ImGui.beginChild("##patch_grid_scroll", 0f, 0f, false)) {
                 if (state.activeTopTab == "Mixer") {
                     PatchGridTabs.drawSubGroupContent(session, "Mixer", "Mixer", state) {
-                        PatchGridRenderer.drawParamRow(session, "Deck A Source", "Deck A/FB/Source",   mixer.deckA.sourceSelect, state, labelColW, mixer, gridStartX, 0, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "Deck B Source", "Deck B/FB/Source",   mixer.deckB.sourceSelect, state, labelColW, mixer, gridStartX, 1, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "Deck C Source", "Deck C/FB/Source",   mixer.deckC.sourceSelect, state, labelColW, mixer, gridStartX, 2, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer, gridStartX, 3, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "master Alpha",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 4, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer, gridStartX, 5, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "fade speed",  "Mixer/xfadeSpeed",  mixer.xfadeSpeed,  state, labelColW, mixer, gridStartX, 6, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "queue prev", "Mixer/queuePrev", mixer.queuePrev, state, labelColW, mixer, gridStartX, 7, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                        PatchGridRenderer.drawParamRow(session, "queue next", "Mixer/queueNext", mixer.queueNext, state, labelColW, mixer, gridStartX, 8, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer, gridStartX, 0, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "master Alpha",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 1, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer, gridStartX, 2, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "fade speed",  "Mixer/xfadeSpeed",  mixer.xfadeSpeed,  state, labelColW, mixer, gridStartX, 3, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "queue prev", "Mixer/queuePrev", mixer.queuePrev, state, labelColW, mixer, gridStartX, 4, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "queue next", "Mixer/queueNext", mixer.queueNext, state, labelColW, mixer, gridStartX, 5, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     }
                 } else if (state.activeTopTab == "Deck A") {
-                    PatchGridTabs.drawDeckGroupContent(session, "Deck A", mixer.deckA, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    if (mixer.deckA.isEmpty) {
+                        drawLaunchpad(session, "Deck A", mixer.deckA, state, mixer)
+                    } else {
+                        PatchGridTabs.drawDeckGroupContent(session, "Deck A", mixer.deckA, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    }
                 } else if (state.activeTopTab == "Deck B") {
-                    PatchGridTabs.drawDeckGroupContent(session, "Deck B", mixer.deckB, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    if (mixer.deckB.isEmpty) {
+                        drawLaunchpad(session, "Deck B", mixer.deckB, state, mixer)
+                    } else {
+                        PatchGridTabs.drawDeckGroupContent(session, "Deck B", mixer.deckB, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    }
                 } else if (state.activeTopTab == "Deck C") {
-                    PatchGridTabs.drawDeckGroupContent(session, "Deck C", mixer.deckC, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    if (mixer.deckC.isEmpty) {
+                        drawLaunchpad(session, "Deck C", mixer.deckC, state, mixer)
+                    } else {
+                        PatchGridTabs.drawDeckGroupContent(session, "Deck C", mixer.deckC, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    }
                 }
             }
             val childMaxY = ImGui.getCursorScreenPosY()
@@ -223,6 +246,43 @@ object PatchGridPanel {
         // Reserve vertical space for headers
         ImGui.dummy(10f, headerH)
         val afterHeadersY = ImGui.getCursorScreenPosY()
+        
+        // Render Visual Source dropdown in empty space to left of column headers
+        val activeDeck = when (state.activeTopTab) {
+            "Deck A" -> mixer.deckA
+            "Deck B" -> mixer.deckB
+            "Deck C" -> mixer.deckC
+            else -> null
+        }
+        if (activeDeck != null && !activeDeck.isEmpty) {
+            val comboW = (labelColW - 16f).coerceAtMost(220f).coerceAtLeast(100f)
+            val currentName = (activeDeck.source as? DynamicVisualSource)?.displayName ?: "Mandala"
+            
+            ImGui.setCursorScreenPos(startX, startY + (headerH - 24f) * 0.5f)
+            ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, 4f)
+            ImGui.setNextItemWidth(comboW)
+            if (ImGui.beginCombo("##source_select_${state.activeTopTab}", currentName)) {
+                for (src in activeDeck.availableSources) {
+                    val srcName = (src as? DynamicVisualSource)?.displayName ?: "Mandala"
+                    val isSelected = (src == activeDeck.source)
+                    if (ImGui.selectable(srcName, isSelected)) {
+                        if (activeDeck.source != src) {
+                            PatchGridUndo.pushUndoState(state, mixer)
+                            activeDeck.source = src
+                            activeDeck.isEmpty = false
+                        }
+                    }
+                    if (isSelected) {
+                        ImGui.setItemDefaultFocus()
+                    }
+                }
+                ImGui.endCombo()
+            }
+            ImGui.popStyleVar()
+            if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip("Select visual generator source for ${state.activeTopTab}.")
+            }
+        }
         
         val lineCol = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.05f) // VERY subtle extended grid line
         val bottomY = if (lastBoxBottomY > startY) lastBoxBottomY else (startY + 300f)
@@ -312,13 +372,168 @@ object PatchGridPanel {
         // Restore cursor to where the dummy left off
         ImGui.setCursorScreenPos(startX, afterHeadersY)
     }
+
+    private fun drawLaunchpad(
+        session: llm.slop.liquidlsd.SessionContext,
+        deckLabel: String,
+        deck: Deck,
+        state: PatchGridState,
+        mixer: Mixer
+    ) {
+        val isDeckA = deckLabel == "Deck A"
+        val isDeckC = deckLabel == "Deck C"
+        val deckColorU32 = PatchGridTabs.getDeckColor(deckLabel, 1f)
+
+        val availW = ImGui.getContentRegionAvailX().coerceAtLeast(300f)
+        val cardW = (availW * 0.92f).coerceAtMost(520f)
+        val paddingX = (availW - cardW) * 0.5f
+
+        ImGui.dummy(0f, 15f)
+        ImGui.indent(paddingX)
+
+        if (ImGui.beginChild("##launchpad_$deckLabel", cardW, 200f, true)) {
+            ImGui.spacing()
+            ImGui.spacing()
+
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, deckColorU32)
+            session.uiTheme.h2("$deckLabel is Empty")
+            ImGui.popStyleColor()
+
+            ImGui.spacing()
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, ImGui.colorConvertFloat4ToU32(0.65f, 0.65f, 0.70f, 1f))
+            session.uiTheme.body("No visual generator is currently assigned to this deck.\nChoose an action below to activate:")
+            ImGui.popStyleColor()
+
+            ImGui.spacing()
+            ImGui.spacing()
+            ImGui.separator()
+            ImGui.spacing()
+            ImGui.spacing()
+
+            val buttonWidth = (cardW - 36f) / 3f
+            val buttonHeight = 36f
+
+            ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.FrameRounding, 6f)
+
+            // --- Button 1: Add Visual Source ---
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        ImGui.colorConvertFloat4ToU32(0.18f, 0.22f, 0.30f, 1f))
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.28f, 0.34f, 0.46f, 1f))
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  ImGui.colorConvertFloat4ToU32(0.38f, 0.44f, 0.58f, 1f))
+            if (ImGui.button("+ Add Source", buttonWidth, buttonHeight)) {
+                ImGui.openPopup("##launchpad_source_popup_$deckLabel")
+            }
+            if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip("Select a visual generator source (Mandala, Mandelbulb, Kifs, etc.)")
+            }
+            ImGui.popStyleColor(3)
+
+            if (ImGui.beginPopup("##launchpad_source_popup_$deckLabel")) {
+                ImGui.textDisabled("Select Visual Source:")
+                ImGui.separator()
+
+                if (ImGui.menuItem("Mandala")) {
+                    val masterMandala = VisualSourceRegistry.availableSources.firstOrNull { it.id == "mandala" } as? Mandala
+                    if (masterMandala != null) {
+                        deck.source = masterMandala.clone()
+                        deck.isEmpty = false
+                        PatchGridUndo.pushUndoState(state, mixer)
+                    }
+                }
+
+                for (source in VisualSourceRegistry.availableSources) {
+                    if (source.id == "mandala") continue
+                    if (ImGui.menuItem(source.displayName)) {
+                        deck.source = source.clone()
+                        deck.isEmpty = false
+                        PatchGridUndo.pushUndoState(state, mixer)
+                    }
+                }
+                ImGui.endPopup()
+            }
+
+            ImGui.sameLine()
+
+            // --- Button 2: Load Preset ---
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        ImGui.colorConvertFloat4ToU32(0.18f, 0.26f, 0.24f, 1f))
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.28f, 0.38f, 0.34f, 1f))
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  ImGui.colorConvertFloat4ToU32(0.38f, 0.48f, 0.44f, 1f))
+            if (ImGui.button("📂 Load Preset", buttonWidth, buttonHeight)) {
+                ImGui.openPopup("##launchpad_preset_popup_$deckLabel")
+            }
+            if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip("Choose a saved preset patch for $deckLabel")
+            }
+            ImGui.popStyleColor(3)
+
+            if (ImGui.beginPopup("##launchpad_preset_popup_$deckLabel")) {
+                ImGui.textDisabled("Quick Select Preset:")
+                ImGui.separator()
+
+                val presetDir = File("presets/patches")
+                val patchFiles = if (presetDir.exists()) {
+                    presetDir.listFiles { f -> f.isFile && (f.name.endsWith(".json") || f.name.endsWith(".lsd")) }?.toList() ?: emptyList()
+                } else emptyList()
+
+                if (patchFiles.isEmpty()) {
+                    ImGui.textDisabled("No presets found in presets/patches/")
+                } else {
+                    for (file in patchFiles.sortedBy { it.nameWithoutExtension }) {
+                        val displayName = file.nameWithoutExtension.replace('_', ' ')
+                        if (ImGui.menuItem(displayName)) {
+                            session.patchManager.loadDeckPresetAsync(file, isDeckA, isDeckC)
+                        }
+                    }
+                }
+                ImGui.separator()
+                if (ImGui.menuItem("Open Asset Browser Panel...")) {
+                    session.uiTheme.assetBrowserMode = UITheme.AssetBrowserMode.HALF
+                }
+                ImGui.endPopup()
+            }
+
+            ImGui.sameLine()
+
+            // --- Button 3: Quick Random ---
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        ImGui.colorConvertFloat4ToU32(0.28f, 0.20f, 0.26f, 1f))
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.38f, 0.28f, 0.36f, 1f))
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  ImGui.colorConvertFloat4ToU32(0.48f, 0.36f, 0.46f, 1f))
+            if (ImGui.button("🎲 Quick Random", buttonWidth, buttonHeight)) {
+                val presetDir = File("presets/patches")
+                val patchFiles = if (presetDir.exists()) {
+                    presetDir.listFiles { f -> f.isFile && (f.name.endsWith(".json") || f.name.endsWith(".lsd")) }?.toList() ?: emptyList()
+                } else emptyList()
+
+                if (patchFiles.isNotEmpty()) {
+                    val randomFile = patchFiles.random()
+                    session.patchManager.loadDeckPresetAsync(randomFile, isDeckA, isDeckC)
+                } else {
+                    val randomRatio = MandalaLibrary.MandalaRatios.random()
+                    val masterMandala = VisualSourceRegistry.availableSources.firstOrNull { it.id == "mandala" } as? Mandala
+                    if (masterMandala != null) {
+                        val newMandala = masterMandala.clone() as Mandala
+                        newMandala.recipe = randomRatio
+                        deck.source = newMandala
+                        deck.isEmpty = false
+                        PatchGridUndo.pushUndoState(state, mixer)
+                    }
+                }
+            }
+            if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip("Instantly load a random preset patch or Mandala recipe into $deckLabel")
+            }
+            ImGui.popStyleColor(3)
+
+            ImGui.popStyleVar()
+        }
+        ImGui.endChild()
+        ImGui.unindent(paddingX)
+    }
 }
 
 fun Deck.randomizeModulators() {
     val allParams = mutableListOf<llm.slop.liquidlsd.parameters.ModulatableParameter>()
     allParams.addAll(this.source.parameters.values)
     allParams.add(this.source.globalAlpha)
-    allParams.add(this.sourceSelect)
     allParams.add(this.fbDecay)
     allParams.add(this.fbGain)
     allParams.add(this.fbZoom)

@@ -115,12 +115,14 @@ object PatchGridRenderer {
             state.select(PatchCellId(paramKey, "final"), param)
         }
         if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+            val displayValue = if (param.isAngle) "${"%.1f".format(param.value * 180f / kotlin.math.PI.toFloat())}°" else "%.3f".format(param.value)
+            val displayBase = if (param.isAngle) "${"%.1f".format(param.baseValue * 180f / kotlin.math.PI.toFloat())}°" else "%.3f".format(param.baseValue)
             if (param.modulatorFilter != null) {
                 ImGui.beginTooltip()
-                ImGui.text("Parameter value: ${"%.3f".format(param.value)} (Base: ${"%.3f".format(param.baseValue)})\nClick to configure bounds, random ranges, and default values.\n\nNote: Modulators for this parameter are conditionally filtered.\nWhen AUTO-VJ is OFF, LFO, Audio, and CV modulators are bypassed.\nMIDI CC remains active.")
+                ImGui.text("Parameter value: $displayValue (Base: $displayBase)\nClick to configure bounds, random ranges, and default values.\n\nNote: Modulators for this parameter are conditionally filtered.\nWhen AUTO-VJ is OFF, LFO, Audio, and CV modulators are bypassed.\nMIDI CC remains active.")
                 ImGui.endTooltip()
             } else {
-                ImGui.setTooltip("Parameter value: ${"%.3f".format(param.value)} (Base: ${"%.3f".format(param.baseValue)})\nClick to configure bounds, random ranges, and default values.")
+                ImGui.setTooltip("Parameter value: $displayValue (Base: $displayBase)\nClick to configure bounds, random ranges, and default values.")
             }
         }
         

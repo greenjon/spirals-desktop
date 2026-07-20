@@ -36,7 +36,6 @@ class ParameterResolverTest {
         every { mixer.queuePrev } returns param
         every { mixer.queueNext } returns param
         
-        every { deck.sourceSelect } returns param
         every { deck.fbDecay } returns param
         every { deck.fbGain } returns param
         every { deck.fbZoom } returns param

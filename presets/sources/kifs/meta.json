@@ -53,6 +53,7 @@
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS",
+      "isAngle": true,
       "defaultMin": -3.14,
       "defaultMax": 3.14
     },
@@ -62,6 +63,7 @@
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS",
+      "isAngle": true,
       "defaultMin": -3.14,
       "defaultMax": 3.14
     },
@@ -71,6 +73,7 @@
       "min": -3.14,
       "max": 3.14,
       "type": "ENDLESS",
+      "isAngle": true,
       "defaultMin": -3.14,
       "defaultMax": 3.14
     },
@@ -104,21 +107,24 @@
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "isAngle": true
     },
     {
       "name": "Rotate X",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "isAngle": true
     },
     {
       "name": "Rotate Z",
       "default": 0.0,
       "min": -3.14,
       "max": 3.14,
-      "type": "ENDLESS"
+      "type": "ENDLESS",
+      "isAngle": true
     },
     {
       "name": "Glow",

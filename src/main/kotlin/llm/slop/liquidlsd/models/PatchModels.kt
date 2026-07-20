@@ -358,13 +358,12 @@ fun ModulatableParameter.applyDto(dto: ParameterDto) {
 fun MandalaRatio.toDto(): MandalaRecipeDto = MandalaRecipeDto(a, b, c, d, id)
 
 fun Deck.toDto(name: String, tags: List<String> = emptyList()): DeckPatchDto {
-    val sourceName = if (source is llm.slop.liquidlsd.rendering.DynamicVisualSource) (source as llm.slop.liquidlsd.rendering.DynamicVisualSource).id else "Mandala"
+    val sourceName = if (source is llm.slop.liquidlsd.rendering.DynamicVisualSource) (source as llm.slop.liquidlsd.rendering.DynamicVisualSource).id else "mandala"
     val recipeDto = if (source is Mandala) (source as Mandala).recipe.toDto() else null
     
     val paramsMap = source.parameters.mapValues { it.value.toDto() }
     
     val feedbackParamsMap = mapOf(
-        "sourceSelect" to sourceSelect.toDto(),
         "fbDecay" to fbDecay.toDto(),
         "fbGain" to fbGain.toDto(),
         "fbZoom" to fbZoom.toDto(),
@@ -390,13 +389,14 @@ fun Deck.toDto(name: String, tags: List<String> = emptyList()): DeckPatchDto {
 
 fun Deck.applyDto(dto: DeckPatchDto) {
     this.isEmpty = dto.isEmpty
-    dto.feedbackParameters["sourceSelect"]?.let { sourceSelect.applyDto(it) }
-    this.lastSourceSelectBase = sourceSelect.baseValue
     
-    // Select the active source dynamically based on sourceSelect parameter
-    val size = availableSources.size
-    val index = if (size > 0) (sourceSelect.value * size).toInt().coerceIn(0, size - 1) else 0
-    source = if (size > 0) availableSources[index] else availableSources[0]
+    // Select the active source by visualSourceType id
+    val matchedSource = availableSources.firstOrNull { src ->
+        (src as? llm.slop.liquidlsd.rendering.DynamicVisualSource)?.id == dto.visualSourceType
+    }
+    if (matchedSource != null) {
+        source = matchedSource
+    }
     
     if (source is Mandala) {
         val mandalaObj = source as Mandala

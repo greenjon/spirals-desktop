@@ -106,7 +106,6 @@ object ClipboardManager {
                         "FB" -> {
                             if (parts.size > 2) {
                                 when (parts[2]) {
-                                    "Source" -> deck.sourceSelect
                                     "Decay" -> deck.fbDecay
                                     "Gain" -> deck.fbGain
                                     "Zoom" -> deck.fbZoom

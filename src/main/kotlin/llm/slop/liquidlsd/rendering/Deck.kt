@@ -13,7 +13,6 @@ class Deck(
     val height: Int = 1080
 ) {
     var isEmpty: Boolean = false
-    var lastSourceSelectBase: Float = 0.0f
 
     // FBO for rendering the clean visual source output
     val cleanFBO = FBO(width, height)
@@ -23,9 +22,6 @@ class Deck(
     val fb2 = FBO(width, height)
     private var fbIndex = 0
 
-    // Source selection parameter
-    val sourceSelect = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
-
     // Keep instances of all visual sources
     val availableSources = mutableListOf<VisualSource>()
 
@@ -33,7 +29,7 @@ class Deck(
     val fbDecay = ModulatableParameter(0.73f, minClamp = 0f, maxClamp = 1f)
     val fbGain = ModulatableParameter(1.0f, minClamp = 0f, maxClamp = 2f)
     val fbZoom = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f) // negative is zoom out, positive is zoom in
-    val fbRotate = ModulatableParameter(0.0f, minClamp = -3.14f, maxClamp = 3.14f, meterType = llm.slop.liquidlsd.parameters.MeterType.ENDLESS) // in radians
+    val fbRotate = ModulatableParameter(0.0f, minClamp = -3.14f, maxClamp = 3.14f, meterType = llm.slop.liquidlsd.parameters.MeterType.ENDLESS, explicitIsAngle = true) // in radians
     val fbHueShift = ModulatableParameter(0.0f, minClamp = -1f, maxClamp = 1f, meterType = llm.slop.liquidlsd.parameters.MeterType.ENDLESS) // range 0..1
     val fbBlur = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f) // range 0..1
     val fbChroma = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
@@ -44,7 +40,6 @@ class Deck(
         init {
             val descriptors = mutableListOf<llm.slop.liquidlsd.parameters.ParameterDescriptor>()
             for (deckLabel in listOf("Deck A", "Deck B", "Deck C")) {
-                descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Source", "FB Source", "Deck"))
                 descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Decay", "FB Decay", "Deck"))
                 descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Gain", "FB Gain", "Deck"))
                 descriptors.add(llm.slop.liquidlsd.parameters.ParameterDescriptor("$deckLabel/FB/Zoom", "FB Zoom", "Deck"))
@@ -71,25 +66,11 @@ class Deck(
         
         availableSources.add(source.clone())
         availableSources.addAll(registrySources)
-        
-        updateSourceSelection()
-        lastSourceSelectBase = sourceSelect.baseValue
-    }
-
-    /**
-     * Resets all parameters to their defaults.
-     */
-    private fun updateSourceSelection() {
-        val size = availableSources.size
-        if (size == 0) return
-        val index = (sourceSelect.value * size).toInt().coerceIn(0, size - 1)
-        source = availableSources[index]
+        source = availableSources.first()
     }
 
     fun reset() {
         isEmpty = true
-        sourceSelect.reset()
-        lastSourceSelectBase = sourceSelect.baseValue
         availableSources.forEach { src ->
             src.parameters.values.forEach { it.reset() }
             src.globalAlpha.reset()
@@ -105,7 +86,6 @@ class Deck(
         fbMode.reset()
         fbKaleido.reset()
         source.clear()
-        updateSourceSelection()
 
         // Clear FBOs to prevent rendering stale feedback
         fb1.clear(0f, 0f, 0f, 0f)
@@ -147,15 +127,6 @@ class Deck(
      * Updates the underlying visual source and evaluates feedback parameters.
      */
     fun update() {
-        val oldSelectValue = sourceSelect.value
-        sourceSelect.evaluate()
-        updateSourceSelection()
-        val newSelectValue = sourceSelect.value
-
-        if (isEmpty && sourceSelect.baseValue != lastSourceSelectBase) {
-            isEmpty = false
-        }
-
         source.update()
         fbDecay.evaluate()
         fbGain.evaluate()
