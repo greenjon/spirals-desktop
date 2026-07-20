@@ -18,8 +18,8 @@ object SettingsPanel {
     private const val MIN_SIZE = 10f
     private const val MAX_SIZE = 28f
     private const val STEP     = 1f
-    private const val MODAL_W  = 540f
-    private const val MODAL_H  = 360f
+    private const val MODAL_W  = 600f
+    private const val MODAL_H  = 720f
 
     enum class Category(val label: String) {
         APPEARANCE("Appearance"),
@@ -36,11 +36,14 @@ object SettingsPanel {
     fun draw(session: llm.slop.liquidlsd.SessionContext, currentSize: Float, displayW: Float, displayH: Float,
              onSizeChanged: (Float) -> Unit) {
 
+        val targetH = minOf(MODAL_H, displayH * 0.85f)
+        val targetW = minOf(MODAL_W, displayW * 0.85f)
+
         ImGui.setNextWindowPos(
             displayW * 0.5f, displayH * 0.5f,
-            ImGuiCond.Appearing, 0.5f, 0.5f
+            ImGuiCond.Always, 0.5f, 0.5f
         )
-        ImGui.setNextWindowSize(MODAL_W, MODAL_H, ImGuiCond.Appearing)
+        ImGui.setNextWindowSize(targetW, targetH, ImGuiCond.Always)
 
         val flags = ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoResize
 
