@@ -38,8 +38,17 @@ class Mixer(
         }
     }
 
+    val randDeckA = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+    val randDeckB = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+    val randDeckC = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+    val randAll = ModulatableParameter(0.0f, minClamp = 0f, maxClamp = 1f)
+
     private var prevQueuePrevVal = 0.0f
     private var prevQueueNextVal = 0.0f
+    private var prevRandDeckAVal = 0.0f
+    private var prevRandDeckBVal = 0.0f
+    private var prevRandDeckCVal = 0.0f
+    private var prevRandAllVal = 0.0f
     private var lastUpdateTimeNs: Long = System.nanoTime()
 
     init {
@@ -49,7 +58,11 @@ class Mixer(
             llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/bloom", "Bloom", "Mixer"),
             llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/xfadeSpeed", "XFade Speed", "Mixer"),
             llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/queuePrev", "Queue Prev", "Mixer"),
-            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/queueNext", "Queue Next", "Mixer")
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/queueNext", "Queue Next", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/randDeckA", "Rand Deck A", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/randDeckB", "Rand Deck B", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/randDeckC", "Rand Deck C", "Mixer"),
+            llm.slop.liquidlsd.parameters.ParameterDescriptor("Mixer/randAll", "Rand All", "Mixer")
         )
     }
 
@@ -84,6 +97,42 @@ class Mixer(
         xfadeSpeed.evaluate()
         queuePrev.evaluate()
         queueNext.evaluate()
+        randDeckA.evaluate()
+        randDeckB.evaluate()
+        randDeckC.evaluate()
+        randAll.evaluate()
+
+        val valA = randDeckA.value
+        if (prevRandDeckAVal < 0.5f && valA >= 0.5f) {
+            deckA.randomizeModulators()
+        }
+        prevRandDeckAVal = valA
+
+        val valB = randDeckB.value
+        if (prevRandDeckBVal < 0.5f && valB >= 0.5f) {
+            deckB.randomizeModulators()
+        }
+        prevRandDeckBVal = valB
+
+        val valC = randDeckC.value
+        if (prevRandDeckCVal < 0.5f && valC >= 0.5f) {
+            deckC.randomizeModulators()
+        }
+        prevRandDeckCVal = valC
+
+        val valAll = randAll.value
+        if (prevRandAllVal < 0.5f && valAll >= 0.5f) {
+            deckA.randomizeModulators()
+            deckB.randomizeModulators()
+            deckC.randomizeModulators()
+            listOf(crossfade, masterAlpha).forEach { param ->
+                val randomized = param.modulators.map { it.randomizeActiveValues() }
+                param.modulators.clear()
+                param.modulators.addAll(randomized)
+                param.randomizeBaseValue()
+            }
+        }
+        prevRandAllVal = valAll
     }
 
     /**

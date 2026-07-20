@@ -35,6 +35,10 @@ class ParameterResolverTest {
         every { mixer.xfadeSpeed } returns param
         every { mixer.queuePrev } returns param
         every { mixer.queueNext } returns param
+        every { mixer.randDeckA } returns param
+        every { mixer.randDeckB } returns param
+        every { mixer.randDeckC } returns param
+        every { mixer.randAll } returns param
         
         every { deck.fbDecay } returns param
         every { deck.fbGain } returns param

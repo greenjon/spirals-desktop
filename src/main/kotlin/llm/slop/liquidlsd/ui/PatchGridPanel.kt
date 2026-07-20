@@ -162,6 +162,10 @@ object PatchGridPanel {
                         PatchGridRenderer.drawParamRow(session, "fade speed",  "Mixer/xfadeSpeed",  mixer.xfadeSpeed,  state, labelColW, mixer, gridStartX, 3, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                         PatchGridRenderer.drawParamRow(session, "queue prev", "Mixer/queuePrev", mixer.queuePrev, state, labelColW, mixer, gridStartX, 4, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                         PatchGridRenderer.drawParamRow(session, "queue next", "Mixer/queueNext", mixer.queueNext, state, labelColW, mixer, gridStartX, 5, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "rand Deck A", "Mixer/randDeckA", mixer.randDeckA, state, labelColW, mixer, gridStartX, 6, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "rand Deck B", "Mixer/randDeckB", mixer.randDeckB, state, labelColW, mixer, gridStartX, 7, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "rand Deck C", "Mixer/randDeckC", mixer.randDeckC, state, labelColW, mixer, gridStartX, 8, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "rand All", "Mixer/randAll", mixer.randAll, state, labelColW, mixer, gridStartX, 9, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                     }
                 } else if (state.activeTopTab == "Deck A") {
                     if (mixer.deckA.isEmpty) {

@@ -25,6 +25,10 @@ object ParameterResolver {
         list.add("Mixer/xfadeSpeed" to mixer.xfadeSpeed)
         list.add("Mixer/queuePrev" to mixer.queuePrev)
         list.add("Mixer/queueNext" to mixer.queueNext)
+        list.add("Mixer/randDeckA" to mixer.randDeckA)
+        list.add("Mixer/randDeckB" to mixer.randDeckB)
+        list.add("Mixer/randDeckC" to mixer.randDeckC)
+        list.add("Mixer/randAll" to mixer.randAll)
         
         // Deck A, B, and C
         for (deckLabel in listOf("Deck A", "Deck B", "Deck C")) {

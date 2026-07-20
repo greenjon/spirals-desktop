@@ -140,6 +140,30 @@ class Deck(
     }
 
     /**
+     * Re-randomizes modulators and base values for all randomizable parameters in this Deck.
+     */
+    fun randomizeModulators() {
+        val allParams = mutableListOf<ModulatableParameter>()
+        allParams.addAll(this.source.parameters.values)
+        allParams.add(this.source.globalAlpha)
+        allParams.add(this.fbDecay)
+        allParams.add(this.fbGain)
+        allParams.add(this.fbZoom)
+        allParams.add(this.fbRotate)
+        allParams.add(this.fbHueShift)
+        allParams.add(this.fbBlur)
+        allParams.add(this.fbChroma)
+        allParams.add(this.fbMode)
+
+        for (param in allParams) {
+            val randomized = param.modulators.map { it.randomizeActiveValues() }
+            param.modulators.clear()
+            param.modulators.addAll(randomized)
+            param.randomizeBaseValue()
+        }
+    }
+
+    /**
      * Disposes all FBOs associated with this Deck.
      */
     fun dispose() {
