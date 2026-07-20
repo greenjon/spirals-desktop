@@ -90,7 +90,8 @@ MIDI CCs are polled each frame from a queue and applied to parameters or UI stat
 
 | Class | Role |
 |-------|------|
-| `CVRegistry` | Singleton; all CV source values live here |
+| `SessionContext` | Dependency injection container providing access to core registries and managers |
+| `CVRegistry` | All CV source values live here |
 | `ModulatableParameter` | A float param with up to N `CvModulator`s stacked on it |
 | `CvModulator` | One modulation slot: source id + weight + operator (ADD/MUL) + waveform |
 | `Deck` | One visual channel: holds a `VisualSource` + ping-pong FBOs + feedback params |

@@ -29,23 +29,24 @@ key patterns, and what to read before touching any UI code.
 
 ```
 UIManager  (orchestrator — owns backends, runs per-frame render loop)
-├── UITheme         singleton — fonts, settings, feature flags
+├── SessionContext  (dependency injection container passed to panel draw methods)
+├── UITheme         fonts, settings, feature flags
 ├── PopupManager    all modal dialogs (exit, MIDI warn, deck confirm)
 ├── MenuBar         top menu bar; no state of its own
 ├── PatchGridState  shared transient state token (passed by reference)
-├── PatchGridPanel  modulation matrix grid (object singleton)
-├── CellConfigPanel modulator editor + oscilloscope (object singleton)
+├── PatchGridPanel  modulation matrix grid
+├── CellConfigPanel modulator editor + oscilloscope
 ├── MixerMonitorPanel
 │   └── DeckControlPanel  (via injected lambda)
 │       └── DeckPresetBrowser A / B
-├── AssetBrowserPanel   (object singleton)
-├── SettingsPanel       (object singleton)
-├── AudioEnginePanel    (object singleton)
+├── AssetBrowserPanel
+├── SettingsPanel
+├── AudioEnginePanel
 └── ImGuiFileBrowser deckA, deckB
 ```
 
-All panels receive the live `Mixer` reference **at draw time** — they do not store it as a field.
-`UIManager.currentMixer` is the only frame-to-frame reference.
+All panels receive `session: SessionContext` and the live `Mixer` reference **at draw time** — they access `AudioEngine`, `CVRegistry`, `PatchManager`, `PlayQueueManager`, `MidiMappingManager`, `VisualSourceRegistry`, and `UITheme` via `session` rather than direct global singletons.
+`UIManager.currentMixer` is the frame-to-frame mixer reference.
 
 ---
 
@@ -170,7 +171,7 @@ See the `imgui_memory_management` skill for full details. Short version:
 ## Adding a New Panel
 
 1. Allocate any `ImString`/`ImBoolean` fields at object/class level — not inside the draw function.
-2. Accept `Mixer` as a draw-time parameter — do not store it as a field.
+2. Accept `session: SessionContext` and `Mixer` as draw-time parameters — do not store them as fields or access global singletons directly.
 3. Accept `PatchGridState` by reference if you need selection/undo state.
 4. Register your draw call in `UIManager.render()`.
 5. If your panel opens a popup, follow the deferred-open pattern: set a `pendingOpen*` flag in one
