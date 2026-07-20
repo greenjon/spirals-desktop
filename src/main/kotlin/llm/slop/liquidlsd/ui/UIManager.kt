@@ -816,42 +816,116 @@ class UIManager(private val windowHandle: Long, val session: llm.slop.liquidlsd.
     }
 
     private fun drawAssetManagementLayout(displayWidth: Float, displayHeight: Float, menuBarH: Float, contentH: Float, noDecorate: Int) {
-        val libraryW = displayWidth * 0.70f
-        val rightW = displayWidth - libraryW
+        val theme = session.uiTheme
+        val minRatio = 0.15f
 
-        val assetBrowserH = when (session.uiTheme.assetBrowserMode) {
-            UITheme.AssetBrowserMode.FULL -> contentH
-            UITheme.AssetBrowserMode.HALF -> contentH * 0.5f
-            UITheme.AssetBrowserMode.HIDE -> 38f
+        // Ensure ratios stay bounded and sum safely
+        var col1R = theme.col1Ratio.coerceIn(minRatio, 0.70f)
+        var col2R = theme.col2Ratio.coerceIn(minRatio, 0.70f)
+        if (col1R + col2R > 1.0f - minRatio) {
+            col2R = 1.0f - minRatio - col1R
         }
 
-        if (session.uiTheme.assetBrowserMode != UITheme.AssetBrowserMode.FULL) {
-            val topH = contentH - assetBrowserH
-            val leftW = displayWidth * 0.3f
+        val col1W = displayWidth * col1R
+        val col2W = displayWidth * col2R
+        val libraryW = col1W + col2W
+        val rightW = displayWidth - libraryW
 
+        val assetBrowserH = when (theme.assetBrowserMode) {
+            UITheme.AssetBrowserMode.FULL -> contentH
+            UITheme.AssetBrowserMode.HIDE -> 38f
+            UITheme.AssetBrowserMode.HALF -> contentH * theme.assetBrowserRatio.coerceIn(minRatio, 0.85f)
+        }
+
+        if (theme.assetBrowserMode != UITheme.AssetBrowserMode.FULL) {
+            val topH = contentH - assetBrowserH
+
+            // Column 1: Patch Grid
             ImGui.setNextWindowPos(0f, menuBarH)
-            ImGui.setNextWindowSize(leftW, topH)
+            ImGui.setNextWindowSize(col1W, topH)
             if (ImGui.begin("Patch Grid", noDecorate)) {
                 drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
                 PatchGridPanel.draw(session, currentMixer!!, patchState)
             }
             ImGui.end()
 
-            val middleW = libraryW - leftW
-            ImGui.setNextWindowPos(leftW, menuBarH)
-            ImGui.setNextWindowSize(middleW, topH)
+            // Column 2: Cell Config
+            ImGui.setNextWindowPos(col1W, menuBarH)
+            ImGui.setNextWindowSize(col2W, topH)
             if (ImGui.begin("Cell Config", noDecorate)) {
                 drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
                 CellConfigPanel.draw(session, patchState, currentMixer!!)
             }
             ImGui.end()
+
+            // Vertical Splitter 1 (between Patch Grid & Cell Config)
+            drawVerticalSplitter(
+                id = "##vsplit1",
+                posX = col1W,
+                posY = menuBarH,
+                width = 8f,
+                height = topH,
+                displayWidth = displayWidth,
+                onDrag = { deltaX ->
+                    val deltaR = deltaX / displayWidth
+                    val maxC1 = 1.0f - minRatio - theme.col2Ratio
+                    val newC1 = (theme.col1Ratio + deltaR).coerceIn(minRatio, maxC1)
+                    theme.col1Ratio = newC1
+                    theme.saveSettings()
+                },
+                onDoubleClick = {
+                    theme.col1Ratio = 0.30f
+                    theme.col2Ratio = 0.40f
+                    theme.saveSettings()
+                }
+            )
         }
 
-        // Asset Browser
-        val assetBrowserPosH = if (session.uiTheme.assetBrowserMode == UITheme.AssetBrowserMode.FULL) menuBarH else (menuBarH + contentH - assetBrowserH)
+        // Horizontal Splitter (above Asset Browser when not FULL)
+        val assetBrowserPosH = if (theme.assetBrowserMode == UITheme.AssetBrowserMode.FULL) menuBarH else (menuBarH + contentH - assetBrowserH)
+        if (theme.assetBrowserMode != UITheme.AssetBrowserMode.FULL) {
+            drawHorizontalSplitter(
+                id = "##hsplit",
+                posX = 0f,
+                posY = assetBrowserPosH,
+                width = libraryW,
+                height = 8f,
+                displayHeight = displayHeight,
+                onDrag = { deltaY ->
+                    if (theme.assetBrowserMode == UITheme.AssetBrowserMode.HIDE) {
+                        if (deltaY < 0f) { // Dragging upward
+                            theme.assetBrowserMode = UITheme.AssetBrowserMode.HALF
+                            theme.assetBrowserRatio = theme.lastCustomAssetBrowserRatio.coerceIn(minRatio, 0.85f)
+                            theme.saveSettings()
+                        }
+                    } else {
+                        val deltaR = -deltaY / contentH
+                        val targetRatio = theme.assetBrowserRatio + deltaR
+                        val targetPixelH = contentH * targetRatio
+                        if (targetPixelH < 60f || targetRatio < 0.10f) {
+                            theme.lastCustomAssetBrowserRatio = theme.assetBrowserRatio
+                            theme.assetBrowserMode = UITheme.AssetBrowserMode.HIDE
+                        } else {
+                            val newR = targetRatio.coerceIn(minRatio, 0.85f)
+                            theme.assetBrowserRatio = newR
+                            theme.lastCustomAssetBrowserRatio = newR
+                        }
+                        theme.saveSettings()
+                    }
+                },
+                onDoubleClick = {
+                    theme.assetBrowserMode = UITheme.AssetBrowserMode.HALF
+                    theme.assetBrowserRatio = 0.50f
+                    theme.lastCustomAssetBrowserRatio = 0.50f
+                    theme.saveSettings()
+                }
+            )
+        }
+
+        // Asset Browser (Bottom or Full)
         ImGui.setNextWindowPos(0f, assetBrowserPosH)
         ImGui.setNextWindowSize(libraryW, assetBrowserH)
-        val flags = (if (session.uiTheme.assetBrowserMode == UITheme.AssetBrowserMode.HIDE) noDecorate or ImGuiWindowFlags.NoScrollbar else noDecorate) or
+        val flags = (if (theme.assetBrowserMode == UITheme.AssetBrowserMode.HIDE) noDecorate or ImGuiWindowFlags.NoScrollbar else noDecorate) or
                 ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.MenuBar
         if (ImGui.begin("Asset Browser", flags)) {
             drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
@@ -859,13 +933,129 @@ class UIManager(private val windowHandle: Long, val session: llm.slop.liquidlsd.
         }
         ImGui.end()
 
-        // Right: Mixer / Monitor (30% width)
+        // Column 3: Mixer / Monitor
         ImGui.setNextWindowPos(libraryW, menuBarH)
         ImGui.setNextWindowSize(rightW, contentH)
-        val noTitleDecorate = noDecorate or imgui.flag.ImGuiWindowFlags.NoTitleBar
+        val noTitleDecorate = noDecorate or ImGuiWindowFlags.NoTitleBar
         if (ImGui.begin("Mixer / Monitor", noTitleDecorate)) {
             drawNeonBackgroundIfNeeded(ImGui.getWindowPosX(), ImGui.getWindowPosY(), ImGui.getWindowWidth(), ImGui.getWindowHeight(), displayWidth)
             drawMixerMonitor(currentMixer!!)
+        }
+        ImGui.end()
+
+        // Vertical Splitter 2 (between Cell Config/Asset Browser and Mixer/Monitor)
+        drawVerticalSplitter(
+            id = "##vsplit2",
+            posX = libraryW,
+            posY = menuBarH,
+            width = 8f,
+            height = contentH,
+            displayWidth = displayWidth,
+            onDrag = { deltaX ->
+                val deltaR = deltaX / displayWidth
+                val maxC2 = 1.0f - minRatio - theme.col1Ratio
+                val newC2 = (theme.col2Ratio + deltaR).coerceIn(minRatio, maxC2)
+                theme.col2Ratio = newC2
+                theme.saveSettings()
+            },
+            onDoubleClick = {
+                theme.col1Ratio = 0.30f
+                theme.col2Ratio = 0.40f
+                theme.saveSettings()
+            }
+        )
+    }
+
+    private fun drawVerticalSplitter(
+        id: String,
+        posX: Float,
+        posY: Float,
+        width: Float,
+        height: Float,
+        displayWidth: Float,
+        onDrag: (Float) -> Unit,
+        onDoubleClick: () -> Unit
+    ) {
+        val splitterFlags = ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.NoResize or
+                            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoCollapse or
+                            ImGuiWindowFlags.NoScrollbar or ImGuiWindowFlags.NoBackground or
+                            ImGuiWindowFlags.NoSavedSettings
+
+        ImGui.setNextWindowPos(posX - width / 2f, posY)
+        ImGui.setNextWindowSize(width, height)
+        if (ImGui.begin(id, splitterFlags)) {
+            ImGui.invisibleButton("${id}_btn", width, height)
+            val hovered = ImGui.isItemHovered()
+            val active = ImGui.isItemActive()
+
+            if (hovered) {
+                ImGui.setMouseCursor(imgui.flag.ImGuiMouseCursor.ResizeEW)
+            }
+
+            if (active) {
+                val deltaX = ImGui.getIO().mouseDeltaX
+                if (deltaX != 0f) {
+                    onDrag(deltaX)
+                }
+            }
+
+            if (hovered && ImGui.isMouseDoubleClicked(0)) {
+                onDoubleClick()
+            }
+
+            if (hovered || active) {
+                val color = if (active) ImGui.getColorU32(ImGuiCol.SeparatorActive) else ImGui.getColorU32(ImGuiCol.SeparatorHovered)
+                val drawList = ImGui.getWindowDrawList()
+                val midX = posX
+                drawList.addLine(midX, posY, midX, posY + height, color, 2f)
+            }
+        }
+        ImGui.end()
+    }
+
+    private fun drawHorizontalSplitter(
+        id: String,
+        posX: Float,
+        posY: Float,
+        width: Float,
+        height: Float,
+        displayHeight: Float,
+        onDrag: (Float) -> Unit,
+        onDoubleClick: () -> Unit
+    ) {
+        val splitterFlags = ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.NoResize or
+                            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoCollapse or
+                            ImGuiWindowFlags.NoScrollbar or ImGuiWindowFlags.NoBackground or
+                            ImGuiWindowFlags.NoSavedSettings
+
+        ImGui.setNextWindowPos(posX, posY - height / 2f)
+        ImGui.setNextWindowSize(width, height)
+        if (ImGui.begin(id, splitterFlags)) {
+            ImGui.invisibleButton("${id}_btn", width, height)
+            val hovered = ImGui.isItemHovered()
+            val active = ImGui.isItemActive()
+
+            if (hovered) {
+                ImGui.setMouseCursor(imgui.flag.ImGuiMouseCursor.ResizeNS)
+            }
+
+            if (active) {
+                val deltaY = ImGui.getIO().mouseDeltaY
+                if (deltaY != 0f) {
+                    onDrag(deltaY)
+                }
+            }
+
+            if (hovered && ImGui.isMouseDoubleClicked(0)) {
+                onDoubleClick()
+            }
+
+            if (hovered || active) {
+                val color = if (active) ImGui.getColorU32(ImGuiCol.SeparatorActive) else ImGui.getColorU32(ImGuiCol.SeparatorHovered)
+                val drawList = ImGui.getWindowDrawList()
+                val midY = posY
+                drawList.addLine(posX, midY, posX + width, midY, color, 2f)
+            }
         }
         ImGui.end()
     }

@@ -56,6 +56,52 @@ object CellConfigPanel {
         }
     }
 
+    private fun drawCvTabRow(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState, currentParamKey: String, currentCvId: String) {
+        val availableTabs = mutableListOf<Pair<String, String>>()
+        availableTabs.add("Final" to "final")
+        if (session.uiTheme.showMidiCol) availableTabs.add("MIDI" to "midi")
+        if (session.uiTheme.showLfoCol) availableTabs.add("LFO" to "lfo")
+        if (session.uiTheme.audioEngineEnabled) {
+            if (session.uiTheme.showAudioCol) availableTabs.add("Audio" to "audio")
+            if (session.uiTheme.showTriggerCol) availableTabs.add("Trigger" to "trigger")
+        }
+
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 2f, 0f)
+        availableTabs.forEachIndexed { i, (label, targetCvId) ->
+            if (i > 0) ImGui.sameLine()
+            val isActive = currentCvId == targetCvId
+            if (isActive) {
+                val activeCol = when (targetCvId) {
+                    "final"   -> ImGui.colorConvertFloat4ToU32(0.0f, 0.7f, 0.5f, 1f)
+                    "midi"    -> ImGui.colorConvertFloat4ToU32(0.5f, 0.2f, 0.8f, 1f)
+                    "lfo"     -> ImGui.colorConvertFloat4ToU32(0.0f, 0.5f, 0.8f, 1f)
+                    "audio"   -> ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.0f, 1f)
+                    "trigger" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.0f, 0.4f, 1f)
+                    else      -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f)
+                }
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        activeCol)
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, activeCol)
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  activeCol)
+            } else {
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1f))
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1f))
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  ImGui.colorConvertFloat4ToU32(0.35f, 0.35f, 0.35f, 1f))
+            }
+            val btnW = 55f
+            if (ImGui.button(label, btnW, 22f)) {
+                state.selectedCell = PatchCellId(currentParamKey, targetCvId)
+            }
+            if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip("Switch CellConfig view to $label CV modulation for parameter")
+            }
+            ImGui.popStyleColor(3)
+        }
+        ImGui.popStyleVar()
+        ImGui.spacing()
+        ImGui.separator()
+        ImGui.spacing()
+    }
+
     fun draw(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState, mixer: Mixer) {
         val cell = state.selectedCell
         val param = state.selectedParam
@@ -69,6 +115,9 @@ object CellConfigPanel {
 
         val cvId = cell.cvSourceId
         val paramKey = cell.paramKey
+
+        // Render top CV tab bar
+        drawCvTabRow(session, state, paramKey, cvId)
 
         val themeRGB = CvTheme.getThemeColorRGB(cvId)
         val themeColor = CvTheme.getThemeColor(cvId)

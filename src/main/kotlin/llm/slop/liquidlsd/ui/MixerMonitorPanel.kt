@@ -29,12 +29,15 @@ class MixerMonitorPanel(
             frameHeightWithSpacing = ImGui.getFrameHeightWithSpacing(),
             itemSpacingY = style.getItemSpacingY()
         )
-        val availW = layout.contentWidth
+        val availW = layout.renderWidth
         val masterH = layout.masterHeight
+        val offsetX = layout.offsetX
 
-        val imgScreenX = ImGui.getCursorScreenPosX()
+        val baseScreenX = ImGui.getCursorScreenPosX()
+        val imgScreenX = baseScreenX + offsetX
         val imgScreenY = ImGui.getCursorScreenPosY()
 
+        ImGui.setCursorScreenPos(imgScreenX, imgScreenY)
         ImGui.image(mixer.masterFBO.texture, availW, masterH, 0f, 1f, 1f, 0f)
 
         // Restore Y cursor position
@@ -45,6 +48,7 @@ class MixerMonitorPanel(
 
         // --- Master Mixer Controls ---
         ImGui.pushStyleColor(ImGuiCol.ChildBg, ImGui.colorConvertFloat4ToU32(0.05f, 0.1f, 0.08f, 0.4f)) // Faint mint background
+        ImGui.setCursorScreenPos(imgScreenX, ImGui.getCursorScreenPosY())
         ImGui.beginChild("MasterControls", availW, 85f, true)
         
         // Crossfader (mapped display value from -1.0 to 1.0)
@@ -70,13 +74,13 @@ class MixerMonitorPanel(
         val padding = 16f
         val halfW = (availW - padding) * 0.5f
         
-        val startX = ImGui.getCursorScreenPosX()
+        val startX = baseScreenX + offsetX
         val centerY = ImGui.getCursorScreenPosY()
         
         // Use an invisible full-width dummy to reserve vertical space for the two rows
         val headerRowH = ImGui.getTextLineHeightWithSpacing()
         val presetRowH = ImGui.getFrameHeightWithSpacing()
-        ImGui.dummy(availW, headerRowH + presetRowH)
+        ImGui.dummy(layout.contentWidth, headerRowH + presetRowH)
         
         // 1. Deck A Header
         var twA = 0f
@@ -227,7 +231,7 @@ class MixerMonitorPanel(
             ImGui.endPopup()
         }
         
-        val imgX = ImGui.getCursorScreenPosX()
+        val imgX = startX
         val imgY = ImGui.getCursorScreenPosY()
         
         ImGui.image(mixer.deckC.getOutputTexture(), availW, layout.deckCHeight, 0f, 1f, 1f, 0f)

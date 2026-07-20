@@ -13,5 +13,13 @@ data class AppSettings(
     val maxFps: Int = 30,
     val startupBehavior: UITheme.StartupBehavior = UITheme.StartupBehavior.PREVIOUS_SESSION,
     val assetBrowserMode: UITheme.AssetBrowserMode = UITheme.AssetBrowserMode.HALF,
-    val theme: UITheme.Theme = UITheme.Theme.BORING
+    val theme: UITheme.Theme = UITheme.Theme.BORING,
+    val showMidiCol: Boolean = true,
+    val showLfoCol: Boolean = true,
+    val showAudioCol: Boolean = true,
+    val showTriggerCol: Boolean = true,
+    val col1Ratio: Float = 0.30f,
+    val col2Ratio: Float = 0.40f,
+    val assetBrowserRatio: Float = 0.50f,
+    val lastCustomAssetBrowserRatio: Float = 0.50f
 )

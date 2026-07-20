@@ -28,23 +28,28 @@ import kotlin.math.roundToInt
 object PatchGridPanel {
 
     private fun getCvColumns(session: llm.slop.liquidlsd.SessionContext): List<String> {
-        return if (session.uiTheme.audioEngineEnabled) {
-            listOf("lfo", "audio", "trigger")
-        } else {
-            listOf("lfo")
+        val cols = mutableListOf<String>()
+        if (session.uiTheme.showLfoCol) cols.add("lfo")
+        if (session.uiTheme.audioEngineEnabled) {
+            if (session.uiTheme.showAudioCol) cols.add("audio")
+            if (session.uiTheme.showTriggerCol) cols.add("trigger")
         }
+        return cols
     }
 
     private fun getCvLabels(session: llm.slop.liquidlsd.SessionContext): List<String> {
-        return if (session.uiTheme.audioEngineEnabled) {
-            listOf("LFO", "AUDIO", "TRIG")
-        } else {
-            listOf("LFO")
+        val labels = mutableListOf<String>()
+        if (session.uiTheme.showLfoCol) labels.add("LFO")
+        if (session.uiTheme.audioEngineEnabled) {
+            if (session.uiTheme.showAudioCol) labels.add("AUDIO")
+            if (session.uiTheme.showTriggerCol) labels.add("TRIG")
         }
+        return labels
     }
 
     private fun getVisibleColumns(session: llm.slop.liquidlsd.SessionContext): List<String> {
-        val visibleCols = mutableListOf("final", "midi")
+        val visibleCols = mutableListOf("final")
+        if (session.uiTheme.showMidiCol) visibleCols.add("midi")
         visibleCols.addAll(getCvColumns(session))
         return visibleCols
     }
@@ -94,52 +99,64 @@ object PatchGridPanel {
 
     fun draw(session: llm.slop.liquidlsd.SessionContext, mixer: Mixer, state: PatchGridState) {
         rowIndex = 0
-        val avail = ImGui.getContentRegionAvailX()
-        gridStartX = ImGui.getCursorScreenPosX()
-        
-        val lastVisibleCol = getCvColumns(session).lastOrNull() ?: "midi"
-        val maxGridW = getColumnOffset(session, lastVisibleCol) + CELL + CELL_PAD * 0.5f
-        val labelColW = (avail - maxGridW - 20f).coerceAtLeast(120f)
 
         PatchGridKeyboard.handleKeyboardShortcuts(state, mixer, { s, m -> PatchGridUndo.pushUndoState(s, m) }, { s, m -> PatchGridUndo.performUndo(s, m) })
 
-        // Row 1: Fixed/Top Tabs
-        PatchGridTabs.drawTopTabs(session, state)
-        ImGui.spacing()
+        if (ImGui.beginTable("##patch_grid_layout_table", 2, imgui.flag.ImGuiTableColumnFlags.None)) {
+            ImGui.tableSetupColumn("##side_tabs", imgui.flag.ImGuiTableColumnFlags.WidthFixed, 42f)
+            ImGui.tableSetupColumn("##main_grid", imgui.flag.ImGuiTableColumnFlags.WidthStretch)
+            ImGui.tableNextRow()
 
-        // Row 2: Dynamic/Sub Tabs
-        PatchGridTabs.drawSubTabs(session, state, mixer)
-        ImGui.spacing()
-        ImGui.spacing()
+            // Left column: Side tabs (MIX, A, B, C)
+            ImGui.tableSetColumnIndex(0)
+            PatchGridTabs.drawLeftTabs(session, state)
 
-        ImGui.separator()
-        ImGui.spacing()
+            // Right column: Main Patch Grid content
+            ImGui.tableSetColumnIndex(1)
 
-        // Row 3: Column Headers
-        drawColumnHeaders(session, labelColW, state, mixer)
+            val avail = ImGui.getContentRegionAvailX()
+            gridStartX = ImGui.getCursorScreenPosX()
+            
+            val lastVisibleCol = getCvColumns(session).lastOrNull() ?: if (session.uiTheme.showMidiCol) "midi" else "final"
+            val maxGridW = getColumnOffset(session, lastVisibleCol) + CELL + CELL_PAD * 0.5f
+            val labelColW = (avail - maxGridW - 20f).coerceAtLeast(120f)
 
-        if (ImGui.beginChild("##patch_grid_scroll", 0f, 0f, false)) {
-            if (state.activeTopTab == "Mixer") {
-                PatchGridTabs.drawSubGroupContent(session, "Mixer", "Mixer", state) {
-                    PatchGridRenderer.drawParamRow(session, "Deck A Source", "Deck A/FB/Source",   mixer.deckA.sourceSelect, state, labelColW, mixer, gridStartX, 0, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "Deck B Source", "Deck B/FB/Source",   mixer.deckB.sourceSelect, state, labelColW, mixer, gridStartX, 1, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "Deck C Source", "Deck C/FB/Source",   mixer.deckC.sourceSelect, state, labelColW, mixer, gridStartX, 2, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer, gridStartX, 3, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "master Alpha",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 4, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer, gridStartX, 5, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "fade speed",  "Mixer/xfadeSpeed",  mixer.xfadeSpeed,  state, labelColW, mixer, gridStartX, 6, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "queue prev", "Mixer/queuePrev", mixer.queuePrev, state, labelColW, mixer, gridStartX, 7, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-                    PatchGridRenderer.drawParamRow(session, "queue next", "Mixer/queueNext", mixer.queueNext, state, labelColW, mixer, gridStartX, 8, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+            // Dynamic/Sub Tabs
+            PatchGridTabs.drawSubTabs(session, state, mixer)
+            ImGui.spacing()
+            ImGui.spacing()
+
+            ImGui.separator()
+            ImGui.spacing()
+
+            // Column Headers
+            drawColumnHeaders(session, labelColW, state, mixer)
+
+            if (ImGui.beginChild("##patch_grid_scroll", 0f, 0f, false)) {
+                if (state.activeTopTab == "Mixer") {
+                    PatchGridTabs.drawSubGroupContent(session, "Mixer", "Mixer", state) {
+                        PatchGridRenderer.drawParamRow(session, "Deck A Source", "Deck A/FB/Source",   mixer.deckA.sourceSelect, state, labelColW, mixer, gridStartX, 0, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "Deck B Source", "Deck B/FB/Source",   mixer.deckB.sourceSelect, state, labelColW, mixer, gridStartX, 1, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "Deck C Source", "Deck C/FB/Source",   mixer.deckC.sourceSelect, state, labelColW, mixer, gridStartX, 2, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "crossfade",  "Mixer/crossfade",  mixer.crossfade,  state, labelColW, mixer, gridStartX, 3, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "master Alpha",   "Mixer/masterAlpha", mixer.masterAlpha, state, labelColW, mixer, gridStartX, 4, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "bloom",      "Mixer/bloom",       mixer.bloom,       state, labelColW, mixer, gridStartX, 5, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "fade speed",  "Mixer/xfadeSpeed",  mixer.xfadeSpeed,  state, labelColW, mixer, gridStartX, 6, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "queue prev", "Mixer/queuePrev", mixer.queuePrev, state, labelColW, mixer, gridStartX, 7, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                        PatchGridRenderer.drawParamRow(session, "queue next", "Mixer/queueNext", mixer.queueNext, state, labelColW, mixer, gridStartX, 8, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                    }
+                } else if (state.activeTopTab == "Deck A") {
+                    PatchGridTabs.drawDeckGroupContent(session, "Deck A", mixer.deckA, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                } else if (state.activeTopTab == "Deck B") {
+                    PatchGridTabs.drawDeckGroupContent(session, "Deck B", mixer.deckB, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
+                } else if (state.activeTopTab == "Deck C") {
+                    PatchGridTabs.drawDeckGroupContent(session, "Deck C", mixer.deckC, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
                 }
-            } else if (state.activeTopTab == "Deck A") {
-                PatchGridTabs.drawDeckGroupContent(session, "Deck A", mixer.deckA, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-            } else if (state.activeTopTab == "Deck B") {
-                PatchGridTabs.drawDeckGroupContent(session, "Deck B", mixer.deckB, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
-            } else if (state.activeTopTab == "Deck C") {
-                PatchGridTabs.drawDeckGroupContent(session, "Deck C", mixer.deckC, state, labelColW, mixer, gridStartX, { getCvColumns(session) }, { col -> getColumnOffset(session, col) }, ::getCvColor) { PatchGridUndo.pushUndoState(state, mixer) }
             }
+            ImGui.endChild()
+
+            ImGui.endTable()
         }
-        ImGui.endChild()
     }
 
     // -- Helpers --------------------------------------------------------------
@@ -195,25 +212,27 @@ object PatchGridPanel {
         }
 
         // Draw MIDI header
-        val midiColX = startX + labelColW + getColumnOffset(session, "midi")
-        dl.addLine(midiColX - CELL_PAD * 0.5f, startY, midiColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
-        
-        val isMidiHovered = mousePos.x >= midiColX && mousePos.x <= (midiColX + CELL) && mousePos.y >= startY && mousePos.y <= bottomY
-        if (isMidiHovered) {
-            dl.addRectFilled(midiColX, startY, midiColX + CELL, startY + headerH, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.08f), 3f)
-        }
-        
-        var twMidi = 0f
-        val labelMidi = "M\nI\nD\nI"
-        session.uiTheme.withFont(UITheme.FontLevel.CAPTION) { twMidi = ImGui.calcTextSize(labelMidi).x }
-        offsetX = ((CELL - twMidi) * 0.5f).coerceAtLeast(0f)
-        ImGui.setCursorScreenPos(midiColX + offsetX, startY)
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("midi"))
-        session.uiTheme.caption(labelMidi)
-        ImGui.popStyleColor()
-        val isMidiHeaderHovered = mousePos.x >= midiColX && mousePos.x <= (midiColX + CELL) && mousePos.y >= startY && mousePos.y <= (startY + headerH)
-        if (isMidiHeaderHovered && session.uiTheme.tooltipsEnabled) {
-            ImGui.setTooltip("MIDI: Map MIDI CC/Notes from controllers to modulate this parameter.")
+        if (session.uiTheme.showMidiCol) {
+            val midiColX = startX + labelColW + getColumnOffset(session, "midi")
+            dl.addLine(midiColX - CELL_PAD * 0.5f, startY, midiColX - CELL_PAD * 0.5f, bottomY, lineCol, 1f)
+            
+            val isMidiHovered = mousePos.x >= midiColX && mousePos.x <= (midiColX + CELL) && mousePos.y >= startY && mousePos.y <= bottomY
+            if (isMidiHovered) {
+                dl.addRectFilled(midiColX, startY, midiColX + CELL, startY + headerH, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.08f), 3f)
+            }
+            
+            var twMidi = 0f
+            val labelMidi = "M\nI\nD\nI"
+            session.uiTheme.withFont(UITheme.FontLevel.CAPTION) { twMidi = ImGui.calcTextSize(labelMidi).x }
+            offsetX = ((CELL - twMidi) * 0.5f).coerceAtLeast(0f)
+            ImGui.setCursorScreenPos(midiColX + offsetX, startY)
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, getCvColor("midi"))
+            session.uiTheme.caption(labelMidi)
+            ImGui.popStyleColor()
+            val isMidiHeaderHovered = mousePos.x >= midiColX && mousePos.x <= (midiColX + CELL) && mousePos.y >= startY && mousePos.y <= (startY + headerH)
+            if (isMidiHeaderHovered && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip("MIDI: Map MIDI CC/Notes from controllers to modulate this parameter.")
+            }
         }
 
         // Draw each column header vertically

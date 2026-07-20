@@ -9,6 +9,50 @@ import llm.slop.liquidlsd.parameters.ModulatableParameter
 import kotlin.math.roundToInt
 
 object PatchGridTabs {
+    fun drawLeftTabs(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState, topOffset: Float = 36f) {
+        if (topOffset > 0f) {
+            ImGui.dummy(0f, topOffset)
+        }
+        val tabs = listOf(
+            Triple("MIX", "Mixer", "Mixer controls, Deck sources, and Crossfader parameters."),
+            Triple("A",   "Deck A", "Deck A visual source, geometry, color, and feedback parameters."),
+            Triple("B",   "Deck B", "Deck B visual source, geometry, color, and feedback parameters."),
+            Triple("C",   "Deck C", "Deck C visual source, geometry, color, and feedback parameters.")
+        )
+        val buttonWidth = 38f
+        val buttonHeight = 28f
+
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 0f, 4f)
+        tabs.forEach { (shortLabel, fullTab, tooltipText) ->
+            val isActive = state.activeTopTab == fullTab
+            if (isActive) {
+                val activeCol = when (fullTab) {
+                    "Deck A" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 1f)
+                    "Deck B" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 1f)
+                    "Deck C" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.5f, 1f)
+                    else     -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f)
+                }
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        activeCol)
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, activeCol)
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  activeCol)
+            } else {
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        ImGui.colorConvertFloat4ToU32(0.12f, 0.12f, 0.12f, 1f))
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, ImGui.colorConvertFloat4ToU32(0.22f, 0.22f, 0.22f, 1f))
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,  ImGui.colorConvertFloat4ToU32(0.32f, 0.32f, 0.32f, 1f))
+            }
+
+            if (ImGui.button(shortLabel, buttonWidth, buttonHeight)) {
+                state.activeTopTab = fullTab
+            }
+            if (ImGui.isItemHovered() && session.uiTheme.tooltipsEnabled) {
+                ImGui.setTooltip(tooltipText)
+            }
+            ImGui.popStyleColor(3)
+        }
+        ImGui.popStyleVar()
+    }
+
+    /* Commented out in favor of drawLeftTabs; uncomment to use horizontal top tabs instead:
     fun drawTopTabs(session: llm.slop.liquidlsd.SessionContext, state: PatchGridState) {
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.ItemSpacing, 0f, 0f)
         val tabs = listOf("Mixer", "Deck A", "Deck B", "Deck C")
@@ -20,7 +64,7 @@ object PatchGridTabs {
                 val activeCol = when (tab) {
                     "Deck A" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.8f, 1f)
                     "Deck B" -> ImGui.colorConvertFloat4ToU32(0.8f, 0.4f, 0.2f, 1f)
-                    "Deck C" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.5f, 1f) // Emerald/Teal for Deck C
+                    "Deck C" -> ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.5f, 1f)
                     else     -> ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f)
                 }
                 ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,        activeCol)
@@ -38,6 +82,8 @@ object PatchGridTabs {
         }
         ImGui.popStyleVar()
     }
+    */
+
 
     private fun getDeckSubTabs(deck: Deck): List<String> {
         val tabs = mutableListOf<String>()

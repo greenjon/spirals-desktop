@@ -111,6 +111,38 @@ object UITheme {
         get() = settings.assetBrowserMode
         set(value) { settings = settings.copy(assetBrowserMode = value) }
 
+    var showMidiCol: Boolean
+        get() = settings.showMidiCol
+        set(value) { settings = settings.copy(showMidiCol = value) }
+
+    var showLfoCol: Boolean
+        get() = settings.showLfoCol
+        set(value) { settings = settings.copy(showLfoCol = value) }
+
+    var showAudioCol: Boolean
+        get() = settings.showAudioCol
+        set(value) { settings = settings.copy(showAudioCol = value) }
+
+    var showTriggerCol: Boolean
+        get() = settings.showTriggerCol
+        set(value) { settings = settings.copy(showTriggerCol = value) }
+
+    var col1Ratio: Float
+        get() = settings.col1Ratio
+        set(value) { settings = settings.copy(col1Ratio = value) }
+
+    var col2Ratio: Float
+        get() = settings.col2Ratio
+        set(value) { settings = settings.copy(col2Ratio = value) }
+
+    var assetBrowserRatio: Float
+        get() = settings.assetBrowserRatio
+        set(value) { settings = settings.copy(assetBrowserRatio = value) }
+
+    var lastCustomAssetBrowserRatio: Float
+        get() = settings.lastCustomAssetBrowserRatio
+        set(value) { settings = settings.copy(lastCustomAssetBrowserRatio = value) }
+
     init {
         loadSettings()
     }
@@ -206,6 +238,14 @@ object UITheme {
                     theme = try { Theme.valueOf(savedTheme) } catch (e: Exception) { Theme.BORING }
                     logger.info { "Loaded theme from settings file: $theme" }
                 }
+                props.getProperty("showMidiCol")?.toBooleanStrictOrNull()?.let { showMidiCol = it }
+                props.getProperty("showLfoCol")?.toBooleanStrictOrNull()?.let { showLfoCol = it }
+                props.getProperty("showAudioCol")?.toBooleanStrictOrNull()?.let { showAudioCol = it }
+                props.getProperty("showTriggerCol")?.toBooleanStrictOrNull()?.let { showTriggerCol = it }
+                props.getProperty("col1Ratio")?.toFloatOrNull()?.let { col1Ratio = it.coerceIn(0.10f, 0.70f) }
+                props.getProperty("col2Ratio")?.toFloatOrNull()?.let { col2Ratio = it.coerceIn(0.10f, 0.70f) }
+                props.getProperty("assetBrowserRatio")?.toFloatOrNull()?.let { assetBrowserRatio = it.coerceIn(0.10f, 0.90f) }
+                props.getProperty("lastCustomAssetBrowserRatio")?.toFloatOrNull()?.let { lastCustomAssetBrowserRatio = it.coerceIn(0.10f, 0.90f) }
             } else {
                 logger.info { "No settings file found, using default baseSize: $baseSize, audioEngineEnabled: $audioEngineEnabled, backgroundVideoEnabled: $backgroundVideoEnabled, tooltipsEnabled: $tooltipsEnabled, maxFps: $maxFps" }
             }
@@ -235,6 +275,14 @@ object UITheme {
             props.setProperty("queueKeyTrigger", queueKeyTrigger.name)
             props.setProperty("startupBehavior", startupBehavior.name)
             props.setProperty("theme", theme.name)
+            props.setProperty("showMidiCol", showMidiCol.toString())
+            props.setProperty("showLfoCol", showLfoCol.toString())
+            props.setProperty("showAudioCol", showAudioCol.toString())
+            props.setProperty("showTriggerCol", showTriggerCol.toString())
+            props.setProperty("col1Ratio", col1Ratio.toString())
+            props.setProperty("col2Ratio", col2Ratio.toString())
+            props.setProperty("assetBrowserRatio", assetBrowserRatio.toString())
+            props.setProperty("lastCustomAssetBrowserRatio", lastCustomAssetBrowserRatio.toString())
             settingsFile.outputStream().use { props.store(it, "Liquid LSD Settings") }
             logger.info { "Saved settings to file" }
         } catch (e: Exception) {

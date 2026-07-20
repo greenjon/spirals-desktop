@@ -2,6 +2,8 @@ package llm.slop.liquidlsd.ui
 
 data class MixerMonitorLayout(
     val contentWidth: Float,
+    val renderWidth: Float,
+    val offsetX: Float,
     val masterHeight: Float,
     val deckChildHeight: Float,
     val deckCHeight: Float
@@ -28,29 +30,37 @@ object MixerMonitorLayoutCalculator {
         val reservedScrollbarWidth = scrollbarWidth.coerceAtLeast(0f)
         val contentWidth = (windowWidth - (windowPaddingX * 2f) - reservedScrollbarWidth).coerceAtLeast(1f)
 
-        val halfWidth = ((contentWidth - TWO_DECK_PADDING) * 0.5f).coerceAtLeast(1f)
-        val desiredMasterHeight = contentWidth * ASPECT_16_9
-        val desiredDeckChildHeight = (halfWidth * ASPECT_16_9) + DECK_CHILD_EXTRA_HEIGHT
-        val desiredDeckCHeight = desiredMasterHeight
-
         val verticalChrome = estimateVerticalChrome(
             textLineHeightWithSpacing = textLineHeightWithSpacing,
             frameHeightWithSpacing = frameHeightWithSpacing,
             itemSpacingY = itemSpacingY
         )
-        val scalableHeight = desiredMasterHeight + desiredDeckChildHeight + desiredDeckCHeight
         val availableForPreviews = (availableHeight - verticalChrome).coerceAtLeast(0f)
-        val scale = if (scalableHeight > availableForPreviews && scalableHeight > 0f) {
-            (availableForPreviews / scalableHeight).coerceIn(0f, 1f)
+
+        // Calculate maximum allowed width to maintain exact 16:9 aspect ratios given available height.
+        // scalableHeight(W) = W * (9/16) + ( (W - 16)/2 * (9/16) + 10 ) + W * (9/16)
+        //                   = W * 1.40625f + 5.5f
+        val maxAllowedWidth = if (availableForPreviews > 5.5f) {
+            (availableForPreviews - 5.5f) / 1.40625f
         } else {
-            1f
+            contentWidth
         }
+
+        val renderWidth = contentWidth.coerceAtMost(maxAllowedWidth).coerceAtLeast(1f)
+        val offsetX = ((contentWidth - renderWidth) * 0.5f).coerceAtLeast(0f)
+
+        val halfWidth = ((renderWidth - TWO_DECK_PADDING) * 0.5f).coerceAtLeast(1f)
+        val desiredMasterHeight = renderWidth * ASPECT_16_9
+        val desiredDeckChildHeight = (halfWidth * ASPECT_16_9) + DECK_CHILD_EXTRA_HEIGHT
+        val desiredDeckCHeight = renderWidth * ASPECT_16_9
 
         return MixerMonitorLayout(
             contentWidth = contentWidth,
-            masterHeight = (desiredMasterHeight * scale).coerceAtLeast(MIN_MASTER_HEIGHT),
-            deckChildHeight = (desiredDeckChildHeight * scale).coerceAtLeast(MIN_DECK_CHILD_HEIGHT),
-            deckCHeight = (desiredDeckCHeight * scale).coerceAtLeast(MIN_DECK_C_HEIGHT)
+            renderWidth = renderWidth,
+            offsetX = offsetX,
+            masterHeight = desiredMasterHeight.coerceAtLeast(MIN_MASTER_HEIGHT),
+            deckChildHeight = desiredDeckChildHeight.coerceAtLeast(MIN_DECK_CHILD_HEIGHT),
+            deckCHeight = desiredDeckCHeight.coerceAtLeast(MIN_DECK_C_HEIGHT)
         )
     }
 
