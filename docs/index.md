@@ -23,3 +23,6 @@ Under-the-hood details of the application architecture, DSP engine, and renderin
 - **[Beat Sync & Stability](developer/beat_sync.md)**: Transient detection, median-filtered BPM estimation, and phase accumulation.
 - **[OpenGL Rendering](developer/rendering.md)**: Ping-pong framebuffers, shader compiles, and visual rendering math.
 - **[Operations & Tuning](developer/ops_tuning.md)**: JVM optimization flags (ZGC), PipeWire/JACK diagnostics, and troubleshooting.
+
+### [Release Notes](release_notes.md)
+Changelogs and version history across releases.

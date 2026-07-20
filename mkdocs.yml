@@ -39,3 +39,4 @@ nav:
     - OpenGL Rendering: developer/rendering.md
     - Patch & Queue Management: developer/patch_management.md
   - Operations & Tuning: developer/ops_tuning.md
+  - Release Notes: release_notes.md
